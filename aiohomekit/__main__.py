@@ -37,13 +37,12 @@ from .zeroconf import ZeroconfServiceListener
 
 logger = logging.getLogger(__name__)
 
-XDG_DATA_HOME = pathlib.Path.home() / ".local" / "share"
-DEFAULT_PAIRING_FILE = XDG_DATA_HOME / "aiohomekit" / "pairing.json"
-
+DEFAULT_PAIRING_FILE = "/Users/markparker/MarkParker5/integrations/broken/homekit/pairings.json"
+DEFAULT_CHARACTERISTICS_FILE = "/Users/markparker/MarkParker5/integrations/broken/homekit/charmap.json"
 
 @contextlib.asynccontextmanager
 async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
-    charmap_path = pathlib.Path(args.file).parent / "charmap.json"
+    charmap_path = DEFAULT_CHARACTERISTICS_FILE
 
     zeroconf = AsyncZeroconf()
 

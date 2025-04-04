@@ -51,6 +51,7 @@ class Controller(AbstractController):
     """
 
     pairings: dict[str, AbstractPairing]
+    aliases: dict[str, AbstractPairing] # TODO: (projectwide) remove duplication of aliases and pairings; keep only one storage; optionally add alias resolving system (alias->id loop or map)
 
     def __init__(
         self,
@@ -177,12 +178,12 @@ class Controller(AbstractController):
         """
         try:
             with open(filename, encoding="utf-8") as input_fp:
-                data = hkjson.loads(input_fp.read())
-                print(f'Controller loading data: {data}; from: {filename}')
-                for pairing_id in data:
+                pairings = hkjson.loads(input_fp.read())
+                # print(f'RC | Controller loading data: {pairings}; from: {filename}') # TODO: replace prints with debug logs
+                for alias, data in pairings.items():
                     try:
-                        self.load_pairing(pairing_id, data[pairing_id])
-                        print('Controller loaded: ', self.pairings, self.aliases)
+                        self.load_pairing(alias, data)
+                        # print('RC | Controller loaded item: ', self.pairings, self.aliases)
                     except TransportNotSupportedError as e:
                         logger.error("Skipped pairing: %s", e)
         except PermissionError:
@@ -201,13 +202,17 @@ class Controller(AbstractController):
         :param filename: the file name of the pairing data
         :raises ConfigSavingError: if the config could not be saved. The reason is given in the message.
         """
-        data = {}
-        print('Running edited save_data...') # worked
-        for controller in self.transports.values(): # didn't work
-            print(controller, controller.aliases)
-            for alias in controller.aliases:
-                data[alias] = controller.aliases[alias].pairing_data
-        print(data)
+        aliases = {}
+        # print('RC | Running edited save_data...')
+        # print('RC | pairings file: ', filename)
+
+        for controller in [self,] + list(self.transports.values()):
+            # print('Checking: ', controller, len(controller.aliases), len(controller.pairings))
+            for alias, pairing in controller.pairings.items():
+                aliases[alias] = pairing.pairing_data
+
+        # print('RC | Gathered data: ', aliases)
+
         path = pathlib.Path(filename)
 
         if not path.parent.exists():
@@ -215,7 +220,7 @@ class Controller(AbstractController):
 
         try:
             with open(filename, mode="w", encoding="utf-8") as output_fp:
-                output_fp.write(hkjson.dumps_indented(data))
+                output_fp.write(hkjson.dumps_indented(aliases))
         except PermissionError:
             raise ConfigSavingError(
                 f'Could not write "{filename}" due to missing permissions'
@@ -250,7 +255,7 @@ class Controller(AbstractController):
             # so that it stops getting updates that might
             # trigger a disconnected event poll.
             self.aliases.pop(alias, None)
-            pairing.controller.aliases.pop(alias, None)
+            pairing.controller.aliases.pop(alias, None) # TODO: call child.remove_pairing instead
 
             self.pairings.pop(pairing.id, None)
             pairing.controller.pairings.pop(pairing.id, None)
@@ -263,3 +268,5 @@ class Controller(AbstractController):
 
         finally:
             self._char_cache.async_delete_map(pairing.id)
+
+        # TODO: save the state

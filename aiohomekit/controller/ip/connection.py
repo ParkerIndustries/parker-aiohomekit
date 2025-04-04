@@ -720,7 +720,7 @@ class SecureHomeKitConnection(HomeKitConnection):
 
     @property
     def is_connected(self):
-        return super().is_connected and self.is_secure
+        return super().is_connected and self.is_secure != False
 
     async def _connect_once(self):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""

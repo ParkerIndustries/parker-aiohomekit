@@ -85,7 +85,7 @@ class AbstractPairing(metaclass=ABCMeta):
         self._shutdown = False
 
         self.id = pairing_data["AccessoryPairingID"]
-        self._pairing_data = pairing_data
+        self.pairing_data = pairing_data
         self._load_accessories_from_cache()
 
     @property
@@ -439,7 +439,7 @@ class AbstractController(metaclass=ABCMeta):
         self.aliases = {}
         self.discoveries = {}
 
-        self._char_cache = char_cache
+        self._char_cache = char_cache # TODO: Make similar pairings cache
 
     @property
     def transport_type(self) -> TransportType:
