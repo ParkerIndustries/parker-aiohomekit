@@ -178,9 +178,11 @@ class Controller(AbstractController):
         try:
             with open(filename, encoding="utf-8") as input_fp:
                 data = hkjson.loads(input_fp.read())
+                print(f'Controller loading data: {data}; from: {filename}')
                 for pairing_id in data:
                     try:
                         self.load_pairing(pairing_id, data[pairing_id])
+                        print('Controller loaded: ', self.pairings, self.aliases)
                     except TransportNotSupportedError as e:
                         logger.error("Skipped pairing: %s", e)
         except PermissionError:
@@ -200,9 +202,12 @@ class Controller(AbstractController):
         :raises ConfigSavingError: if the config could not be saved. The reason is given in the message.
         """
         data = {}
-        for alias in self.aliases:
-            data[alias] = self.aliases[alias].pairing_data
-
+        print('Running edited save_data...') # worked
+        for controller in self.transports.values(): # didn't work
+            print(controller, controller.aliases)
+            for alias in controller.aliases:
+                data[alias] = controller.aliases[alias].pairing_data
+        print(data)
         path = pathlib.Path(filename)
 
         if not path.parent.exists():

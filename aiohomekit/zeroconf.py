@@ -134,7 +134,7 @@ class ZeroconfServiceListener(ServiceListener):
         """A service has been updated."""
 
 
-def find_brower_for_hap_type(azc: AsyncZeroconf, hap_type: str) -> AsyncServiceBrowser:
+def find_broswer_for_hap_type(azc: AsyncZeroconf, hap_type: str) -> AsyncServiceBrowser:
     for browser in azc.zeroconf.listeners:
         if not isinstance(browser, AsyncServiceBrowser):
             continue
@@ -219,7 +219,7 @@ class ZeroconfController(AbstractController):
         if not zc:
             return self
 
-        self._browser = find_brower_for_hap_type(
+        self._browser = find_broswer_for_hap_type(
             self._async_zeroconf_instance, self.hap_type
         )
         self._browser.service_state_changed.register_handler(self._handle_service)
