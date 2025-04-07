@@ -162,7 +162,7 @@ class Services:
             self._type_to_service[service.type] = service
 
 
-class Characteristics:
+class Characteristics: # NOTE: duplicate?
     """Represents a list of HomeKit characteristics."""
 
     def __init__(self, services: Services) -> None:

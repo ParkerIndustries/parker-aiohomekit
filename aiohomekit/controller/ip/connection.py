@@ -372,7 +372,7 @@ class HomeKitConnection:
 
     async def get(self, target: str) -> HttpResponse:
         """
-        Sends a HTTP POST request to the current transport and returns an awaitable
+        Sends a HTTP GET request to the current transport and returns an awaitable
         that can be used to wait for a response.
         """
         return await self.request(
@@ -388,7 +388,7 @@ class HomeKitConnection:
         self, target: str, body: bytes, content_type=HttpContentTypes.JSON
     ) -> HttpResponse:
         """
-        Sends a HTTP POST request to the current transport and returns an awaitable
+        Sends a HTTP PUT request to the current transport and returns an awaitable
         that can be used to wait for a response.
         """
         return await self.request(

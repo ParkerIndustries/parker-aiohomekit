@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from aiohomekit.model import Accessory
 
 
-class Characteristics:
+class Characteristics: # NOTE: duplicate?
     """Represents a collection of characteristics."""
 
     _characteristics: list[Characteristic]
