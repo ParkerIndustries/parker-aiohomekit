@@ -76,7 +76,7 @@ class IpPairing(ZeroconfPairing):
     """
 
     def __init__(
-        self, controller: AbstractController, pairing_data: AbstractPairingData
+        self, controller: AbstractController, pairing_data: AbstractPairingData # NOTE: doesn't correspond; has AccessoryIP instead of AccessoryAddress
     ) -> None:
         """
         Initialize a Pairing by using the data either loaded from file or obtained after calling
@@ -560,9 +560,14 @@ class IpPairing(ZeroconfPairing):
 
         return resp.body
 
-    def _async_description_update(self, description: HomeKitService | None) -> None:
+    def _async_endpoint_changed(self) -> None:
         """We have new zeroconf metadata for this device."""
-        super()._async_description_update(description)
+        super()._async_endpoint_changed()
 
         # If we are not connected, or are in the process of reconnecting, hasten the process
         self.connection.reconnect_soon()
+
+        # Update cache so it can be saved later
+        # TODO: check for the same bug in other transports, consider moving it to a parent class
+        self.pairing_data['AccessoryIP'] = self.description.address # type: ignore
+        self.pairing_data['AccessoryIPs'] = self.description.addresses # type: ignore
