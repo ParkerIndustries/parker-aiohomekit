@@ -14,8 +14,10 @@
 # limitations under the License.
 #
 
+from enum import Enum
 
-class CharacteristicsTypes:
+
+class CharacteristicsTypes(str, Enum):
     """
     All known characteristic types.
 
