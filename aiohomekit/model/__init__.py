@@ -154,7 +154,7 @@ class Services:
         except StopIteration:
             return None
 
-    def append(self, service: Service) -> None:
+    def append(self, service: Service):
         """Add a service to the list of services."""
         self._services.append(service)
         self._iid_to_service[service.iid] = service
@@ -165,7 +165,7 @@ class Services:
 class Characteristics: # NOTE: duplicate?
     """Represents a list of HomeKit characteristics."""
 
-    def __init__(self, services: Services) -> None:
+    def __init__(self, services: Services):
         """Initialize a new list of characteristics."""
         self._services = services
 
@@ -177,7 +177,7 @@ class Characteristics: # NOTE: duplicate?
 class Accessory:
     """Represents a HomeKit accessory."""
 
-    def __init__(self, aid: int) -> None:
+    def __init__(self, aid: int):
         """Initialize a new accessory."""
         self.aid = aid
         self._next_id = 0
@@ -360,7 +360,7 @@ class Accessories:
 
     accessories: list[Accessory]
 
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialize a new list of accessories."""
         self.accessories = []
         self._aid_to_accessory: dict[int, Accessory] = {}
@@ -383,7 +383,7 @@ class Accessories:
             self.add_accessory(Accessory.create_from_dict(accessory))
         return self
 
-    def add_accessory(self, accessory: Accessory) -> None:
+    def add_accessory(self, accessory: Accessory):
         """Add an accessory to the list of accessories."""
         self.accessories.append(accessory)
         self._aid_to_accessory[accessory.aid] = accessory
@@ -438,3 +438,5 @@ class AccessoriesState:
     config_num: int
     broadcast_key: bytes | None = None
     state_num: int | None = None
+
+    def as_dict(self) -> dict[str, Any]: raise NotImplementedError() # TODO: implement if needed

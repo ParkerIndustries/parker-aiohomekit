@@ -28,7 +28,7 @@ from aiohomekit.characteristic_cache import (
     CharacteristicCacheMemory,
     CharacteristicCacheType,
 )
-from aiohomekit.controller.abstract import AbstractDiscovery
+from aiohomekit.controller.abstract import AbstractDiscovery, OnDiscoveryCallback
 import aiohomekit.hkjson as hkjson
 
 from ..const import (
@@ -50,7 +50,7 @@ class Controller(AbstractController):
     This class represents a HomeKit controller (normally your iPhone or iPad).
     """
 
-    pairings: dict[str, AbstractPairing]
+    pairings: dict[str, AbstractPairing] # TODO: annotate what the key is
     aliases: dict[str, AbstractPairing] # TODO: (projectwide) remove duplication of aliases and pairings; keep only one storage; optionally add alias resolving system (alias->id loop or map)
 
     def __init__(
@@ -58,12 +58,12 @@ class Controller(AbstractController):
         async_zeroconf_instance: AsyncZeroconf | None = None,
         char_cache: CharacteristicCacheType | None = None,
         bleak_scanner_instance: BleakScanner | None = None,
-    ) -> None:
+    ):
         """
         Initialize an empty controller. Use 'load_data()' to load the pairing data.
 
         :param ble_adapter: the bluetooth adapter to be used (defaults to hci0)
-        """
+        """ # TODO: update deprecated docstring
         super().__init__(char_cache=char_cache or CharacteristicCacheMemory())
 
         self._async_zeroconf_instance = async_zeroconf_instance
@@ -72,12 +72,12 @@ class Controller(AbstractController):
         self.transports: dict[TransportType, AbstractController] = {}
         self._tasks = AsyncExitStack()
 
-    async def _async_register_backend(self, controller: AbstractController) -> None:
+    async def _async_register_backend(self, controller: AbstractController):
         self.transports[controller.transport_type] = (
             await self._tasks.enter_async_context(controller)
         )
 
-    async def async_start(self) -> None:
+    async def async_start(self):
         if IP_TRANSPORT_SUPPORTED or self._async_zeroconf_instance:
             from .ip.controller import (
                 IpController,  # pylint: disable=import-outside-toplevel
@@ -114,7 +114,7 @@ class Controller(AbstractController):
                 )
             )
 
-    async def async_stop(self) -> None:
+    async def async_stop(self):
         await self._tasks.aclose()
 
     async def async_find(
@@ -149,12 +149,17 @@ class Controller(AbstractController):
     async def async_reachable(self, device_id: str, timeout=10) -> bool:
         raise NotImplementedError()
 
-    async def async_discover(self, timeout=10) -> AsyncIterable[AbstractDiscovery]:
-        for transport in self.transports.values():
+    async def async_discover(self, timeout=10) -> AsyncIterable[AbstractDiscovery]: # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
+        '''Returns already discovered and cached devices'''
+        for transport in self.transports.values(): # TODO: parallel
             async for device in transport.async_discover():
                 yield device
 
-    def load_pairing(self, alias: str, pairing_data: dict[str, str]) -> AbstractPairing:
+    def on_discovery(self, callback: OnDiscoveryCallback):
+        for transport in self.transports.values():
+            transport.on_discovery(callback)
+
+    def load_pairing(self, alias: str, pairing_data: dict[str, str]) -> AbstractPairing: # TODO: type pairing_data
         """
         Loads a pairing instance from a pairing data dict.
         """
@@ -169,7 +174,7 @@ class Controller(AbstractController):
 
         raise TransportNotSupportedError(pairing_data["Connection"])
 
-    def load_data(self, filename: str) -> None:
+    def load_data(self, filename: str):
         """
         Loads the pairing data of the controller from a file.
 
@@ -195,7 +200,7 @@ class Controller(AbstractController):
         except FileNotFoundError:
             pass
 
-    def save_data(self, filename: str) -> None:
+    def save_data(self, filename: str): # TODO: c'mon, refactor to pairings_storage protocol and call internally on change
         """
         Saves the pairing data of the controller to a file.
 
@@ -232,7 +237,7 @@ class Controller(AbstractController):
                 )
             )
 
-    async def remove_pairing(self, alias: str) -> None:
+    async def remove_pairing(self, alias: str):
         """
         Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
         accessory and the controller.

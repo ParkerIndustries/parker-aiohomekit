@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 class ChaCha20Poly1305Encryptor:
     """Encrypt data with ChaCha20Poly1305."""
 
-    def __init__(self, key: bytes) -> None:
+    def __init__(self, key: bytes):
         """Init the encryptor
 
         :param key: 256-bit (32-byte) key of type bytes
@@ -72,7 +72,7 @@ class ChaCha20Poly1305Encryptor:
 class ChaCha20Poly1305Decryptor:
     """Decrypt data with ChaCha20Poly1305."""
 
-    def __init__(self, key: bytes) -> None:
+    def __init__(self, key: bytes):
         """Init the decrypter
 
         :param key: 256-bit (32-byte) key of type bytes

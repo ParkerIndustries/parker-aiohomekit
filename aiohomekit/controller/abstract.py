@@ -15,6 +15,7 @@
 #
 
 from __future__ import annotations
+from typing import Self
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncIterable, Awaitable, Iterable
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractPairingData(TypedDict, total=False):
+    # TODO: recheck keys: has AccessoryIP vs AccessoryAddress
     AccessoryPairingID: str
     AccessoryLTPK: str
     iOSPairingId: str
@@ -67,21 +69,21 @@ class TransportType(Enum):
 class AbstractPairing(metaclass=ABCMeta):
     # The current discovery information for this pairing.
     # This can be used to detect address changes, s# changes, c# changes, etc
-    description: AbstractDescription | None = None
+    description: AbstractDescription | None = None # TODO: generic type annotation for AbstractDescription
 
     # The normalised (lower case) form of the device id (as seen in zeroconf
     # and BLE advertisements), and also as AccessoryPairingID i pairing data.
     id: str
 
     def __init__(
-        self, controller: AbstractController, pairing_data: AbstractPairingData
-    ) -> None:
+        self, controller: AbstractController, pairing_data: AbstractPairingData # TODO: generic type annotations, and check static code analysis
+    ):
         self.controller = controller
         self.listeners: set[Callable[[dict], None]] = set()
         self.subscriptions: set[tuple[int, int]] = set()
         self.availability_listeners: set[Callable[[bool], None]] = set()
         self.config_changed_listeners: set[Callable[[int], None]] = set()
-        self._accessories_state: AccessoriesState | None = None
+        self._accessories_state: AccessoriesState | None = None # TODO: make public
         self._shutdown = False
 
         self.id = pairing_data["AccessoryPairingID"]
@@ -161,8 +163,8 @@ class AbstractPairing(metaclass=ABCMeta):
                 logger.exception("Unhandled error when processing event")
 
     def _async_description_update(
-        self, description: AbstractDescription | None
-    ) -> None:
+        self, description: AbstractDescription | None # TODO: generic type annotation for AbstractDescription
+    ):
         if self._shutdown:
             return
 
@@ -210,7 +212,7 @@ class AbstractPairing(metaclass=ABCMeta):
         if repopulate_accessories:
             async_create_task(self._process_config_changed(description.config_num))
 
-    def _load_accessories_from_cache(self) -> None:
+    def _load_accessories_from_cache(self):
         if (cache := self.controller._char_cache.get_map(self.id)) is None:
             logger.debug(
                 "%s: No accessories cache available for this device", self.name
@@ -234,13 +236,13 @@ class AbstractPairing(metaclass=ABCMeta):
             bool(broadcast_key_hex),
         )
 
-    def restore_accessories_state(
+    def restore_accessories_state( # TODO: public up, private down
         self,
         accessories: list[dict[str, Any]],
         config_num: int,
         broadcast_key: bytes | None,
         state_num: int | None = None,
-    ) -> None:
+    ):
         """Restore accessories from cache."""
         accessories = Accessories.from_list(accessories)
         self._accessories_state = AccessoriesState(
@@ -275,13 +277,13 @@ class AbstractPairing(metaclass=ABCMeta):
     async def thread_provision(
         self,
         dataset: str,
-    ) -> None:
+    ):
         """Provision a device with Thread network credentials."""
 
     @abstractmethod
     async def async_populate_accessories_state(
         self, force_update: bool = False, attempts: int | None = None
-    ) -> None:
+    ):
         """Populate the state of all accessories.
 
         This method should try not to fetch all the accessories unless
@@ -289,15 +291,15 @@ class AbstractPairing(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    async def close(self) -> None:
+    async def close(self):
         """Close the connection."""
 
     @abstractmethod
-    async def list_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    async def list_accessories_and_characteristics(self) -> AccessoriesState: # TODO: rename to fetch, return models instead. Add option to get model.as_dict to simulate old behavior
         """List all accessories and characteristics."""
 
     @abstractmethod
-    async def list_pairings(self):
+    async def list_pairings(self): # TODO: type annotations
         """List pairings."""
 
     @abstractmethod
@@ -312,7 +314,7 @@ class AbstractPairing(metaclass=ABCMeta):
         """Get characteristics."""
 
     @abstractmethod
-    async def put_characteristics(self, characteristics):
+    async def put_characteristics(self, characteristics): # TODO: parse and annotate results
         """Put characteristics."""
 
     @abstractmethod
@@ -320,22 +322,22 @@ class AbstractPairing(metaclass=ABCMeta):
         """Identify the device."""
 
     @abstractmethod
-    async def remove_pairing(self, pairing_id: str) -> None:
+    async def remove_pairing(self, pairing_id: str): # TODO: why on earth does it need id of self
         """Remove a pairing."""
 
     @abstractmethod
-    async def _process_config_changed(self, config_num: int) -> None:
+    async def _process_config_changed(self, config_num: int):
         """Process a config change.
 
         This method is called when the config num changes.
         """
 
-    async def _shutdown_if_primary_pairing_removed(self, pairingId: str) -> None:
+    async def _shutdown_if_primary_pairing_removed(self, pairingId: str):
         """Shutdown the connection if the primary pairing was removed."""
         if pairingId == self._pairing_data.get("iOSPairingId"):
             await self.shutdown()
 
-    async def shutdown(self) -> None:
+    async def shutdown(self):
         """Shutdown the pairing.
 
         This method is irreversible. It should be called when
@@ -344,12 +346,12 @@ class AbstractPairing(metaclass=ABCMeta):
         self._shutdown = True
         await self.close()
 
-    def _callback_availability_changed(self, available: bool) -> None:
+    def _callback_availability_changed(self, available: bool):
         """Notify availability changed listeners."""
         for callback in self.availability_listeners:
             callback(available)
 
-    def _callback_and_save_config_changed(self, _config_num: int) -> None:
+    def _callback_and_save_config_changed(self, _config_num: int):
         """Notify config changed listeners and save the config."""
         for callback in self.config_changed_listeners:
             callback(self.config_num)
@@ -357,12 +359,12 @@ class AbstractPairing(metaclass=ABCMeta):
 
     async def subscribe(
         self, characteristics: Iterable[tuple[int, int]]
-    ) -> set[tuple[int, int]]:
+    ) -> set[tuple[int, int]]:  # TODO: parse and annotate results
         new_characteristics = set(characteristics) - self.subscriptions
         self.subscriptions.update(characteristics)
-        return new_characteristics
+        return new_characteristics # that's not the actual response, the actual one has status and reason
 
-    async def unsubscribe(self, characteristics: Iterable[tuple[int, int]]) -> None:
+    async def unsubscribe(self, characteristics: Iterable[tuple[int, int]]):
         self.subscriptions.difference_update(characteristics)
 
     def dispatcher_availability_changed(
@@ -392,7 +394,7 @@ class AbstractPairing(metaclass=ABCMeta):
         return stop_listening
 
     def dispatcher_connect(
-        self, callback: Callable[[dict], None]
+        self, callback: Callable[[dict], None] # TODO: 1. pass the pairing or it's id; 2. type annotation for the dict
     ) -> Callable[[], None]:
         """
         Register an event handler to be called when a characteristic (or multiple characteristics) change.
@@ -425,16 +427,22 @@ class AbstractDiscovery(metaclass=ABCMeta):
         """Start pairing."""
 
     @abstractmethod
-    async def async_identify(self) -> None:
+    async def async_identify(self):
         """Do an unpaired identify."""
 
 
-class AbstractController(metaclass=ABCMeta):
-    discoveries: dict[str, AbstractDiscovery]
-    pairings: dict[str, AbstractPairing]
-    aliases: dict[str, AbstractPairing]
 
-    def __init__(self, char_cache: CharacteristicCacheType) -> None:
+class AbstractController(metaclass=ABCMeta):
+
+    OnDiscoveryCallback = Callable[[Self, AbstractDiscovery], None]
+
+    discoveries: dict[str, AbstractDiscovery] # TODO: generic type annotation
+    pairings: dict[str, AbstractPairing] # TODO: generic type annotation
+    aliases: dict[str, AbstractPairing] # TODO: generic type annotation
+
+    _on_discovery_callback: OnDiscoveryCallback | None = None
+
+    def __init__(self, char_cache: CharacteristicCacheType):
         self.pairings = {}
         self.aliases = {}
         self.discoveries = {}
@@ -460,6 +468,12 @@ class AbstractController(metaclass=ABCMeta):
         pass
     """
 
+    # TODO: add def identify(id)
+
+    # TODO: add def fetch_state(id)
+
+    # TODO: add def fetch_all(id)
+
     @abstractmethod
     async def async_find(self, device_id: str, timeout=10) -> AbstractDiscovery:
         """Find a device by id."""
@@ -473,13 +487,17 @@ class AbstractController(metaclass=ABCMeta):
         """Discover all devices."""
 
     @abstractmethod
-    async def async_start(self) -> None:
+    async def async_start(self):
         """Start the controller."""
 
     @abstractmethod
-    async def async_stop(self) -> None:
+    async def async_stop(self):
         """Stop the controller."""
 
     @abstractmethod
     def load_pairing(self, alias: str, pairing_data: dict[str, str]) -> AbstractPairing:
         """Load a pairing from data."""
+
+    def on_discovery(self, callback: OnDiscoveryCallback):
+        """Register a callback to be called when a device is discovered."""
+        self._on_discovery_callback = callback

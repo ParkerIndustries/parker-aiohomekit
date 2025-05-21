@@ -43,14 +43,14 @@ class BleController(AbstractController):
         self,
         char_cache: CharacteristicCacheType,
         bleak_scanner_instance: BleakScanner | None = None,
-    ) -> None:
+    ):
         super().__init__(char_cache=char_cache)
         self._scanner = bleak_scanner_instance
         self._ble_futures: dict[str, list[asyncio.Future[BLEDevice]]] = {}
 
     def _device_detected(
         self, device: BLEDevice, advertisement_data: AdvertisementData
-    ) -> None:
+    ):
         manufacturer_data = advertisement_data.manufacturer_data
         if not (mfr_data := manufacturer_data.get(APPLE_MANUFACTURER_ID)):
             return
@@ -118,7 +118,7 @@ class BleController(AbstractController):
 
         self.discoveries[data.id] = BleDiscovery(self, device, data, advertisement_data)
 
-    async def async_start(self) -> None:
+    async def async_start(self):
         logger.debug("Starting BLE controller with instance: %s", self._scanner)
         if not self._scanner:
             try:

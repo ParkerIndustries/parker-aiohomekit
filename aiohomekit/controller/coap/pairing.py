@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 class CoAPPairing(ZeroconfPairing):
     def __init__(
         self, controller: AbstractController, pairing_data: AbstractPairingData
-    ) -> None:
+    ):
         self.connection = CoAPHomeKitConnection(
             self, pairing_data["AccessoryIP"], pairing_data["AccessoryPort"]
         )
@@ -48,7 +48,7 @@ class CoAPPairing(ZeroconfPairing):
 
         super().__init__(controller, pairing_data)
 
-    def _async_endpoint_changed(self) -> None:
+    def _async_endpoint_changed(self):
         """The IP/Port has changed, so close connection if active then reconnect."""
         self.connection.address = (
             f"[{self.description.address}]:{self.description.port}"
@@ -131,7 +131,7 @@ class CoAPPairing(ZeroconfPairing):
 
         return
 
-    async def close(self) -> None:
+    async def close(self):
         if self.connection.is_connected:
             await self.unsubscribe(list(self.subscriptions))
         return
@@ -161,7 +161,7 @@ class CoAPPairing(ZeroconfPairing):
         self._update_accessories_state_cache()
         return accessories
 
-    async def _process_config_changed(self, config_num: int) -> None:
+    async def _process_config_changed(self, config_num: int):
         """Process a config change.
 
         This method is called when the config num changes.
@@ -222,7 +222,7 @@ class CoAPPairing(ZeroconfPairing):
     async def thread_provision(
         self,
         dataset: str,
-    ) -> None:
+    ):
         """Provision a device with Thread network credentials."""
 
     async def subscribe(self, characteristics):

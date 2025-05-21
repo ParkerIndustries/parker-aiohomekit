@@ -48,7 +48,7 @@ class DecryptionKey:
 
 
 class BroadcastDecryptionKey:
-    def __init__(self, key: bytes) -> None:
+    def __init__(self, key: bytes):
         self.key = ChaCha20Poly1305PartialTag(key)
 
     def decrypt(

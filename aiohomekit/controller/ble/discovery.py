@@ -63,7 +63,7 @@ class BleDiscovery(AbstractDiscovery):
         device: BLEDevice,
         description: HomeKitAdvertisement,
         ble_advertisement: AdvertisementData,
-    ) -> None:
+    ):
         self.description = description
         self.controller = controller
         self.device = device
@@ -100,7 +100,7 @@ class BleDiscovery(AbstractDiscovery):
                 use_services_cache=True,
             )
 
-    def _async_disconnected(self, client: AIOHomeKitBleakClient) -> None:
+    def _async_disconnected(self, client: AIOHomeKitBleakClient):
         logger.debug("%s: Session closed callback; rssi=%s", self.name, self.rssi)
 
     async def _close(self):
@@ -202,7 +202,7 @@ class BleDiscovery(AbstractDiscovery):
 
         return finish_pairing
 
-    async def async_identify(self) -> None:
+    async def async_identify(self):
         if self.paired:
             raise RuntimeError(
                 f"{self.name}: Cannot anonymously identify a paired accessory"

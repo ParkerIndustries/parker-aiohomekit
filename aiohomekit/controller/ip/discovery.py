@@ -101,11 +101,13 @@ class IpDiscovery(ZeroconfDiscovery):
 
             await self.connection.close()
 
+            self.save_data() # TODO: save pairings so client doesn't have to
+
             return obj
 
         return finish_pairing
 
-    async def async_identify(self) -> None:
+    async def async_identify(self):
         await self._ensure_connected()
 
         response = await self.connection.post_json("/identify", {})

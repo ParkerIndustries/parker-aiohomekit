@@ -82,21 +82,21 @@ class ConnectionReady(Exception):
 class InsecureHomeKitProtocol(asyncio.Protocol):
     """An asyncio.Protocol implementation for HomeKit connections."""
 
-    def __init__(self, connection: HomeKitConnection) -> None:
+    def __init__(self, connection: HomeKitConnection):
         self.connection = connection
         self.result_cbs: list[asyncio.Future[HttpResponse]] = []
         self.current_response = HttpResponse()
         self.loop = asyncio.get_running_loop()
 
-    def connection_made(self, transport: asyncio.Transport) -> None:
+    def connection_made(self, transport: asyncio.Transport):
         super().connection_made(transport)
         self.transport = transport
 
-    def connection_lost(self, exception: Exception) -> None:
+    def connection_lost(self, exception: Exception):
         self.connection._connection_lost(exception)
         self._cancel_pending_requests()
 
-    def _handle_timeout(self, fut: asyncio.Future[Any]) -> None:
+    def _handle_timeout(self, fut: asyncio.Future[Any]):
         """Handle a timeout."""
         if not fut.done():
             fut.set_exception(asyncio.TimeoutError)
@@ -168,7 +168,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
     def close(self):
         self._cancel_pending_requests()
 
-    def _cancel_pending_requests(self) -> None:
+    def _cancel_pending_requests(self):
         # If the connection is closed then any pending callbacks will never
         # fire, so set them to an error state.
         while self.result_cbs:
@@ -182,7 +182,7 @@ class SecureHomeKitProtocol(InsecureHomeKitProtocol):
 
     def __init__(
         self, connection: HomeKitConnection, a2c_key: bytes, c2a_key: bytes
-    ) -> None:
+    ):
         super().__init__(connection)
 
         self._incoming_buffer: bytearray = bytearray()
@@ -211,7 +211,7 @@ class SecureHomeKitProtocol(InsecureHomeKitProtocol):
 
         return await self._send_lines(buffer)
 
-    def data_received(self, data: bytes) -> None:
+    def data_received(self, data: bytes):
         """
         Called by asyncio when data is received from a TCP socket.
 
@@ -254,7 +254,7 @@ class SecureHomeKitProtocol(InsecureHomeKitProtocol):
 class HomeKitConnection:
     def __init__(
         self, owner: IpPairing, hosts: list[str], port: int, concurrency_limit: int = 1
-    ) -> None:
+    ):
         self.owner = owner
         self.hosts = hosts
         self.port = port
@@ -291,7 +291,7 @@ class HomeKitConnection:
         """Return if the connection is active."""
         return self.transport and self.protocol and not self.closed
 
-    def _start_connector(self) -> None:
+    def _start_connector(self):
         """
         Start a reconnect background task.
 
@@ -306,7 +306,7 @@ class HomeKitConnection:
             return
         self._connector = async_create_task(self._reconnect())
 
-    def reconnect_soon(self) -> None:
+    def reconnect_soon(self):
         """Reconnect to the device if disconnected.
 
         If a reconnect is in progress, the reconnection wait is canceled
@@ -334,7 +334,7 @@ class HomeKitConnection:
         """Return the last error from the connector task."""
         return self._last_connector_error
 
-    async def ensure_connection(self) -> None:
+    async def ensure_connection(self):
         """
         Waits for a connection to the device.
 
@@ -349,7 +349,7 @@ class HomeKitConnection:
             # connector task so it continues to run if the timeout is hit.
             await asyncio.shield(self._connector)
 
-    async def _stop_connector(self) -> None:
+    async def _stop_connector(self):
         """
         Cancels any active reconnect tasks.
 
@@ -550,7 +550,7 @@ class HomeKitConnection:
 
         return resp
 
-    async def close(self) -> None:
+    async def close(self):
         """
         Close the connection transport.
         """
@@ -565,7 +565,7 @@ class HomeKitConnection:
         self.transport = None
         self.is_secure = None
 
-    def _connection_lost(self, exception: Exception) -> None:
+    def _connection_lost(self, exception: Exception):
         """
         Called by a Protocol instance when eof_received happens.
         """
@@ -580,7 +580,7 @@ class HomeKitConnection:
         else:
             self._start_connector()
 
-    async def _connect_once(self) -> None:
+    async def _connect_once(self):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""
         loop = asyncio.get_running_loop()
 
@@ -633,7 +633,7 @@ class HomeKitConnection:
         if self.owner:
             await self.owner.connection_made(False)
 
-    async def _reconnect(self) -> None:
+    async def _reconnect(self):
         # When the device is seen by zeroconf, call reconnect_soon
         # to force the reconnect wait to be canceled and _connect_once
         # will be called soon.
@@ -686,7 +686,7 @@ class HomeKitConnection:
                 finally:
                     self._reconnect_future = None
 
-    def event_received(self, event: HttpResponse) -> None:
+    def event_received(self, event: HttpResponse):
         if not self.owner:
             return
 
@@ -710,7 +710,7 @@ class HomeKitConnection:
 class SecureHomeKitConnection(HomeKitConnection):
     """A HomeKit connection that negotiates a secure session."""
 
-    def __init__(self, owner: IpPairing, pairing_data: dict[str, Any]) -> None:
+    def __init__(self, owner: IpPairing, pairing_data: dict[str, Any]):
         super().__init__(
             owner,
             pairing_data.get("AccessoryIPs", [pairing_data["AccessoryIP"]]),

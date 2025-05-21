@@ -28,7 +28,7 @@ class HttpResponse:
     STATE_BODY = 2
     STATE_DONE = 3
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._state = HttpResponse.STATE_PRE_STATUS
         self._raw_response = bytearray()
         self._is_ready = False

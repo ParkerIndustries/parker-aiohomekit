@@ -78,7 +78,7 @@ H_GROUP = bytes(
 class Srp:
     """HomeKit SRP implementation."""
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, username: str, password: str):
         self.g = GENERATOR_VALUE  # generator
         self.n = MODULUS_VALUE  # modulus
         self.hGroup = H_GROUP
@@ -148,7 +148,7 @@ class Srp:
     def get_shared_secret(self):
         raise NotImplementedError()
 
-    def _assert_public_keys(self) -> None:
+    def _assert_public_keys(self):
         if self.A_b is None:
             raise RuntimeError("Client's public key is missing")
         if self.B_b is None:
@@ -160,14 +160,14 @@ class SrpClient(Srp):
     Implements all functions that are required to simulate an iOS HomeKit controller
     """
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, username: str, password: str):
         super().__init__(username, password)
         self.a = self.generate_private_key()  # client's private key
         self.A = pow(self.g, self.a, self.n)  # public key
         self.A_b = pad_left(to_byte_array(self.A), HK_KEY_LENGTH)  # public key as bytes
         self.k = self._calculate_k()  # static k value
 
-    def set_salt(self, salt: int | bytearray) -> None:
+    def set_salt(self, salt: int | bytearray):
         if isinstance(salt, bytearray):
             self.salt = int.from_bytes(salt, "big")
         else:
@@ -182,7 +182,7 @@ class SrpClient(Srp):
     def get_public_key_bytes(self) -> bytes:
         return self.A_b
 
-    def set_server_public_key(self, B_b: bytearray | bytes) -> None:
+    def set_server_public_key(self, B_b: bytearray | bytes):
         assert isinstance(B_b, (bytes, bytearray)), "The public key must be a bytes"
         self.B_b = B_b
         self.B = int.from_bytes(B_b, "big")
@@ -235,7 +235,7 @@ class SrpServer(Srp):
     Implements all functions that are required to simulate an iOS HomeKit accessory
     """
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, username: str, password: str):
         super().__init__(username, password)
         self.salt_b = self._create_salt_bytes()
         self.salt = int.from_bytes(self.salt_b, "big")
@@ -256,7 +256,7 @@ class SrpServer(Srp):
         v = pow(self.g, hash_value, self.n)
         return v
 
-    def set_client_public_key(self, pub_key: int | bytes | bytearray) -> None:
+    def set_client_public_key(self, pub_key: int | bytes | bytearray):
         if isinstance(pub_key, int):
             self.A = pub_key
             self.A_b = pad_left(to_byte_array(self.A), HK_KEY_LENGTH)

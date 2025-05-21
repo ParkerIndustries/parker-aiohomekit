@@ -57,7 +57,7 @@ class _HapBleStatusCodes:
     INSUFFICIENT_AUTHENTICATION = 0x05
     INVALID_REQUEST = 0x06
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._codes = {
             _HapBleStatusCodes.SUCCESS: "The request was successful.",
             _HapBleStatusCodes.UNSUPPORTED_PDU: "The request failed as the HAP PDU was not recognized or supported.",

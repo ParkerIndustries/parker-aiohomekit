@@ -90,7 +90,7 @@ class Characteristic:
 
     service: Service
 
-    def __init__(self, service: Service, characteristic_type: str, **kwargs) -> None:
+    def __init__(self, service: Service, characteristic_type: str, **kwargs):
         self.service = service
         self.type = normalize_uuid(characteristic_type)
         self.iid = self._get_configuration(
@@ -172,7 +172,7 @@ class Characteristic:
     def available(self) -> bool:
         return self._status != HapStatusCode.UNABLE_TO_COMMUNICATE
 
-    def set_events(self, new_val: Any) -> None:
+    def set_events(self, new_val: Any):
         self.ev = new_val
 
     def set_value(self, new_val: Any) -> bool:
@@ -216,7 +216,7 @@ class Characteristic:
         return self._value
 
     @value.setter
-    def value(self, value: Any) -> None:
+    def value(self, value: Any):
         self.set_value(value)
 
     def validate_value(self, new_val: Any) -> Any:

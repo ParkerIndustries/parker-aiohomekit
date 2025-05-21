@@ -33,12 +33,12 @@ class Characteristics: # NOTE: duplicate?
 
     _characteristics: list[Characteristic]
 
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialise a collection of characteristics."""
         self._characteristics = []
         self._iid_to_characteristic: dict[int, Characteristic] = {}
 
-    def append(self, char: Characteristic) -> None:
+    def append(self, char: Characteristic):
         """Add a characteristic."""
         self._characteristics.append(char)
         self._iid_to_characteristic[char.iid] = char
@@ -86,7 +86,7 @@ class Service:
         name: str | None = None,
         add_required: bool = False,
         iid: int | None = None,
-    ) -> None:
+    ):
         """Initialise a service."""
         self.type = normalize_uuid(service_type)
 
@@ -133,7 +133,7 @@ class Service:
         """Get a characteristic by iid."""
         return self.characteristics.get(iid)
 
-    def add_linked_service(self, service: Service) -> None:
+    def add_linked_service(self, service: Service):
         """Add a linked service."""
         self.linked.append(service)
 

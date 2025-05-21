@@ -1,7 +1,7 @@
 from aiohomekit.meshcop import Meshcop
 
 
-def test_parse_tlv() -> None:
+def test_parse_tlv():
     """Test the TLV parser."""
     dataset_tlv = (
         "0E080000000000010000000300000F35060004001FFFE0020811111111222222220708FDAD70BF"

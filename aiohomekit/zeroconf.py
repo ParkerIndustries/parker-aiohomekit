@@ -104,7 +104,7 @@ class HomeKitService:
         if "id" not in props:
             raise ValueError("Invalid HomeKit Zeroconf record: Missing device ID")
 
-        return cls(
+        return cls( # NOTE: looks important
             name=service.name.removesuffix(f".{service.type}"),
             id=props["id"].lower(),
             model=props.get("md", ""),
@@ -124,13 +124,13 @@ class HomeKitService:
 class ZeroconfServiceListener(ServiceListener):
     """An empty service listener."""
 
-    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+    def add_service(self, zc: Zeroconf, type_: str, name: str):
         """A service has been added."""
 
-    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+    def remove_service(self, zc: Zeroconf, type_: str, name: str):
         """A service has been removed."""
 
-    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+    def update_service(self, zc: Zeroconf, type_: str, name: str):
         """A service has been updated."""
 
 
@@ -158,11 +158,11 @@ class ZeroconfDiscovery(AbstractDiscovery):
 class ZeroconfPairing(AbstractPairing):
     description: HomeKitService
 
-    def _async_endpoint_changed(self) -> None:
+    def _async_endpoint_changed(self):
         """The IP and/or port of the accessory has changed."""
-        pass
+        pass # handled in _async_description_update
 
-    def _async_description_update(self, description: HomeKitService | None) -> None:
+    def _async_description_update(self, description: HomeKitService | None):
         old_description = self.description
 
         super()._async_description_update(description)
@@ -201,6 +201,7 @@ class ZeroconfController(AbstractController):
     """
 
     hap_type: str
+    # TODO: annotate all attributes
 
     def __init__(
         self,
@@ -227,7 +228,7 @@ class ZeroconfController(AbstractController):
 
         return self
 
-    async def _async_update_from_cache(self, zc: Zeroconf) -> None:
+    async def _async_update_from_cache(self, zc: Zeroconf):
         """Load the records from the cache."""
         tasks: list[asyncio.Task] = []
         now = current_time_millis()
@@ -257,7 +258,7 @@ class ZeroconfController(AbstractController):
         service_type: str,
         name: str,
         state_change: ServiceStateChange,
-    ) -> None:
+    ):
         if service_type != self.hap_type:
             return
 
@@ -281,7 +282,7 @@ class ZeroconfController(AbstractController):
             self._loop.time() + 0.5, self._async_resolve_later, name, info
         )
 
-    def _async_resolve_later(self, name: str, info: AsyncServiceInfo) -> None:
+    def _async_resolve_later(self, name: str, info: AsyncServiceInfo):
         """Resolve a host later."""
         # As soon as we get a callback, we can remove the _resolve_later
         # so the next time we get a callback, we can resolve the service
@@ -345,7 +346,7 @@ class ZeroconfController(AbstractController):
         zc = self._async_zeroconf_instance.zeroconf
         return info.load_from_cache(zc) or await info.async_request(zc, _TIMEOUT_MS)
 
-    def _async_on_timeout(self, future: asyncio.Future) -> None:
+    def _async_on_timeout(self, future: asyncio.Future):
         if not future.done():
             future.set_exception(asyncio.TimeoutError())
 
@@ -359,7 +360,7 @@ class ZeroconfController(AbstractController):
         await info.async_request(self._async_zeroconf_instance.zeroconf, _TIMEOUT_MS)
         self._async_handle_loaded_service_info(info)
 
-    def _async_handle_loaded_service_info(self, info: AsyncServiceInfo) -> None:
+    def _async_handle_loaded_service_info(self, info: AsyncServiceInfo):
         """Handle a service info that was discovered via zeroconf."""
         try:
             description = HomeKitService.from_service_info(info)
@@ -388,6 +389,9 @@ class ZeroconfController(AbstractController):
             for waiter in waiters:
                 if not waiter.cancelled() and not waiter.done():
                     waiter.set_result(discovery)
+
+        if callback := self._on_discovery_callback:
+            callback(self, discovery)
 
     @abstractmethod
     def _make_discovery(self, description: HomeKitService) -> AbstractDiscovery:

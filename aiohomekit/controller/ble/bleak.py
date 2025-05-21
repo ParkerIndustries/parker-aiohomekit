@@ -63,7 +63,7 @@ def _determine_fragment_size(
 class AIOHomeKitBleakClient(BleakClientWithServiceCache):
     """Wrapper for bleak.BleakClient that auto discovers the max mtu."""
 
-    def __init__(self, address_or_ble_device: BLEDevice | str, **kwargs: Any) -> None:
+    def __init__(self, address_or_ble_device: BLEDevice | str, **kwargs: Any):
         """Wrap bleak."""
         super().__init__(address_or_ble_device, **kwargs)
         if isinstance(address_or_ble_device, BLEDevice):

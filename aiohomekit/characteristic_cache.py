@@ -1,5 +1,5 @@
 #
-# Copyright 2022 aiohomekit team
+# Copyright 2022 aiohomekit team # TODO: check and update the license
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import pathlib
 from typing import Any, Protocol, TypedDict
 
 import aiohomekit.hkjson as hkjson
+from lark.exceptions import UnexpectedToken
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +43,13 @@ class Pairing(TypedDict):
     broadcast_key: str | None
     state_num: int | None
 
-
 class StorageLayout(TypedDict):
     """Cached pairing metadata needed by aiohomekit."""
 
     pairings: dict[str, Pairing]
 
+class CharacteristicCacheType(Protocol): # TODO: split classes into files
 
-class CharacteristicCacheType(Protocol):
     def get_map(self, homekit_id: str) -> Pairing | None:
         pass
 
@@ -63,12 +63,12 @@ class CharacteristicCacheType(Protocol):
     ) -> Pairing:
         pass
 
-    def async_delete_map(self, homekit_id: str) -> None:
+    def async_delete_map(self, homekit_id: str):
         pass
 
-
 class CharacteristicCacheMemory:
-    def __init__(self) -> None:
+
+    def __init__(self):
         """Create a new entity map store."""
         self.storage_data: dict[str, Pairing] = {}
 
@@ -94,54 +94,59 @@ class CharacteristicCacheMemory:
         self.storage_data[homekit_id] = data
         return data
 
-    def async_delete_map(self, homekit_id: str) -> None:
+    def async_delete_map(self, homekit_id: str):
         """Delete pairing cache."""
         if homekit_id not in self.storage_data:
             return
 
         self.storage_data.pop(homekit_id)
 
-
 class CharacteristicCacheFile(CharacteristicCacheMemory):
-    def __init__(self, location: pathlib.Path) -> None:
+    def __init__(self, location: pathlib.Path):
         """Create a new entity map store."""
         super().__init__()
 
         self.location = location
-        if location.exists():
-            with open(location, encoding="utf-8") as fp:
-                try:
-                    self.storage_data = hkjson.loads(fp.read())["pairings"]
-                except hkjson.JSON_DECODE_EXCEPTIONS:
-                    logger.debug(
-                        "Characteristic cache was corrupted, proceeding with cold cache"
-                    )
+        if not location.exists():
+            return # TODO: try create, log
+
+        with open(location, encoding="utf-8") as fp:
+            try:
+                self.storage_data = hkjson.loads(fp.read())["pairings"]
+                # print('CLI | Loaded characteristics: ', self.storage_data)
+            except hkjson.JSON_DECODE_EXCEPTIONS as e:
+                self._do_save() # write a correct empty schema to replace the corrupted cache
+                logger.debug(
+                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self.storage_data}"
+                )
+            except (UnexpectedToken, TypeError, KeyError) as e:
+                self._do_save() # write a correct schema to replace the corrupted cache
+                logger.debug(
+                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self.storage_data}"
+                )
 
     def async_create_or_update_map(
         self,
         homekit_id: str,
         config_num: int,
-        accessories: list[Any],
-        broadcast_key: bytes | None = None,
+        accessories: list[Any], # TODO: better type annotation
+        broadcast_key: str | None = None, # TODO: check broadcast_key: str vs bytes everywhere
         state_num: int | None = None,
     ) -> Pairing:
-        """Create a new pairing cache."""
         data = super().async_create_or_update_map(
             homekit_id, config_num, accessories, broadcast_key, state_num
         )
         self._do_save()
         return data
 
-    def async_delete_map(self, homekit_id: str) -> None:
-        """Delete pairing cache."""
+    def async_delete_map(self, homekit_id: str):
         super().async_delete_map(homekit_id)
         self._do_save()
 
-    def _do_save(self) -> None:
-        """Schedule saving the entity map cache."""
+    def _do_save(self):
         with open(self.location, mode="w", encoding="utf-8") as fp:
             fp.write(hkjson.dumps(self._data_to_save()))
 
-    def _data_to_save(self) -> dict[str, Any]:
+    def _data_to_save(self) -> StorageLayout:
         """Return data of entity map to store in a file."""
-        return StorageLayout(pairings=self.storage_data)
+        return StorageLayout(pairings=self.storage_data if self.storage_data else {})

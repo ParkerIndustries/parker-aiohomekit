@@ -34,7 +34,7 @@ def async_create_task(coroutine: Awaitable[T], *, name=None) -> asyncio.Task[T]:
     return task
 
 
-def _handle_task_result(task: asyncio.Task) -> None:
+def _handle_task_result(task: asyncio.Task):
     """Handle the result of a task."""
     try:
         task.result()
@@ -71,7 +71,7 @@ def clamp_enum_to_char(
     return valid_values
 
 
-def check_pin_format(pin: str) -> None:
+def check_pin_format(pin: str):
     """
     Checks the format of the given pin: XXX-XX-XXX with X being a digit from 0 to 9
 

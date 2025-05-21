@@ -56,7 +56,7 @@ KEY_OVERHEAD_SIZE = 16
 class PDUStatusError(Exception):
     """Raised when the PDU status is not success."""
 
-    def __init__(self, status: PDUStatus, message: str) -> None:
+    def __init__(self, status: PDUStatus, message: str):
         """Initialize a PDUStatusError."""
         super().__init__(message)
         self.status = status
@@ -71,7 +71,7 @@ def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
 
     async def _async_disconnect_on_missing_services_wrap(
         self, *args: Any, **kwargs: Any
-    ) -> None:
+    ):
         try:
             return await func(self, *args, **kwargs)
         except (BleakServiceMissing, BleakCharacteristicMissing) as ex:
@@ -111,7 +111,7 @@ async def _write_pdu(
     iid: int,
     data: bytes,
     tid: int,
-) -> None:
+):
     """Write a PDU to the accessory."""
     fragment_size = client.determine_fragment_size(
         KEY_OVERHEAD_SIZE if encryption_key else 0, handle
@@ -176,7 +176,7 @@ async def _read_pdu(
     return status, data
 
 
-def raise_for_pdu_status(client: BleakClient, pdu_status: PDUStatus) -> None:
+def raise_for_pdu_status(client: BleakClient, pdu_status: PDUStatus):
     """Raise on non-success PDU status."""
     if pdu_status != PDUStatus.SUCCESS:
         raise PDUStatusError(

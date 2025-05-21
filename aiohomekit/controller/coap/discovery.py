@@ -49,7 +49,7 @@ class CoAPDiscovery(ZeroconfDiscovery):
         """
         return
 
-    async def async_identify(self) -> None:
+    async def async_identify(self):
         return await self.connection.do_identify()
 
     async def async_start_pairing(self, alias: str) -> FinishPairing:

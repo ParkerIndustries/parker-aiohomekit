@@ -44,7 +44,7 @@ class _HttpStatusCodes:
     CONNECTION_AUTHORIZATION_REQUIRED = 470
     INTERNAL_SERVER_ERROR = 500
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._codes = {
             _HttpStatusCodes.OK: "OK",
             _HttpStatusCodes.NO_CONTENT: "No Content",

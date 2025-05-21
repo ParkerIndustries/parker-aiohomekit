@@ -70,7 +70,7 @@ def ble_controller(mock_bleak_scanner: MagicMock) -> BleController:
 
 def test_discovery_with_none_name(
     mock_bleak_scanner: MagicMock, ble_controller: BleController
-) -> None:
+):
     ble_device_with_short_name = generate_ble_device(
         name="Nam", address="00:00:00:00:00:00"
     )

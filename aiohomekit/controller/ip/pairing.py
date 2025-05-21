@@ -77,7 +77,7 @@ class IpPairing(ZeroconfPairing):
 
     def __init__(
         self, controller: AbstractController, pairing_data: AbstractPairingData # NOTE: doesn't correspond; has AccessoryIP instead of AccessoryAddress
-    ) -> None:
+    ):
         """
         Initialize a Pairing by using the data either loaded from file or obtained after calling
         Controller.perform_pairing().
@@ -162,7 +162,7 @@ class IpPairing(ZeroconfPairing):
 
         self._callback_availability_changed(True)
 
-    async def close(self) -> None:
+    async def close(self):
         """
         Close the pairing's communications. This closes the session.
         """
@@ -195,7 +195,7 @@ class IpPairing(ZeroconfPairing):
         self._update_accessories_state_cache()
         return accessories
 
-    async def list_pairings(self):
+    async def list_pairings(self): # TODO: return type annotation
         """
         This method returns all pairings of a HomeKit accessory. This always includes the local controller and can only
         be done by an admin controller.
@@ -335,7 +335,7 @@ class IpPairing(ZeroconfPairing):
     async def thread_provision(
         self,
         dataset: str,
-    ) -> None:
+    ):
         """Provision a device with Thread network credentials."""
 
     async def subscribe(self, characteristics):
@@ -415,7 +415,7 @@ class IpPairing(ZeroconfPairing):
         if not self.accessories or force_update:
             await self.list_accessories_and_characteristics()
 
-    async def _process_config_changed(self, config_num: int) -> None:
+    async def _process_config_changed(self, config_num: int):
         """Process a config change.
 
         This method is called when the config num changes.
@@ -560,7 +560,7 @@ class IpPairing(ZeroconfPairing):
 
         return resp.body
 
-    def _async_endpoint_changed(self) -> None:
+    def _async_endpoint_changed(self):
         """We have new zeroconf metadata for this device."""
         super()._async_endpoint_changed()
 
@@ -569,5 +569,8 @@ class IpPairing(ZeroconfPairing):
 
         # Update cache so it can be saved later
         # TODO: check for the same bug in other transports, consider moving it to a parent class
-        self.pairing_data['AccessoryIP'] = self.description.address # type: ignore
-        self.pairing_data['AccessoryIPs'] = self.description.addresses # type: ignore
+        self.pairing_data['AccessoryIP'] = self.description.address # type: ignore # TODO: fix
+        self.pairing_data['AccessoryIPs'] = self.description.addresses # type: ignore # TODO: fix
+
+        # TODO: call controller.save_data or better controler.update_pairing(id, self.pairing_data) to fix the ip change bug
+        # currently client must save_data manually as a workaround

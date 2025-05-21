@@ -80,7 +80,7 @@ def pin_from_keyboard():
     return read_pin
 
 
-def setup_logging(level: None) -> None:
+def setup_logging(level: None):
     """
     Set up the logging to use a decent format and the log level given as parameter.
     :param level: the log level used for the root logger
@@ -96,7 +96,7 @@ def setup_logging(level: None) -> None:
         logging.getLogger().setLevel(numeric_level)
 
 
-def add_log_arguments(parser: ArgumentParser) -> None:
+def add_log_arguments(parser: ArgumentParser):
     """
     Adds command line arguments to control logging behaviour.
     :param parser: The argparse.ArgumentParser object to add to.
@@ -400,13 +400,13 @@ async def get_events(args):
         return True
 
 
-def setup_parser_for_pairing(parser: ArgumentParser) -> None:
+def setup_parser_for_pairing(parser: ArgumentParser):
     parser.add_argument(
         "-a", action="store", required=True, dest="alias", help="alias for the pairing"
     )
 
 
-async def main(argv: list[str] | None = None) -> None:
+async def main(argv: list[str] | None = None):
     argv = argv or sys.argv[1:]
 
     parser = argparse.ArgumentParser(

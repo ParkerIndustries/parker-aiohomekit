@@ -103,7 +103,7 @@ class FakeDiscovery(AbstractDiscovery):
 
         return finish_pairing
 
-    async def async_identify(self) -> None:
+    async def async_identify(self):
         """Trigger an identify routinue."""
 
 
@@ -214,7 +214,7 @@ class FakePairing(AbstractPairing):
         controller: AbstractController,
         pairing_data: AbstractPairingData,
         accessories: Accessories,
-    ) -> None:
+    ):
         """Create a fake pairing from an accessory model."""
         super().__init__(controller, pairing_data)
 
@@ -281,7 +281,7 @@ class FakePairing(AbstractPairing):
         self._ensure_connected()
         return True
 
-    async def _process_config_changed(self, config_num: int) -> None:
+    async def _process_config_changed(self, config_num: int):
         await self.list_accessories_and_characteristics()
         self._accessories_state = AccessoriesState(
             self._accessories_state.accessories, config_num
@@ -330,7 +330,7 @@ class FakePairing(AbstractPairing):
     async def thread_provision(
         self,
         dataset: str,
-    ) -> None:
+    ):
         # This ultimately needs refactoring so that we can have multiple test transports loaded
         # rather than patching this one to be COAP.
         self.pairing_data["Connection"] = "CoAP"
@@ -378,10 +378,10 @@ class FakeController(AbstractController):
         )
         return await finish_pairing(discovery.pairing_code)
 
-    async def async_start(self) -> None:
+    async def async_start(self):
         self.started = True
 
-    async def async_stop(self) -> None:
+    async def async_stop(self):
         self.started = False
 
     async def async_discover(
@@ -399,7 +399,7 @@ class FakeController(AbstractController):
     async def async_reachable(self, device_id: str, timeout=10) -> bool:
         return True
 
-    async def remove_pairing(self, alias: str) -> None:
+    async def remove_pairing(self, alias: str):
         pairing = self.aliases[alias]
         del self.pairings[self.aliases[alias].id]
         del self.aliases[alias]
