@@ -248,7 +248,7 @@ class IpPairing(ZeroconfPairing):
         characteristics: Iterable[tuple[int, int]],
     ) -> dict[tuple[int, int], dict[str, Any]]:
         """
-        This method is used to get the current readouts of any characteristic of the accessory.
+        This method is used to get the current cached readouts of any characteristic of the accessory.
 
         :param characteristics: a list of 2-tupels of accessory id and instance id
         :param include_meta: if True, include meta information about the characteristics. This contains the format and

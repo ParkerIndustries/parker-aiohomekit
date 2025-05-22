@@ -207,10 +207,8 @@ class Accessory:
         accessory_info.add_char(CharacteristicsTypes.NAME, value=name)
         accessory_info.add_char(CharacteristicsTypes.MANUFACTURER, value=manufacturer)
         accessory_info.add_char(CharacteristicsTypes.MODEL, value=model)
+        accessory_info.add_char(CharacteristicsTypes.FIRMWARE_REVISION, value=firmware_revision)
         accessory_info.add_char(CharacteristicsTypes.SERIAL_NUMBER, value=serial_number)
-        accessory_info.add_char(
-            CharacteristicsTypes.FIRMWARE_REVISION, value=firmware_revision
-        )
 
         return self
 

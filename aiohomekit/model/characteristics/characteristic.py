@@ -78,17 +78,30 @@ def strtobool(val):
 
 
 class Characteristic:
-    type: str
     iid: int
+    description: str | None
+    type: str # TODO: UUID
     perms: list[str]
+    ev: Any
+    format: str | None
+    unit: str | None
     minValue: int | float | None
     maxValue: int | float | None
     minStep: int | float | None
-    handle: int | None = None
-    broadcast_events: bool = False
-    disconnected_events: bool = False
+    maxLen: int
+    valid_values: list[Any] | None
 
-    service: Service
+    # static
+    maxDataLen: int
+
+    # undocumented
+    handle: int | None
+    broadcast_events: bool | None
+    disconnected_events: bool | None
+    valid_values_range: tuple[int | float, int | float] | None
+    _value: Any
+    _status: HapStatusCode
+    service: "Service"
 
     def __init__(self, service: Service, characteristic_type: str, **kwargs):
         self.service = service

@@ -35,35 +35,35 @@ from lark.exceptions import UnexpectedToken
 logger = logging.getLogger(__name__)
 
 
-class Pairing(TypedDict):
+class Pairing(TypedDict): # TODO: rename to PairingData or DeviceDataModel or something, check for duplication
     """A versioned map of entity metadata as presented by aiohomekit."""
 
     config_num: int
-    accessories: list[Any]
+    accessories: list[Any] # TODO: better type annotation
     broadcast_key: str | None
     state_num: int | None
 
 class StorageLayout(TypedDict):
     """Cached pairing metadata needed by aiohomekit."""
 
-    pairings: dict[str, Pairing]
+    pairings: dict[str, Pairing] # TODO: type dict and name the key
 
 class CharacteristicCacheType(Protocol): # TODO: split classes into files
 
-    def get_map(self, homekit_id: str) -> Pairing | None:
+    def get_map(self, homekit_id: str) -> Pairing | None: # TODO: better names
         pass
 
     def async_create_or_update_map(
         self,
-        homekit_id: str,
+        homekit_id: str, # TODO: better name for homekit_id
         config_num: int,
-        accessories: list[Any],
+        accessories: list[Any], # TODO: better type annotation
         broadcast_key: str | None = None,
         state_num: int | None = None,
     ) -> Pairing:
         pass
 
-    def async_delete_map(self, homekit_id: str):
+    def async_delete_map(self, homekit_id: str): # TODO: better name
         pass
 
 class CharacteristicCacheMemory:

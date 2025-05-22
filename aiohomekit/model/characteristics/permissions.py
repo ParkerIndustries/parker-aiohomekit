@@ -26,3 +26,4 @@ class CharacteristicPermissions:
     addition_authorization = "aa"
     timed_write = "tw"
     hidden = "hd"
+    write_response = "wr"
