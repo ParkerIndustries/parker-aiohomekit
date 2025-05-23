@@ -137,7 +137,7 @@ class CoAPPairing(ZeroconfPairing):
         return
 
     def event_received(self, event):
-        self._callback_listeners(event)
+        self._callback_characteristic_listeners(event)
 
     async def identify(self):
         await self._ensure_connected()
@@ -215,7 +215,7 @@ class CoAPPairing(ZeroconfPairing):
                 listener_update[(aid, iid)] = {"value": value}
 
         if listener_update:
-            self._callback_listeners(listener_update)
+            self._callback_characteristic_listeners(listener_update)
 
         return response_status
 

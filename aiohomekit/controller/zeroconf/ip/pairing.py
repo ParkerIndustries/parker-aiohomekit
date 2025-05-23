@@ -104,14 +104,14 @@ class IpPairing(ZeroconfPairing):
         return f"[{host}:{connection.port}] (id={self.id})"
 
     def event_received(self, event):
-        self._callback_listeners(_format_characteristic_list(event))
+        self._callback_characteristic_listeners(_format_characteristic_list(event))
 
     async def connection_made(self, secure):
         if not secure:
             return
 
         # Let our listeners know the connection is available again
-        self._callback_listeners(EMPTY_EVENT)
+        self._callback_characteristic_listeners(EMPTY_EVENT)
 
         if self.subscriptions:
             await self.subscribe(self.subscriptions)
@@ -313,7 +313,7 @@ class IpPairing(ZeroconfPairing):
                 response_status[key] = {"status": status, "description": status_code}
 
         if listener_update:
-            self._callback_listeners(listener_update)
+            self._callback_characteristic_listeners(listener_update)
 
         return response_status
 
@@ -323,7 +323,7 @@ class IpPairing(ZeroconfPairing):
     ):
         """Provision a device with Thread network credentials."""
 
-    async def subscribe(self, characteristics):
+    async def subscribe(self, characteristics): # TODO: annotate return
         await super().subscribe(set(characteristics))
 
         if not self.supports_subscribe:
@@ -346,7 +346,7 @@ class IpPairing(ZeroconfPairing):
             self.supports_subscribe = False
             return {}
 
-    async def unsubscribe(self, characteristics):
+    async def unsubscribe(self, characteristics): # TODO: annotate return
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
             await super().unsubscribe(characteristics)
@@ -361,7 +361,7 @@ class IpPairing(ZeroconfPairing):
         await super().unsubscribe(char_set)
         return status
 
-    async def _update_subscriptions(self, characteristics, ev):
+    async def _update_subscriptions(self, characteristics, ev): # TODO: annotate return
         """Subscribe or unsubscribe to characteristics."""
         status = {}
         # We do one aid at a time to match what iOS does

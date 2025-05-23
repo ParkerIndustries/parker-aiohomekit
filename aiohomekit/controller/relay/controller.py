@@ -19,7 +19,9 @@ import asyncio
 from asyncio.log import logger
 from collections.abc import AsyncIterable
 from contextlib import AsyncExitStack
-import pathlib
+from typing import Any
+from typing_extensions import override
+from uuid import UUID
 
 from bleak import BleakScanner
 from zeroconf.asyncio import AsyncZeroconf
@@ -28,8 +30,13 @@ from aiohomekit.characteristic_cache import (
     CharacteristicCacheMemory,
     CharacteristicCacheType,
 )
-from aiohomekit.controller.abstract import AbstractDiscovery, OnDiscoveryCallback
-import aiohomekit.hkjson as hkjson
+from aiohomekit.controller.abstract.controller import (
+    AbstractController,
+    AbstractDiscovery,
+    AbstractPairing,
+    TransportType,
+)
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol, PairingData
 
 from ..const import (
     BLE_TRANSPORT_SUPPORTED,
@@ -38,92 +45,96 @@ from ..const import (
 )
 from ..exceptions import (
     AccessoryNotFoundError,
-    ConfigLoadingError,
-    ConfigSavingError,
     TransportNotSupportedError,
 )
-from .abstract import AbstractController, AbstractPairing, TransportType
 
 
-class Controller(AbstractController):
+class Controller(AbstractController[AbstractDiscovery, AbstractPairing]):
     """
     This class represents a HomeKit controller (normally your iPhone or iPad).
     """
 
-    pairings: dict[str, AbstractPairing] # TODO: annotate what the key is
-    aliases: dict[str, AbstractPairing] # TODO: (projectwide) remove duplication of aliases and pairings; keep only one storage; optionally add alias resolving system (alias->id loop or map)
-
     def __init__(
         self,
-        async_zeroconf_instance: AsyncZeroconf | None = None,
-        char_cache: CharacteristicCacheType | None = None,
+        char_cache: CharacteristicCacheType,
+        pairing_data_storage: PairingDataStorageProtocol,
+        zeroconf_instance: AsyncZeroconf | None = None,
         bleak_scanner_instance: BleakScanner | None = None,
     ):
         """
-        Initialize an empty controller. Use 'load_data()' to load the pairing data.
-
-        :param ble_adapter: the bluetooth adapter to be used (defaults to hci0)
-        """ # TODO: update deprecated docstring
-        super().__init__(char_cache=char_cache or CharacteristicCacheMemory())
-
-        self._async_zeroconf_instance = async_zeroconf_instance
-        self._bleak_scanner_instance = bleak_scanner_instance
-
-        self.transports: dict[TransportType, AbstractController] = {}
-        self._tasks = AsyncExitStack()
-
-    async def _async_register_backend(self, controller: AbstractController):
-        self.transports[controller.transport_type] = (
-            await self._tasks.enter_async_context(controller)
+        :param zeroconf_instance: optional AsyncZeroconf instance to use
+        :param char_cache: optional CharacteristicCache to use
+        :param bleak_scanner_instance: optional BleakScanner instance to use
+        :param pairing_data_storage: optional storage for pairing data
+        """
+        super().__init__(
+            char_cache=char_cache or CharacteristicCacheMemory(),
+            pairing_data_storage=pairing_data_storage
         )
 
-    async def async_start(self):
-        if IP_TRANSPORT_SUPPORTED or self._async_zeroconf_instance:
-            from .ip.controller import (
+        self._zeroconf_instance = zeroconf_instance
+        self._bleak_scanner_instance = bleak_scanner_instance
+        self._transports: dict[TransportType, AbstractController] = {}
+        self._tasks = AsyncExitStack()
+
+    @override
+    async def start(self):
+        if IP_TRANSPORT_SUPPORTED or self._zeroconf_instance:
+            from ..zeroconf.ip.controller import (
                 IpController,  # pylint: disable=import-outside-toplevel
             )
 
-            await self._async_register_backend(
+            await self._register_backend(
                 IpController(
-                    char_cache=self._char_cache,
-                    zeroconf_instance=self._async_zeroconf_instance,
+                    char_cache=self.char_cache,
+                    pairing_data_storage=self.pairing_data_storage,
+                    zeroconf_instance=self._zeroconf_instance,
                 )
             )
 
         if COAP_TRANSPORT_SUPPORTED:
-            from .coap.controller import (
+            from ..zeroconf.coap.controller import (
                 CoAPController,  # pylint: disable=import-outside-toplevel
             )
 
-            await self._async_register_backend(
+            await self._register_backend(
                 CoAPController(
-                    char_cache=self._char_cache,
-                    zeroconf_instance=self._async_zeroconf_instance,
+                    char_cache=self.char_cache,
+                    pairing_data_storage=self.pairing_data_storage,
+                    zeroconf_instance=self._zeroconf_instance,
                 )
             )
 
         if BLE_TRANSPORT_SUPPORTED or self._bleak_scanner_instance:
-            from .ble.controller import (
+            from ..ble.controller import (
                 BleController,  # pylint: disable=import-outside-toplevel
             )
 
-            await self._async_register_backend(
+            await self._register_backend(
                 BleController(
-                    char_cache=self._char_cache,
+                    char_cache=self.char_cache,
+                    pairing_data_storage=self.pairing_data_storage,
                     bleak_scanner_instance=self._bleak_scanner_instance,
                 )
             )
 
-    async def async_stop(self):
+        await self._load_pairings_from_storage()
+
+    async def _register_backend(self, controller: AbstractController):
+        self._transports[controller.transport_type] = await self._tasks.enter_context(controller)
+
+    @override
+    async def stop(self):
         await self._tasks.aclose()
 
-    async def async_find(
-        self, device_id: str, timeout: float = 30.0
-    ) -> AbstractDiscovery:
+    @override
+    async def find(self, device_id: str, timeout_sec: float = 30.0) -> AbstractDiscovery:
+
         pending = []
-        for transport in self.transports.values():
+
+        for transport in self._transports.values():
             pending.append(
-                asyncio.create_task(transport.async_find(device_id, timeout))
+                asyncio.create_task(transport.find(device_id, timeout))
             )
 
         try:
@@ -146,132 +157,111 @@ class Controller(AbstractController):
 
         raise AccessoryNotFoundError(f"Accessory with device id {device_id} not found")
 
-    async def async_reachable(self, device_id: str, timeout=10) -> bool:
-        raise NotImplementedError()
+    @override
+    async def is_reachable(self, device_id: str, timeout_sec: float = 10) -> bool:
+        try:
+            for transport in self._transports.values():
+                if await transport.is_reachable(device_id, timeout_sec):
+                    return True
+            return False
+        except Exception:
+            return False
 
-    async def async_discover(self, timeout=10) -> AsyncIterable[AbstractDiscovery]: # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
+    @override
+    async def discover(self, timeout_sec: float = 10) -> AsyncIterable[AbstractDiscovery]: # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
         '''Returns already discovered and cached devices'''
-        for transport in self.transports.values(): # TODO: parallel
-            async for device in transport.async_discover():
+        for transport in self._transports.values(): # TODO: parallel
+            async for device in transport.discover(timeout):
                 yield device
 
+    @override
     def on_discovery(self, callback: OnDiscoveryCallback):
-        for transport in self.transports.values():
+        for transport in self._transports.values():
             transport.on_discovery(callback)
 
-    def load_pairing(self, id: UUID, pairing_data: dict[str, str]) -> AbstractPairing: # TODO: type pairing_data
-        """
-        Loads a pairing instance from a pairing data dict.
-        """
-        if "Connection" not in pairing_data:
-            pairing_data["Connection"] = "IP"
+    @override
+    def load_pairing(self, id: UUID, pairing_data: PairingData) -> AbstractPairing:
+        for transport in self._transports.values():
+            if pairing := transport.load_pairing(id, pairing_data):
+                self._pairings[pairing_data["AccessoryPairingID"]] = pairing
 
-        for transport in self.transports.values():
-            if pairing := transport.load_pairing(alias, pairing_data):
-                self.pairings[pairing_data["AccessoryPairingID"].lower()] = pairing
-                self.aliases[alias] = pairing
-                return pairing
+    def _transport_for_pairing(self, pairing: AbstractPairing) -> AbstractController:
+        for transport in self._transports.values():
+            if pairing.transport_type == transport.transport_type:
+                return transport
 
-        raise TransportNotSupportedError(pairing_data["Connection"])
+    # def save_data(self, filename: str): # TODO: c'mon, refactor to pairings_storage protocol and call internally on change
+    #     """
+    #     Saves the pairing data of the controller to a file.
 
-    def load_data(self, filename: str):
-        """
-        Loads the pairing data of the controller from a file.
+    #     :param filename: the file name of the pairing data
+    #     :raises ConfigSavingError: if the config could not be saved. The reason is given in the message.
+    #     """
+    #     aliases = {}
+    #     # print('RC | Running edited save_data...')
+    #     # print('RC | pairings file: ', filename)
 
-        :param filename: the file name of the pairing data
-        :raises ConfigLoadingError: if the config could not be loaded. The reason is given in the message.
-        """
-        try:
-            with open(filename, encoding="utf-8") as input_fp:
-                pairings = hkjson.loads(input_fp.read())
-                # print(f'RC | Controller loading data: {pairings}; from: {filename}') # TODO: replace prints with debug logs
-                for alias, data in pairings.items():
-                    try:
-                        self.load_pairing(alias, data)
-                        # print('RC | Controller loaded item: ', self.pairings, self.aliases)
-                    except TransportNotSupportedError as e:
-                        logger.error("Skipped pairing: %s", e)
-        except PermissionError:
-            raise ConfigLoadingError(
-                f'Could not open "{filename}" due to missing permissions'
-            )
-        except hkjson.JSON_DECODE_EXCEPTIONS as e:
-            raise ConfigLoadingError(f'Cannot parse "{filename}" as JSON file') from e
-        except FileNotFoundError:
-            pass
+    #     for controller in [self,] + list(self.transports.values()):
+    #         # print('Checking: ', controller, len(controller.aliases), len(controller.pairings))
+    #         for alias, pairing in controller.pairings.items():
+    #             aliases[alias] = pairing.pairing_data
 
-    def save_data(self, filename: str): # TODO: c'mon, refactor to pairings_storage protocol and call internally on change
-        """
-        Saves the pairing data of the controller to a file.
+    #     # print('RC | Gathered data: ', aliases)
 
-        :param filename: the file name of the pairing data
-        :raises ConfigSavingError: if the config could not be saved. The reason is given in the message.
-        """
-        aliases = {}
-        # print('RC | Running edited save_data...')
-        # print('RC | pairings file: ', filename)
+    #     path = pathlib.Path(filename)
 
-        for controller in [self,] + list(self.transports.values()):
-            # print('Checking: ', controller, len(controller.aliases), len(controller.pairings))
-            for alias, pairing in controller.pairings.items():
-                aliases[alias] = pairing.pairing_data
+    #     if not path.parent.exists():
+    #         path.parent.mkdir(parents=True, exist_ok=True)
 
-        # print('RC | Gathered data: ', aliases)
+    #     try:
+    #         with open(filename, mode="w", encoding="utf-8") as output_fp:
+    #             output_fp.write(hkjson.dumps_indented(aliases))
+    #     except PermissionError:
+    #         raise ConfigSavingError(
+    #             f'Could not write "{filename}" due to missing permissions'
+    #         )
+    #     except FileNotFoundError:
+    #         raise ConfigSavingError(
+    #             'Could not write "{f}" because it (or the folder) does not exist'.format(
+    #                 f=filename
+    #             )
+    #         )
 
-        path = pathlib.Path(filename)
+    # async def remove_pairing(self, id: UUID):
+    #     """
+    #     Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
+    #     accessory and the controller.
 
-        if not path.parent.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
+    #     Important: no automatic saving of the pairing data is performed. If you don't do this, the accessory seems still
+    #         to be paired on the next start of the application.
 
-        try:
-            with open(filename, mode="w", encoding="utf-8") as output_fp:
-                output_fp.write(hkjson.dumps_indented(aliases))
-        except PermissionError:
-            raise ConfigSavingError(
-                f'Could not write "{filename}" due to missing permissions'
-            )
-        except FileNotFoundError:
-            raise ConfigSavingError(
-                'Could not write "{f}" because it (or the folder) does not exist'.format(
-                    f=filename
-                )
-            )
+    #     :param alias: the controller's alias for the accessory
+    #     :raises AuthenticationError: if the controller isn't authenticated to the accessory.
+    #     :raises AccessoryNotFoundError: if the device can not be found via zeroconf
+    #     :raises UnknownError: on unknown errors
+    #     """
+    #     if alias not in self.aliases:
+    #         raise AccessoryNotFoundError(f'Alias "{alias}" is not found.')
 
-    async def remove_pairing(self, id: UUID):
-        """
-        Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
-        accessory and the controller.
+    #     pairing = self.aliases[alias]
 
-        Important: no automatic saving of the pairing data is performed. If you don't do this, the accessory seems still
-            to be paired on the next start of the application.
+    #     try:
+    #         # Remove the pairing from the controller first
+    #         # so that it stops getting updates that might
+    #         # trigger a disconnected event poll.
+    #         self.aliases.pop(alias, None)
+    #         pairing.controller.aliases.pop(alias, None) # TODO: call child.remove_pairing instead
 
-        :param alias: the controller's alias for the accessory
-        :raises AuthenticationError: if the controller isn't authenticated to the accessory.
-        :raises AccessoryNotFoundError: if the device can not be found via zeroconf
-        :raises UnknownError: on unknown errors
-        """
-        if alias not in self.aliases:
-            raise AccessoryNotFoundError(f'Alias "{alias}" is not found.')
+    #         self.pairings.pop(pairing.id, None)
+    #         pairing.controller.pairings.pop(pairing.id, None)
 
-        pairing = self.aliases[alias]
+    #         primary_pairing_id = pairing.pairing_data["iOSDeviceId"]
 
-        try:
-            # Remove the pairing from the controller first
-            # so that it stops getting updates that might
-            # trigger a disconnected event poll.
-            self.aliases.pop(alias, None)
-            pairing.controller.aliases.pop(alias, None) # TODO: call child.remove_pairing instead
+    #         await pairing.remove_pairing(primary_pairing_id)
 
-            self.pairings.pop(pairing.id, None)
-            pairing.controller.pairings.pop(pairing.id, None)
+    #         await pairing.close()
 
-            primary_pairing_id = pairing.pairing_data["iOSDeviceId"]
+    #     finally:
+    #         self._char_cache.delete_map(pairing.id)
 
-            await pairing.remove_pairing(primary_pairing_id)
-
-            await pairing.close()
-
-        finally:
-            self._char_cache.async_delete_map(pairing.id)
-
-        # TODO: save the state
+    #     # TODO: save the state

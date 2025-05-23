@@ -12,7 +12,6 @@ class CoAPController(ZeroconfController):
     hap_type = HAP_TYPE_UDP
     discoveries: dict[str, CoAPDiscovery]
     pairings: dict[str, CoAPPairing]
-    aliases: dict[str, CoAPPairing]
     transport_type = TransportType.COAP
 
     def _make_discovery(self, discovery) -> CoAPDiscovery:
@@ -31,7 +30,5 @@ class CoAPController(ZeroconfController):
 
         if discovery := self.discoveries.get(hkid.lower()):
             pairing._async_description_update(discovery.description)
-
-        self.aliases[alias] = pairing
 
         return pairing

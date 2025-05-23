@@ -30,13 +30,18 @@ class DictStorageMemory[ID, StorageLayoutItem]:
     def __init__(self):
         self._storage_data = dict()
 
+    # Protocol Implementation
+
+    async def get_all(self) -> dict[ID, StorageLayoutItem]:
+        return self._storage_data
+
     async def get(self, id: ID) -> StorageLayoutItem | None:
         return self._storage_data.get(id)
 
-    async def async_create_or_update_map(self, id: ID, item: StorageLayoutItem):
+    async def create_or_update_map(self, id: ID, item: StorageLayoutItem):
         self._storage_data[id] = item
 
-    async def async_delete_map(self, id: ID):
+    async def delete_map(self, id: ID):
         if id in self._storage_data:
             self._storage_data.pop(id)
 
@@ -67,14 +72,11 @@ class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory
                     f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self.storage_data}"
                 )
 
-    async def get(self, id: ID) -> StorageLayoutItem | None:
-        return self._storage_data.get(id)
-
-    async def async_create_or_update_map(self, id: ID, item: StorageLayoutItem):
+    async def create_or_update_map(self, id: ID, item: StorageLayoutItem):
         self._storage_data[id] = item
         self._do_save()
 
-    async def async_delete_map(self, id: ID):
+    async def delete_map(self, id: ID):
         if id in self._storage_data:
             self._storage_data.pop(id)
         self._do_save()

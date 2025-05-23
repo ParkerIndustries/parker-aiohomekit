@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 class BleController(AbstractController):
     discoveries: dict[str, BleDiscovery]
     pairings: dict[str, BlePairing]
-    aliases: dict[str, BlePairing]
     transport_type = TransportType.BLE
 
     _scanner: BleakScanner | None
@@ -206,6 +205,4 @@ class BleController(AbstractController):
         pairing = self.pairings[id_] = BlePairing(
             self, pairing_data, device=device, description=description
         )
-        self.aliases[alias] = pairing
-
         return pairing
