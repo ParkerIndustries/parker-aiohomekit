@@ -647,7 +647,7 @@ class BlePairing(AbstractPairing):
         accessory_chars = self.accessories.aid(BLE_AID).characteristics
         protocol_param = await self._get_all_protocol_params()
         chars_to_update = []
-        for _, iid in self.subscriptions:
+        for _, iid in self._observed_characteristics:
             char = accessory_chars.iid(iid)
             if char.broadcast_events or char.disconnected_events:
                 chars_to_update.append(char)
@@ -736,7 +736,7 @@ class BlePairing(AbstractPairing):
             results = {(BLE_AID, iid): {"value": from_bytes(char, value)}}
             logger.debug("%s: Received notification: results = %s", self.name, results)
 
-            self._callback_listeners(results)
+            self._callback_characteristic_listeners(results)
             return
 
         logger.warning(
@@ -802,7 +802,7 @@ class BlePairing(AbstractPairing):
         self._broadcast_decryption_key = BroadcastDecryptionKey(broadcast_key_bytes)
         if self._accessories_state and self.broadcast_key != broadcast_key_bytes:
             self._accessories_state.broadcast_key = broadcast_key_bytes
-            self._callback_and_save_config_changed(self.config_num)
+            self._callback_config_changed(self.config_num)
 
     async def _read_signature(
         self,
@@ -955,8 +955,8 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def list_accessories_and_characteristics(self) -> list[dict[str, Any]]:
-        return self.accessories.serialize()
+    async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+        return self.accessories
 
     async def get_primary_name(self) -> str:
         """Return the primary name of the device.
@@ -1145,10 +1145,10 @@ class BlePairing(AbstractPairing):
                 self._update_accessories_state_cache()
 
             if config_changed:
-                self._callback_and_save_config_changed(self.config_num)
+                self._callback_config_changed(self.config_num)
 
     async def _async_subscribe_broadcast_events(
-        self, subscriptions: list[tuple[int, int]]
+        self, subscriptions: list[CharacteristicKey]
     ):
         """Subscribe to broadcast events."""
         accessory_chars = self.accessories.aid(BLE_AID).characteristics
@@ -1192,14 +1192,14 @@ class BlePairing(AbstractPairing):
         if not self._restore_pending or not self.client or not self.client.is_connected:
             return
 
-        if not self.subscriptions:
+        if not self._observed_characteristics:
             logger.debug("%s: No subscriptions to restore", self.name)
             self._restore_pending = False
             return
 
         assert self._operation_lock.locked(), "_operation_lock should be locked"
         await self._async_set_broadcast_encryption_key()
-        subscriptions = list(self.subscriptions)
+        subscriptions = list(self._observed_characteristics)
         logger.debug(
             "%s: Connected, resuming subscriptions: %s; rssi=%s",
             self.name,
@@ -1226,7 +1226,7 @@ class BlePairing(AbstractPairing):
         """
         if not self.client or not self.client.is_connected:
             return
-        subscriptions = list(self.subscriptions)
+        subscriptions = list(self._observed_characteristics)
         for _, iid in subscriptions:
             if iid in self._notifications:
                 continue
@@ -1307,8 +1307,8 @@ class BlePairing(AbstractPairing):
     @disconnect_on_missing_services
     async def get_characteristics(
         self,
-        characteristics: Iterable[tuple[int, int]],
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+        characteristics: Iterable[CharacteristicKey],
+    ) -> Response:
         return await self._get_characteristics_without_retry(characteristics)
 
     def _sort_characteristics_by_fetch_order(
@@ -1346,9 +1346,9 @@ class BlePairing(AbstractPairing):
     @restore_connection_and_resume
     async def _get_characteristics_without_retry(
         self,
-        characteristics: Iterable[tuple[int, int]],
+        characteristics: Iterable[CharacteristicKey],
         notify_listeners: bool = False,
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+    ) -> Response:
         accessory_chars = self.accessories.aid(BLE_AID).characteristics
         return await self._get_characteristics_while_connected(
             [accessory_chars.iid(iid) for _, iid in characteristics], notify_listeners
@@ -1359,7 +1359,7 @@ class BlePairing(AbstractPairing):
         unordered_characteristics: list[Characteristic],
         notify_listeners: bool = False,
         skip_characteristics: set[str] | None = None,
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+    ) -> Response:
         assert self._operation_lock.locked(), "_operation_lock should be locked"
         characteristics = self._sort_characteristics_by_fetch_order(
             unordered_characteristics
@@ -1457,7 +1457,7 @@ class BlePairing(AbstractPairing):
                     # we want to notify the listeners as soon as we have the
                     # value for each characteristic.
                     single_results = {result_key: result_value}
-                    self._callback_listeners(single_results)
+                    self._callback_characteristic_listeners(single_results)
 
         return results
 
@@ -1466,9 +1466,9 @@ class BlePairing(AbstractPairing):
     @disconnect_on_missing_services
     @restore_connection_and_resume
     async def put_characteristics(
-        self, characteristics: Iterable[tuple[int, int, Any]]
-    ) -> dict[tuple[int, int], dict[str, Any]]:
-        results: dict[tuple[int, int], Any] = {}
+        self, characteristics: Iterable[CharacteristicKeyValue]
+    ) -> Response:
+        results: dict[CharacteristicKey, Any] = {}
         logger.debug(
             "%s: Writing characteristics: %s; rssi=%s",
             self.name,
@@ -1516,7 +1516,7 @@ class BlePairing(AbstractPairing):
                 # results only set on failure, no status is success
                 if not result:
                     if CharacteristicPermissions.paired_read in char.perms:
-                        self._callback_listeners({result_key: {"value": value}})
+                        self._callback_characteristic_listeners({result_key: {"value": value}})
                 else:
                     results[result_key] = result
 
@@ -1598,7 +1598,7 @@ class BlePairing(AbstractPairing):
 
         await self.shutdown()
 
-    async def subscribe(self, characteristics: Iterable[tuple[int, int]]):
+    async def subscribe(self, characteristics: Iterable[CharacteristicKey]):
         """Subscribe to characteristics."""
         new_chars = await super().subscribe(characteristics)
         if not new_chars or not self.client or not self.client.is_connected:
@@ -1616,7 +1616,7 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def _async_subscribe(self, new_chars: Iterable[tuple[int, int]]):
+    async def _async_subscribe(self, new_chars: Iterable[CharacteristicKey]):
         """Subscribe to new characteristics."""
         logger.debug("%s: subscribing to %s", self.name, new_chars)
         await self._populate_accessories_and_characteristics()
@@ -1640,7 +1640,7 @@ class BlePairing(AbstractPairing):
             START_NOTIFY_DEBOUNCE, _async_start_notify_subscriptions
         )
 
-    async def unsubscribe(self, characteristics: Iterable[tuple[int, int]]):
+    async def unsubscribe(self, characteristics: Iterable[CharacteristicKey]):
         pass
 
     async def identify(self):

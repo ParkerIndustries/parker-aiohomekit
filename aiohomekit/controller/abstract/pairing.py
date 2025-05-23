@@ -1,25 +1,29 @@
 from aiohomekit.model import Accessory
 
 
+class ResponseDict(TypedDict, total=False):
+    value: Value | None
+    status: int | None
+    description: str | None
+
+type Response = dict[CharacteristicKey, ResponseDict]
 
 class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     # The current discovery information for this pairing.
     # This can be used to detect address changes, s# changes, c# changes, etc
     description: DiscoveryInfo | None = None
-
-    # The normalised (lower case) form of the device id (as seen in zeroconf
-    # and BLE advertisements), and also as AccessoryPairingID in pairing data.
-    id: str
+    id: UUID
 
     def __init__(self, pairing_data: PairingData):
         self.id = pairing_data.AccessoryPairingID
-        self.pairing_data = pairing_data
+        self._pairing_data = pairing_data
 
-        self.listeners: set[Callable[[dict], None]] = set()
-        self.subscriptions: set[tuple[int, int]] = set()
-        self.availability_listeners: set[Callable[[bool], None]] = set()
-        self.config_changed_listeners: set[Callable[[int], None]] = set()
-        self._accessories_state: AccessoriesState | None = None # TODO: make public
+        self._config_changed_listeners: set[Callable[[int], None]] = set()
+        self._characteristic_listeners: set[Callable[[dict], None]] = set()
+        self._availability_listeners: set[Callable[[bool], None]] = set()
+        self._observed_characteristics: set[CharacteristicKey] = set()
+
+        self._accessories_state = None # has public read
         self._shutdown = False
 
     # Abstract methods
@@ -70,26 +74,26 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
         """Close the connection."""
 
     @abstractmethod
-    async def list_accessories_and_characteristics(self) -> AccessoriesState: # TODO: rename to fetch, return models instead. Add option to get model.as_dict to simulate old behavior
+    async def fetch_accessories_and_characteristics(self) -> AccessoriesState:
         """List all accessories and characteristics."""
 
     @abstractmethod
-    async def list_pairings(self): # TODO: type annotations
+    async def list_pairings(self):
         """List pairings."""
 
     @abstractmethod
     async def get_characteristics(
         self,
-        characteristics: Iterable[tuple[int, int]],
+        characteristics: Iterable[CharacteristicKey],
         include_meta: bool = False,
         include_perms: bool = False,
         include_type: bool = False,
         include_events: bool = False,
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+    ) -> -> Response:
         """Get characteristics."""
 
     @abstractmethod
-    async def put_characteristics(self, characteristics): # TODO: parse and annotate results
+    async def put_characteristics(self, characteristics: Iterable[CharacteristicKeyValue]) -> Response:
         """Put characteristics."""
 
     @abstractmethod
@@ -97,8 +101,8 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
         """Identify the device."""
 
     @abstractmethod
-    async def remove_pairing(self, pairing_id: str): # TODO: why on earth does it need id of self
-        """Remove a pairing."""
+    async def remove_pairing(self, pairingId: UUID):
+        """Remove an accessory pairing to some controller (not necessarily this one)."""
 
     @abstractmethod
     async def _process_config_changed(self, config_num: int):
@@ -111,12 +115,10 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
 
     @property
     def accessories_state(self) -> AccessoriesState:
-        """Return the current state of the accessories."""
         return self._accessories_state
 
     @property
     def accessories(self) -> Accessories | None:
-        """Wrapper around the accessories state to make it easier to use."""
         if not self._accessories_state:
             return None
         return self._accessories_state.accessories
@@ -130,14 +132,13 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
 
     @property
     def name(self) -> str:
-        """Return the name of the pairing."""
+        '''Return the name from discovery description.'''
         if self.description:
             return f"{self.description.name} (id={self.id})"
         return f"(id={self.id})"
 
     @property
     def broadcast_key(self) -> bytes | None:
-        """Returns the broadcast key."""
         if not self._accessories_state:
             return None
         return self._accessories_state.broadcast_key
@@ -150,9 +151,9 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
         return self._accessories_state.state_num
 
     async def get_primary_name(self) -> str:
-        """Return the primary name of the device."""
+        """Return the primary name of the device from the accessory information service."""
         if not self.accessories:
-            accessories = await self.list_accessories_and_characteristics()
+            accessories = await self.fetch_accessories_and_characteristics()
             parsed = Accessories.from_list(accessories)
         else:
             parsed = self.accessories
@@ -172,14 +173,14 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
         await self.close()
 
     async def subscribe(
-        self, characteristics: Iterable[tuple[int, int]]
-    ) -> set[tuple[int, int]]:  # TODO: parse and annotate results
-        new_characteristics = set(characteristics) - self.subscriptions
-        self.subscriptions.update(characteristics)
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> set[CharacteristicKey]:
+        new_characteristics = set(characteristics) - self._observed_characteristics
+        self._observed_characteristics.update(characteristics)
         return new_characteristics # that's not the actual response, the actual one has status and reason
 
-    async def unsubscribe(self, characteristics: Iterable[tuple[int, int]]):
-        self.subscriptions.difference_update(characteristics)
+    async def unsubscribe(self, characteristics: Iterable[CharacteristicKey]):
+        self._observed_characteristics.difference_update(characteristics)
 
     def dispatcher_availability_changed(
         self, callback: Callable[[bool], None]
@@ -189,10 +190,10 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
         Currently this only notifies when a device is seen as available and
         not when it is seen as unavailable.
         """
-        self.availability_listeners.add(callback)
+        self._availability_listeners.add(callback)
 
         def stop_listening():
-            self.availability_listeners.discard(callback)
+            self._availability_listeners.discard(callback)
 
         return stop_listening
 
@@ -200,15 +201,15 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
         self, callback: Callable[[int], None]
     ) -> Callable[[], None]:
         """Notify subscribers of a new accessories state."""
-        self.config_changed_listeners.add(callback)
+        self._config_changed_listeners.add(callback)
 
         def stop_listening():
-            self.config_changed_listeners.discard(callback)
+            self._config_changed_listeners.discard(callback)
 
         return stop_listening
 
     def dispatcher_connect(
-        self, callback: Callable[[dict], None] # TODO: 1. pass the pairing or it's id; 2. type annotation for the dict
+        self, callback: Callable[[UUID, dict[CharacteristicKey, Value]], None]
     ) -> Callable[[], None]:
         """
         Register an event handler to be called when a characteristic (or multiple characteristics) change.
@@ -217,22 +218,14 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
 
         The callback is called in the event loop, but should not be a coroutine.
         """
-        self.listeners.add(callback)
+        self._characteristic_listeners.add(callback)
 
         def stop_listening():
-            self.listeners.discard(callback)
+            self._characteristic_listeners.discard(callback)
 
         return stop_listening
 
     # Private methods
-
-    def _callback_listeners(self, event):
-        for listener in self.listeners:
-            try:
-                logger.debug("callback ev:%s", event)
-                listener(event)
-            except Exception:
-                logger.exception("Unhandled error when processing event")
 
     def _async_description_update(
         self, description: DiscoveryDescription | None
@@ -285,16 +278,21 @@ class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDis
             async_create_task(self._process_config_changed(description.config_num))
 
     async def _shutdown_if_primary_pairing_removed(self, pairingId: str):
-        """Shutdown the connection if the primary pairing was removed."""
-        if pairingId == self._pairing_data.get("iOSPairingId"):
+        if pairingId == self._pairing_data.iOSDeviceId:
             await self.shutdown()
 
     def _callback_availability_changed(self, available: bool):
-        """Notify availability changed listeners."""
-        for callback in self.availability_listeners:
+        for callback in self._availability_listeners:
             callback(available)
 
-    def _callback_and_save_config_changed(self, _config_num: int):
-        """Notify config changed listeners and save the config."""
-        for callback in self.config_changed_listeners:
+    def _callback_config_changed(self, _config_num: int):
+        for callback in self._config_changed_listeners:
             callback(self.config_num)
+
+    def _callback_characteristic_listeners(self, event):
+        for listener in self._characteristic_listeners:
+            try:
+                logger.debug("callback ev:%s", event)
+                listener(self.id, event)
+            except Exception:
+                logger.exception("Unhandled error when processing event")

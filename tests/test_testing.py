@@ -16,7 +16,7 @@ async def test_pairing():
     finish_pairing = await discovery.async_start_pairing("alias")
     pairing = await finish_pairing("111-22-333")
 
-    chars_and_services = await pairing.list_accessories_and_characteristics()
+    chars_and_services = await pairing.fetch_accessories_and_characteristics()
     assert isinstance(chars_and_services, list)
 
 

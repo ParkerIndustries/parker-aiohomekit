@@ -12,7 +12,7 @@ from aiohomekit.protocol.statuscodes import HapStatusCode
 
 
 async def test_list_accessories(pairing: IpPairing):
-    accessories = await pairing.list_accessories_and_characteristics()
+    accessories = await pairing.fetch_accessories_and_characteristics()
     assert accessories[0]["aid"] == 1
     assert accessories[0]["services"][0]["iid"] == 1
 
@@ -185,7 +185,7 @@ async def test_put_characteristics_callbacks(pairing: IpPairing):
     events = []
 
     def process_new_events(
-        new_values_dict: dict[tuple[int, int], dict[str, Any]]
+        new_values_dict: Response
     ):
         events.append(new_values_dict)
 

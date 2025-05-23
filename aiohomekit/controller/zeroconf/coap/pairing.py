@@ -143,7 +143,7 @@ class CoAPPairing(ZeroconfPairing):
         await self._ensure_connected()
         return await self.connection.do_identify()
 
-    async def list_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
         await self._ensure_connected()
 
         accessories = await self.connection.get_accessory_info()
@@ -159,14 +159,14 @@ class CoAPPairing(ZeroconfPairing):
             Accessories.from_list(accessories), self.config_num or 0
         )
         self._update_accessories_state_cache()
-        return accessories
+        return self._accessories_state
 
     async def _process_config_changed(self, config_num: int):
         """Process a config change.
 
         This method is called when the config num changes.
         """
-        await self.list_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics()
         self._accessories_state = AccessoriesState(
             self._accessories_state.accessories, config_num
         )
@@ -187,22 +187,22 @@ class CoAPPairing(ZeroconfPairing):
         we know the config num is out of date or force_update is True
         """
         if not self.accessories or force_update:
-            await self.list_accessories_and_characteristics()
+            await self.fetch_accessories_and_characteristics()
 
     async def get_characteristics(
         self,
-        characteristics: Iterable[tuple[int, int]],
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+        characteristics: Iterable[CharacteristicKey],
+    ) -> Response:
         await self._ensure_connected()
         return await self.connection.read_characteristics(characteristics)
 
     async def put_characteristics(
-        self, characteristics: Iterable[tuple[int, int, Any]]
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+        self, characteristics: Iterable[CharacteristicKeyValue]
+    ) -> Response:
         await self._ensure_connected()
         response_status = await self.connection.write_characteristics(characteristics)
 
-        listener_update: dict[tuple[int, int], dict[str, Any]] = {}
+        listener_update: Response = {}
         for characteristic in characteristics:
             aid, iid, value = characteristic
             accessory_chars = self.accessories.aid(aid).characteristics

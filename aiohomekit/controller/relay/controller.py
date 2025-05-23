@@ -265,7 +265,7 @@ class Controller(AbstractController):
             self.pairings.pop(pairing.id, None)
             pairing.controller.pairings.pop(pairing.id, None)
 
-            primary_pairing_id = pairing.pairing_data["iOSPairingId"]
+            primary_pairing_id = pairing.pairing_data["iOSDeviceId"]
 
             await pairing.remove_pairing(primary_pairing_id)
 

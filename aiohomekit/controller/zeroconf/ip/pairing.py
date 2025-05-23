@@ -55,21 +55,6 @@ logger = logging.getLogger(__name__)
 EMPTY_EVENT = {}
 
 
-def format_characteristic_list(data):
-    tmp = {}
-    for c in data["characteristics"]:
-        key = (c["aid"], c["iid"])
-        del c["aid"]
-        del c["iid"]
-
-        if "status" in c and c["status"] == 0:
-            del c["status"]
-        if "status" in c and c["status"] != 0:
-            c["description"] = to_status_code(c["status"]).description
-        tmp[key] = c
-    return tmp
-
-
 class IpPairing(ZeroconfPairing):
     """
     This represents a paired HomeKit IP accessory.
@@ -119,7 +104,7 @@ class IpPairing(ZeroconfPairing):
         return f"[{host}:{connection.port}] (id={self.id})"
 
     def event_received(self, event):
-        self._callback_listeners(format_characteristic_list(event))
+        self._callback_listeners(_format_characteristic_list(event))
 
     async def connection_made(self, secure):
         if not secure:
@@ -169,7 +154,7 @@ class IpPairing(ZeroconfPairing):
         await self.connection.close()
         await asyncio.sleep(0)
 
-    async def list_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
         """
         This retrieves a current set of accessories and characteristics behind this pairing.
 
@@ -193,9 +178,9 @@ class IpPairing(ZeroconfPairing):
             Accessories.from_list(accessories), self.config_num or 0
         )
         self._update_accessories_state_cache()
-        return accessories
+        return self._accessories_state
 
-    async def list_pairings(self): # TODO: return type annotation
+    async def list_pairings(self) -> list[AccessoryPairings]:
         """
         This method returns all pairings of a HomeKit accessory. This always includes the local controller and can only
         be done by an admin controller.
@@ -245,8 +230,8 @@ class IpPairing(ZeroconfPairing):
 
     async def get_characteristics(
         self,
-        characteristics: Iterable[tuple[int, int]],
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+        characteristics: Iterable[CharacteristicKey],
+    ) -> Response:
         """
         This method is used to get the current cached readouts of any characteristic of the accessory.
 
@@ -266,7 +251,7 @@ class IpPairing(ZeroconfPairing):
         await self._ensure_connected()
 
         if not self.accessories:
-            await self.list_accessories_and_characteristics()
+            await self.fetch_accessories_and_characteristics()
 
         if isinstance(characteristics, set):
             characteristics_set = characteristics
@@ -279,11 +264,11 @@ class IpPairing(ZeroconfPairing):
 
         response = await self.connection.get_json(url)
 
-        return format_characteristic_list(response)
+        return _format_characteristic_list(response)
 
     async def put_characteristics(
-        self, characteristics: Iterable[tuple[int, int, Any]]
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+        self, characteristics: Iterable[CharacteristicKeyValue]
+    ) -> Response:
         """
         Update the values of writable characteristics. The characteristics have to be identified by accessory id (aid),
         instance id (iid). If do_conversion is False (the default), the value must be of proper format for the
@@ -298,10 +283,10 @@ class IpPairing(ZeroconfPairing):
         await self._ensure_connected()
 
         if not self.accessories:
-            await self.list_accessories_and_characteristics()
+            await self.fetch_accessories_and_characteristics()
 
         char_payload: list[dict[str, Any]] = []
-        listener_update: dict[tuple[int, int], dict[str, Any]] = {}
+        listener_update: Response = {}
         for characteristic in characteristics:
             aid, iid, value = characteristic
             char_payload.append({"aid": aid, "iid": iid, "value": value})
@@ -313,7 +298,7 @@ class IpPairing(ZeroconfPairing):
         response = await self.connection.put_json(
             "/characteristics", {"characteristics": char_payload}
         )
-        response_status: dict[tuple[int, int], dict[str, Any]] = {}
+        response_status: Response = {}
         if response:
             # If there is a response it means something failed so
             # we need to remove the listener update for the failed
@@ -413,14 +398,14 @@ class IpPairing(ZeroconfPairing):
         we know the config num is out of date or force_update is True
         """
         if not self.accessories or force_update:
-            await self.list_accessories_and_characteristics()
+            await self.fetch_accessories_and_characteristics()
 
     async def _process_config_changed(self, config_num: int):
         """Process a config change.
 
         This method is called when the config num changes.
         """
-        await self.list_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics()
         self._accessories_state = AccessoriesState(
             self._accessories_state.accessories, config_num
         )
@@ -445,7 +430,7 @@ class IpPairing(ZeroconfPairing):
         await self._ensure_connected()
 
         if not self.accessories:
-            await self.list_accessories_and_characteristics()
+            await self.fetch_accessories_and_characteristics()
 
         # we are looking for a characteristic of the identify type
         identify_type = CharacteristicsTypes.IDENTIFY
@@ -497,21 +482,17 @@ class IpPairing(ZeroconfPairing):
 
         return True
 
-    async def remove_pairing(self, pairingId: str) -> bool:
+    async def remove_pairing(self, pairingId: str | None = None) -> bool:
         """
-        Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
-        accessory and the controller.
-
-        Important: no automatic saving of the pairing data is performed. If you don't do this, the accessory seems still
-            to be paired on the next start of the application.
-
-        :param alias: the controller's alias for the accessory
-        :param pairingId: the pairing id to be removed
+        :param pairingId: the pairing id of the controller (ios device) to be removed
         :raises AuthenticationError: if the controller isn't authenticated to the accessory.
         :raises AccessoryNotFoundError: if the device can not be found via zeroconf
         :raises UnknownError: on unknown errors
         """
         await self._ensure_connected()
+
+        if pairingId is None:
+            pairingId = self._pairing_data.iOSDeviceId
 
         request_tlv = [
             (TLV.kTLVType_State, TLV.M1),
@@ -519,7 +500,7 @@ class IpPairing(ZeroconfPairing):
             (TLV.kTLVType_Identifier, pairingId.encode("utf-8")),
         ]
 
-        data = dict(await self.connection.post_tlv("/pairings", request_tlv))
+        data = dict(await self.connection.post_tlv("/pairings", request_tlv)) # TODO: all endpoints to enum
 
         if data.get(TLV.kTLVType_State, TLV.M2) != TLV.M2:
             raise InvalidError("Unexpected state after removing pairing request")
@@ -539,7 +520,7 @@ class IpPairing(ZeroconfPairing):
             resp = await self.connection.post(
                 "/resource",
                 content_type=HttpContentTypes.JSON,
-                body=hkjson.dump_bytes(
+                body=hkjson.dump_bytes( # TODO: model
                     {
                         "aid": accessory,
                         "resource-type": "image",
@@ -561,16 +542,19 @@ class IpPairing(ZeroconfPairing):
         return resp.body
 
     def _async_endpoint_changed(self):
-        """We have new zeroconf metadata for this device."""
         super()._async_endpoint_changed()
+        self.connection.reconnect_soon() # hasten the process if we are not connected, or are in the process of reconnecting
 
-        # If we are not connected, or are in the process of reconnecting, hasten the process
-        self.connection.reconnect_soon()
+def _format_characteristic_list(data):
+    tmp = {}
+    for c in data["characteristics"]:
+        key = (c["aid"], c["iid"])
+        del c["aid"]
+        del c["iid"]
 
-        # Update cache so it can be saved later
-        # TODO: check for the same bug in other transports, consider moving it to a parent class
-        self.pairing_data['AccessoryIP'] = self.description.address # type: ignore # TODO: fix
-        self.pairing_data['AccessoryIPs'] = self.description.addresses # type: ignore # TODO: fix
-
-        # TODO: call controller.save_data or better controler.update_pairing(id, self.pairing_data) to fix the ip change bug
-        # currently client must save_data manually as a workaround
+        if "status" in c and c["status"] == 0:
+            del c["status"]
+        if "status" in c and c["status"] != 0:
+            c["description"] = to_status_code(c["status"]).description
+        tmp[key] = c
+    return tmp

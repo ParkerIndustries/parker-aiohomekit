@@ -467,7 +467,7 @@ class CoAPHomeKitConnection:
         return self.info.to_dict()
 
     def _read_characteristics_exit(
-        self, ids: list[tuple[int, int]], pdu_results: list[bytes | PDUStatus]
+        self, ids: list[CharacteristicKey], pdu_results: list[bytes | PDUStatus]
     ) -> dict:
         results = dict()
         for idx, result in enumerate(pdu_results):
@@ -508,8 +508,8 @@ class CoAPHomeKitConnection:
         return results
 
     async def read_characteristics(
-        self, characteristics: Iterable[tuple[int, int]]
-    ) -> dict[tuple[int, int], dict[str, Any]]:
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> Response:
         """Read characteristics from the accessory."""
         # _read_characteristics_exit expects a list of tuples
         # as it does an ordered read so we need to convert
@@ -521,7 +521,7 @@ class CoAPHomeKitConnection:
         return self._read_characteristics_exit(ids, pdu_results)
 
     def _write_characteristics_enter(
-        self, ids_values: list[tuple[int, int, Any]]
+        self, ids_values: list[CharacteristicKeyValue]
     ) -> list[bytearray]:
         # convert provided values to appropriate binary format for each characteristic
         tlv_values = list()
@@ -543,7 +543,7 @@ class CoAPHomeKitConnection:
 
     def _write_characteristics_exit(
         self,
-        ids_values: list[tuple[int, int, Any]],
+        ids_values: list[CharacteristicKeyValue],
         pdu_results: list[bytes | PDUStatus],
     ) -> dict:
         # transform results
@@ -568,7 +568,7 @@ class CoAPHomeKitConnection:
 
         return results
 
-    async def write_characteristics(self, ids_values: list[tuple[int, int, Any]]):
+    async def write_characteristics(self, ids_values: list[CharacteristicKeyValue]):
         tlv_values = self._write_characteristics_enter(ids_values)
 
         # batch write
@@ -581,7 +581,7 @@ class CoAPHomeKitConnection:
         return self._write_characteristics_exit(ids_values, pdu_results)
 
     def _subscribe_to_exit(
-        self, ids: list[tuple[int, int]], pdu_results: list[bytes | PDUStatus]
+        self, ids: list[CharacteristicKey], pdu_results: list[bytes | PDUStatus]
     ) -> dict:
         results = dict()
         for idx, result in enumerate(pdu_results):
@@ -603,14 +603,14 @@ class CoAPHomeKitConnection:
 
         return results
 
-    async def subscribe_to(self, ids: list[tuple[int, int]]):
+    async def subscribe_to(self, ids: list[CharacteristicKey]):
         iids = [int(aid_iid[1]) for aid_iid in ids]
         data = [b""] * len(iids)
         pdu_results = await self.enc_ctx.post_all(OpCode.UNK_0B_SUBSCRIBE, iids, data)
         return self._subscribe_to_exit(ids, pdu_results)
 
     def _unsubscribe_from_exit(
-        self, ids: list[tuple[int, int]], pdu_results: list[bytes | PDUStatus]
+        self, ids: list[CharacteristicKey], pdu_results: list[bytes | PDUStatus]
     ) -> dict:
         results = dict()
         for idx, result in enumerate(pdu_results):
@@ -632,7 +632,7 @@ class CoAPHomeKitConnection:
 
         return results
 
-    async def unsubscribe_from(self, ids: list[tuple[int, int]]):
+    async def unsubscribe_from(self, ids: list[CharacteristicKey]):
         if not ids:
             return {}
         iids = [int(aid_iid[1]) for aid_iid in ids]

@@ -178,7 +178,7 @@ async def get_accessories(args: Namespace) -> bool:
 
         try:
             pairing = controller.aliases[args.alias]
-            data = await pairing.list_accessories_and_characteristics()
+            data = await pairing.fetch_accessories_and_characteristics()
             controller.save_data(args.file)
         except Exception:
             logging.exception("Error whilst fetching /accessories")

@@ -174,7 +174,7 @@ class PairingTester:
         if not event:
             return
 
-        for listener in self.pairing.listeners:
+        for listener in self.pairing._characteristic_listeners:
             try:
                 listener(event)
             except Exception:
@@ -194,7 +194,7 @@ class PairingTester:
         if not event:
             return
 
-        for listener in self.pairing.listeners:
+        for listener in self.pairing._characteristic_listeners:
             try:
                 listener(event)
             except Exception:
@@ -282,19 +282,19 @@ class FakePairing(AbstractPairing):
         return True
 
     async def _process_config_changed(self, config_num: int):
-        await self.list_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics()
         self._accessories_state = AccessoriesState(
             self._accessories_state.accessories, config_num
         )
-        self._callback_and_save_config_changed(config_num)
+        self._callback_config_changed(config_num)
 
     async def _process_disconnected_events(self):
         """Process any events that happened while we were disconnected."""
 
-    async def list_accessories_and_characteristics(self):
-        """Fake implementation of list_accessories_and_characteristics."""
+    async def fetch_accessories_and_characteristics(self):
+        """Fake implementation of fetch_accessories_and_characteristics."""
         self._ensure_connected()
-        return self.accessories.serialize()
+        return self.accessories
 
     async def get_characteristics(self, characteristics):
         """Fake implementation of get_characteristics."""

@@ -97,7 +97,7 @@ class Service:
         """Add a linked service."""
         self.linked.append(service)
 
-    def build_update(self, payload: dict[str, Any]) -> list[tuple[int, int, Any]]:
+    def build_update(self, payload: dict[str, Any]) -> list[CharacteristicKeyValue]:
         """
         Given a payload in the form of {CHAR_TYPE: value}, render in a form suitable to pass
         to put_characteristics using aid and iid.

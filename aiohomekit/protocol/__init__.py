@@ -346,10 +346,10 @@ def perform_pair_setup_part2(
         encryption_algorithm=serialization.NoEncryption(),
     )
 
-    return {
+    return { # TODO: to model
         "AccessoryPairingID": accessory_pairing_id.decode(),
         "AccessoryLTPK": hexlify(accessory_ltpk).decode(),
-        "iOSPairingId": ios_pairing_id,
+        "iOSDeviceId": ios_pairing_id,
         "iOSDeviceLTSK": ios_device_ltsk_private_bytes.hex(),
         "iOSDeviceLTPK": ios_device_public_bytes.hex(),
     }
@@ -551,7 +551,7 @@ def get_session_keys(
     # 7) create iOSDeviceInfo
     ios_device_info = (
         ios_key_pub
-        + pairing_data["iOSPairingId"].encode()
+        + pairing_data["iOSDeviceId"].encode()
         + accessorys_session_pub_key_bytes
     )
 
@@ -570,7 +570,7 @@ def get_session_keys(
     # 9) construct sub tlv
     sub_tlv = TLV.encode_list(
         [
-            (TLV.kTLVType_Identifier, pairing_data["iOSPairingId"].encode()),
+            (TLV.kTLVType_Identifier, pairing_data["iOSDeviceId"].encode()),
             (TLV.kTLVType_Signature, ios_device_signature),
         ]
     )
