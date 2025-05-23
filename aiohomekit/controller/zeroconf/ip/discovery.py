@@ -51,7 +51,7 @@ class IpDiscovery(ZeroconfDiscovery):
         """
         await self.connection.close()
 
-    async def async_start_pairing(self, alias: str) -> FinishPairing:
+    async def async_start_pairing(self, id: UUID) -> FinishPairing:
         await self._ensure_connected()
 
         state_machine = perform_pair_setup_part1(

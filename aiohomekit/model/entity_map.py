@@ -19,8 +19,10 @@ Typing hints for the serialization format used by the JSON part of the HomeKit A
 """
 
 from __future__ import annotations
-
 from typing import TypedDict, Union
+
+
+# TODO: encapsulate in models
 
 Characteristic = TypedDict(
     "Characteristic",
@@ -41,17 +43,14 @@ Characteristic = TypedDict(
     total=False,
 )
 
-
 class Service(TypedDict, total=False):
     type: str
     iid: int
     characteristics: list[Characteristic]
     linked: list[int]
 
-
 class Accessory(TypedDict, total=True):
     aid: int
     services: list[Service]
-
 
 Accesories = list[Accessory]

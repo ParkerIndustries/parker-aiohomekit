@@ -23,7 +23,7 @@ import logging
 from operator import itemgetter
 from typing import Any
 
-from aiohomekit.controller.abstract import AbstractController, AbstractPairingData
+from aiohomekit.controller.abstract import AbstractController, PairingData
 from aiohomekit.exceptions import (
     AccessoryDisconnectedError,
     AuthenticationError,
@@ -76,7 +76,7 @@ class IpPairing(ZeroconfPairing):
     """
 
     def __init__(
-        self, controller: AbstractController, pairing_data: AbstractPairingData # NOTE: doesn't correspond; has AccessoryIP instead of AccessoryAddress
+        self, controller: AbstractController, pairing_data: PairingData # NOTE: doesn't correspond; has AccessoryIP instead of AccessoryAddress
     ):
         """
         Initialize a Pairing by using the data either loaded from file or obtained after calling

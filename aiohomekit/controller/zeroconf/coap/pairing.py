@@ -21,7 +21,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from aiohomekit.controller.abstract import AbstractController, AbstractPairingData
+from aiohomekit.controller.abstract import AbstractController, PairingData
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model import Accessories, AccessoriesState, Transport
 from aiohomekit.model.characteristics import CharacteristicPermissions
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 class CoAPPairing(ZeroconfPairing):
     def __init__(
-        self, controller: AbstractController, pairing_data: AbstractPairingData
+        self, controller: AbstractController, pairing_data: PairingData
     ):
         self.connection = CoAPHomeKitConnection(
             self, pairing_data["AccessoryIP"], pairing_data["AccessoryPort"]

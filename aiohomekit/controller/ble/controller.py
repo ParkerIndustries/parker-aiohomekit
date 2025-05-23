@@ -12,7 +12,7 @@ from bleak.exc import BleakDBusError, BleakError
 from aiohomekit.characteristic_cache import CharacteristicCacheType
 from aiohomekit.controller.abstract import (
     AbstractController,
-    AbstractPairingData,
+    PairingData,
     TransportType,
 )
 from aiohomekit.controller.ble.manufacturer_data import (
@@ -187,7 +187,7 @@ class BleController(AbstractController):
             yield device
 
     def load_pairing(
-        self, alias: str, pairing_data: AbstractPairingData
+        self, id: UUID, pairing_data: PairingData
     ) -> BlePairing | None:
         if pairing_data["Connection"] != "BLE":
             return None

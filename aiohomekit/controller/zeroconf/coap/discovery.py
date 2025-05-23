@@ -52,7 +52,7 @@ class CoAPDiscovery(ZeroconfDiscovery):
     async def async_identify(self):
         return await self.connection.do_identify()
 
-    async def async_start_pairing(self, alias: str) -> FinishPairing:
+    async def async_start_pairing(self, id: UUID) -> FinishPairing:
         salt, srpB = await self.connection.do_pair_setup(
             pair_with_auth(self.description.feature_flags)
         )

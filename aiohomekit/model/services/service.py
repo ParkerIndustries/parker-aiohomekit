@@ -28,46 +28,6 @@ if TYPE_CHECKING:
     from aiohomekit.model import Accessory
 
 
-class Characteristics: # NOTE: duplicate?
-    """Represents a collection of characteristics."""
-
-    _characteristics: list[Characteristic]
-
-    def __init__(self):
-        """Initialise a collection of characteristics."""
-        self._characteristics = []
-        self._iid_to_characteristic: dict[int, Characteristic] = {}
-
-    def append(self, char: Characteristic):
-        """Add a characteristic."""
-        self._characteristics.append(char)
-        self._iid_to_characteristic[char.iid] = char
-
-    def get(self, iid: int) -> Characteristic:
-        """Get a characteristic by iid."""
-        return self._iid_to_characteristic.get(iid)
-
-    def __iter__(self) -> Iterator[Characteristic]:
-        """Iterate over characteristics."""
-        return iter(self._characteristics)
-
-    def filter(
-        self, char_types: Iterable[str] | None = None
-    ) -> Iterator[Characteristic]:
-        """Filter characteristics by type."""
-        matches = iter(self)
-
-        if char_types:
-            char_types = {normalize_uuid(c) for c in char_types}
-            matches = filter(lambda char: char.type in char_types, matches)
-
-        return matches
-
-    def first(self, char_types: Iterable[str] | None = None) -> Characteristic:
-        """Get the first characteristic."""
-        return next(self.filter(char_types=char_types))
-
-
 class Service:
     """Represents a service on an accessory."""
 
@@ -170,3 +130,105 @@ class Service:
     def available(self) -> bool:
         """Return True if all characteristics are available."""
         return all(c.available for c in self.characteristics)
+
+class Services:
+    """Represents a list of HomeKit services."""
+
+    def __init__(self):
+        """Initialize a new list of services."""
+        self._services: list[Service] = []
+        self._iid_to_service: dict[int, Service] = {}
+        self._type_to_service: dict[str, Service] = {}
+
+    def __iter__(self) -> Iterator[Service]:
+        """Iterate over all services."""
+        return iter(self._services)
+
+    def iid(self, iid: int) -> Service:
+        """Return the service with the given iid, raising KeyError if it does not exist."""
+        return self._iid_to_service[iid]
+
+    def iid_or_none(self, iid: int) -> Service | None:
+        """Return the service with the given iid or None if it does not exist."""
+        return self._iid_to_service.get(iid)
+
+    def get_char_by_iid(self, iid: int) -> Characteristic | None:
+        """Get a characteristic by iid."""
+        for service in self._services:
+            if char := service.get_char_by_iid(iid):
+                return char
+        return None
+
+    def filter(
+        self,
+        *,
+        service_type: str = None,
+        characteristics: dict[str, str] = None,
+        parent_service: Service = None,
+        child_service: Service = None,
+        order_by: list[str] | None = None,
+    ) -> Iterator[Service]:
+        """Filter services by type and characteristics."""
+        matches = iter(self._services)
+
+        if service_type:
+            service_type = normalize_uuid(service_type)
+            matches = filter(lambda service: service.type == service_type, matches)
+
+        if characteristics:
+            for characteristic, value in characteristics.items():
+                matches = filter(
+                    lambda service: service.value(characteristic) == value, matches
+                )
+
+        if parent_service:
+            matches = filter(lambda service: service in parent_service.linked, matches)
+
+        if child_service:
+            matches = filter(lambda service: child_service in service.linked, matches)
+
+        if order_by:
+            matches = sorted(
+                matches,
+                key=lambda service: tuple(
+                    service.value(char_type) for char_type in order_by
+                ),
+            )
+
+        return matches
+
+    def first(
+        self,
+        *,
+        service_type: str = None,
+        characteristics: dict[str, str] = None,
+        parent_service: Service = None,
+        child_service: Service = None,
+    ) -> Service | None:
+        """Get the first service."""
+        if (
+            service_type is not None
+            and characteristics is None
+            and parent_service is None
+            and child_service is None
+        ):
+            return self._type_to_service.get(normalize_uuid(service_type))
+
+        try:
+            return next(
+                self.filter(
+                    service_type=service_type,
+                    characteristics=characteristics,
+                    parent_service=parent_service,
+                    child_service=child_service,
+                )
+            )
+        except StopIteration:
+            return None
+
+    def append(self, service: Service):
+        """Add a service to the list of services."""
+        self._services.append(service)
+        self._iid_to_service[service.iid] = service
+        if service.type not in self._type_to_service:
+            self._type_to_service[service.type] = service

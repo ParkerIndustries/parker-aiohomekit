@@ -63,7 +63,7 @@ from aiohomekit.protocol.tlv import TLV
 from aiohomekit.utils import async_create_task
 from aiohomekit.uuid import normalize_uuid
 
-from ..abstract import AbstractPairing, AbstractPairingData
+from ..abstract import AbstractPairing, PairingData
 from .bleak import AIOHomeKitBleakClient
 from .client import (
     PDUStatusError,
@@ -249,7 +249,7 @@ class BlePairing(AbstractPairing):
     def __init__(
         self,
         controller: BleController,
-        pairing_data: AbstractPairingData,
+        pairing_data: PairingData,
         device: BLEDevice | None = None,
         client: AIOHomeKitBleakClient | None = None,
         description: HomeKitAdvertisement | None = None,
@@ -320,7 +320,7 @@ class BlePairing(AbstractPairing):
         return (
             self.device.address
             if self.device
-            else self.pairing_data["AccessoryAddress"]
+            else self.pairing_data["AccessoryIP"]
         )
 
     @property
@@ -423,7 +423,7 @@ class BlePairing(AbstractPairing):
 
         endpoint_iid = iid if iid is not None else char.iid
         endpoint = await self.client.get_characteristic(
-            char.service.type, char.type, endpoint_iid
+            char.parent_service.type, char.type, endpoint_iid
         )
 
         try:
@@ -776,7 +776,7 @@ class BlePairing(AbstractPairing):
             hap_char = self._async_get_service_signature_char()
             if not hap_char:
                 return
-            service_iid = hap_char.service.iid
+            service_iid = hap_char.parent_service.iid
             logger.debug(
                 "%s: Setting broadcast key for service_iid: %s",
                 self.name,
@@ -1012,7 +1012,7 @@ class BlePairing(AbstractPairing):
             result = results.get((BLE_AID, char.iid))
             if not result or "value" not in result:
                 logger.debug(
-                    "%s: No value for %s/%s", self.name, char.service.type, char.type
+                    "%s: No value for %s/%s", self.name, char.parent_service.type, char.type
                 )
                 continue
             char.value = result["value"]
@@ -1026,7 +1026,7 @@ class BlePairing(AbstractPairing):
         hap_char = self._async_get_service_signature_char()
         if not hap_char:
             return
-        service_iid = hap_char.service.iid
+        service_iid = hap_char.parent_service.iid
         try:
             resp = await self._async_request(
                 OpCode.PROTOCOL_CONFIG,

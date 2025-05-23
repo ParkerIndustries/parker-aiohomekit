@@ -1,5 +1,7 @@
 .mypy_cache
 .vscode
+.idea
+.ropeproject
 
 build
 dist

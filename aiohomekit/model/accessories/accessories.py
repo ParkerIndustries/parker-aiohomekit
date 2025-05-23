@@ -1,0 +1,80 @@
+from __future__ import annotations
+from typing import Any, Iterator, Self
+from .accessory import Accessory
+
+
+class Accessories:
+    """Represents a list of HomeKit accessories."""
+
+    accessories: list[Accessory]
+
+    def __init__(self):
+        """Initialize a new list of accessories."""
+        self.accessories = []
+        self._aid_to_accessory: dict[int, Accessory] = {}
+
+    def __iter__(self) -> Iterator[Accessory]:
+        return iter(self.accessories)
+
+    def __getitem__(self, idx: int) -> Accessory:
+        return self.accessories[idx]
+
+    @classmethod
+    def from_file(cls, path) -> Accessories:
+        with open(path, encoding="utf-8") as fp:
+            return cls.from_list(hkjson.loads(fp.read()))
+
+    @classmethod
+    def from_list(cls, accessories: entity_map.Accesories) -> Accessories:
+        self = cls()
+        for accessory in accessories:
+            self.add_accessory(Accessory.create_from_dict(accessory))
+        return self
+
+    def add_accessory(self, accessory: Accessory):
+        """Add an accessory to the list of accessories."""
+        self.accessories.append(accessory)
+        self._aid_to_accessory[accessory.aid] = accessory
+
+    def serialize(self) -> entity_map.Accesories:
+        """Serialize the accessories to a list of dicts."""
+        return [a.to_accessory_and_service_list() for a in self.accessories]
+
+    def to_accessory_and_service_list(self) -> dict[str, entity_map.Accesories]:
+        return hkjson.dumps({"accessories": self.serialize()})
+
+    def aid(self, aid: int) -> Accessory:
+        """Return the accessory with the given aid, raising KeyError if it does not exist."""
+        return self._aid_to_accessory[aid]
+
+    def aid_or_none(self, aid: int) -> Accessory | None:
+        """Return the accessory with the given aid or None if it does not exist."""
+        return self._aid_to_accessory.get(aid)
+
+    def has_aid(self, aid: int) -> bool:
+        """Return True if the given aid exists."""
+        return aid in self._aid_to_accessory
+
+    def process_changes(
+        self, changes: dict[tuple[int, int], dict[str, Any]]
+    ) -> set[tuple[int, int]]:
+        """Process changes from a HomeKit controller.
+
+        Returns a set of the changes that were applied.
+        """
+        changed: set[tuple[int, int]] = set()
+        for aid_iid, value in changes.items():
+            (aid, iid) = aid_iid
+            if not (char := self.aid(aid).characteristics.iid(iid)):
+                continue
+
+            if "value" in value:
+                if char.set_value(value["value"]) or char.type in EVENT_CHARACTERISTICS:
+                    changed.add(aid_iid)
+
+            previous_status = char.status
+            char.status = to_status_code(value.get("status", 0))
+            if previous_status != char.status:
+                changed.add(aid_iid)
+
+        return changed

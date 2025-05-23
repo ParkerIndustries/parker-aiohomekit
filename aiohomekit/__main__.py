@@ -33,7 +33,7 @@ import aiohomekit.hkjson as hkjson
 
 from .controller import Controller
 from .exceptions import HomeKitException
-from .zeroconf import ZeroconfServiceListener
+from .zeroconf import EmptyZeroconfServiceListener
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
     )
 
     async with zeroconf:
-        listener = ZeroconfServiceListener()
+        listener = EmptyZeroconfServiceListener()
         browser = AsyncServiceBrowser(
             zeroconf.zeroconf,
             [

@@ -120,7 +120,7 @@ class BleDiscovery(AbstractDiscovery):
             finally:
                 self.client = None
 
-    async def _async_start_pairing(self, alias: str) -> tuple[bytearray, bytearray]:
+    async def _async_start_pairing(self, id: UUID) -> tuple[bytearray, bytearray]:
         await self._ensure_connected()
 
         try:
@@ -152,7 +152,7 @@ class BleDiscovery(AbstractDiscovery):
 
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
-    async def async_start_pairing(self, alias: str) -> FinishPairing:
+    async def async_start_pairing(self, id: UUID) -> FinishPairing:
         salt, pub_key = await self._async_start_pairing(alias)
         attempt = 0
 
@@ -188,7 +188,7 @@ class BleDiscovery(AbstractDiscovery):
                 ),
             )
 
-            pairing["AccessoryAddress"] = self.description.address
+            pairing["AccessoryIP"] = self.description.address
             pairing["Connection"] = "BLE"
 
             obj = self.controller.pairings[alias] = BlePairing(

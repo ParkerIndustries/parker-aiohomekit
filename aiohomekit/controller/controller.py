@@ -159,7 +159,7 @@ class Controller(AbstractController):
         for transport in self.transports.values():
             transport.on_discovery(callback)
 
-    def load_pairing(self, alias: str, pairing_data: dict[str, str]) -> AbstractPairing: # TODO: type pairing_data
+    def load_pairing(self, id: UUID, pairing_data: dict[str, str]) -> AbstractPairing: # TODO: type pairing_data
         """
         Loads a pairing instance from a pairing data dict.
         """
@@ -237,7 +237,7 @@ class Controller(AbstractController):
                 )
             )
 
-    async def remove_pairing(self, alias: str):
+    async def remove_pairing(self, id: UUID):
         """
         Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
         accessory and the controller.

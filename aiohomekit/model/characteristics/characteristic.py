@@ -1,4 +1,4 @@
-#
+a#
 # Copyright 2019 aiohomekit team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
 #
 from __future__ import annotations
 
+from uuid import UUID
 import base64
 import binascii
 from decimal import ROUND_HALF_UP, Decimal, localcontext
@@ -80,7 +81,7 @@ def strtobool(val):
 class Characteristic:
     iid: int
     description: str | None
-    type: str # TODO: UUID
+    type: UUID
     perms: list[str]
     ev: Any
     format: str | None
@@ -90,6 +91,7 @@ class Characteristic:
     minStep: int | float | None
     maxLen: int
     valid_values: list[Any] | None
+    parent_service: "Service"
 
     # static
     maxDataLen: int
@@ -101,10 +103,9 @@ class Characteristic:
     valid_values_range: tuple[int | float, int | float] | None
     _value: Any
     _status: HapStatusCode
-    service: "Service"
 
     def __init__(self, service: Service, characteristic_type: str, **kwargs):
-        self.service = service
+        self.parent_service = service
         self.type = normalize_uuid(characteristic_type)
         self.iid = self._get_configuration(
             kwargs, "iid", service.accessory.get_next_id()
@@ -421,3 +422,39 @@ def check_convert_value(val: str, char: Characteristic) -> Any:
             raise FormatError(f'"{val}" is no valid "{char.format}"!')
 
     return val
+
+class Characteristics:
+    """Represents a collection of characteristics."""
+
+    _characteristics: list[Characteristic]
+
+    def __init__(self):
+        self._characteristics = []
+        self._iid_to_characteristic: dict[int, Characteristic] = {}
+
+    def iid(self, iid: int) -> Characteristic | None:
+        return self.get(iid)
+
+    def get(self, iid: int) -> Characteristic | None:
+        return self._iid_to_characteristic.get(iid)
+
+    def append(self, char: Characteristic):
+        self._characteristics.append(char)
+        self._iid_to_characteristic[char.iid] = char
+
+    def filter(
+        self, char_types: Iterable[str] | None = None
+    ) -> Iterator[Characteristic]:
+        matches = iter(self)
+
+        if char_types:
+            char_types = {normalize_uuid(c) for c in char_types}
+            matches = filter(lambda char: char.type in char_types, matches)
+
+        return matches
+
+    def first(self, char_types: Iterable[str] | None = None) -> Characteristic:
+        return next(self.filter(char_types=char_types))
+
+    def __iter__(self) -> Iterator[Characteristic]:
+        return iter(self._characteristics)
