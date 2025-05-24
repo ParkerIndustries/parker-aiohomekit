@@ -14,8 +14,8 @@ class CoAPController(ZeroconfController):
     pairings: dict[str, CoAPPairing]
     transport_type = TransportType.COAP
 
-    def _make_discovery(self, discovery) -> CoAPDiscovery:
-        return CoAPDiscovery(self, discovery)
+    # def _make_discovery(self, discovery) -> CoAPDiscovery:
+    #     return CoAPDiscovery(self, discovery)
 
     def load_pairing(
         self, id: UUID, pairing_data: dict[str, Any]

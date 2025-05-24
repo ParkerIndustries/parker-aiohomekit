@@ -16,42 +16,28 @@
 
 import uuid
 
-from aiohomekit.controller.abstract import FinishPairing
+from typing import Self, override
+from aiohomekit.controller.abstract.discovery import AbstractDiscovery
 from aiohomekit.exceptions import AlreadyPairedError
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.protocol.statuscodes import to_status_code
 from aiohomekit.utils import check_pin_format, pair_with_auth
-from aiohomekit.zeroconf import HomeKitService, ZeroconfDiscovery
 
 from .connection import HomeKitConnection
 from .pairing import IpPairing
 
 
-class IpDiscovery(ZeroconfDiscovery):
+class IpDiscovery(AbstractDiscovery[HomeKitService]):
     """
     A discovered IP HAP device that is unpaired.
     """
 
-    def __init__(self, controller, description: HomeKitService):
-        super().__init__(description)
-        self.controller = controller
-        self.connection = HomeKitConnection(
-            None, description.addresses, description.port
-        )
+    @override
+    def setup(self):
+        self.connection = HomeKitConnection(self, self.description.addresses, self.description.port)
 
-    def __repr__(self):
-        return f"IPDiscovery(host={self.description.address}, port={self.description.port})"
-
-    async def _ensure_connected(self):
-        await self.connection.ensure_connection()
-
-    async def close(self):
-        """
-        Close the pairing's communications. This closes the session.
-        """
-        await self.connection.close()
-
-    async def async_start_pairing(self, id: UUID) -> FinishPairing:
+    @override
+    async def start_pairing(self) -> Self.FinishPairing:
         await self._ensure_connected()
 
         state_machine = perform_pair_setup_part1(
@@ -71,7 +57,7 @@ class IpDiscovery(ZeroconfDiscovery):
                 salt, pub_key = result.value
                 break
 
-        async def finish_pairing(pin: str) -> IpPairing:
+        async def finish_pairing(pin: str) -> PairingData:
             check_pin_format(pin)
 
             state_machine = perform_pair_setup_part2(
@@ -89,25 +75,25 @@ class IpDiscovery(ZeroconfDiscovery):
                     request, expected = state_machine.send(response)
                 except StopIteration as result:
                     # If the state machine raises a StopIteration then we have XXX
-                    pairing = result.value
+                    pairing_data = result.value
                     break
 
-            pairing["AccessoryIP"] = self.description.address
-            pairing["AccessoryIPs"] = self.description.addresses
-            pairing["AccessoryPort"] = self.description.port
-            pairing["Connection"] = "IP"
+            pairing_data["AccessoryIP"] = self.description.address
+            pairing_data["AccessoryIPs"] = self.description.addresses
+            pairing_data["AccessoryPort"] = self.description.port
+            pairing_data["Connection"] = "IP"
 
-            obj = self.controller.pairings[alias] = IpPairing(self.controller, pairing)
 
-            await self.connection.close()
+            self._pairing_finished_callback(pairing_data)
 
-            self.save_data() # TODO: save pairings so client doesn't have to
+            await self.connection.close() # discovery connection is no longer needed, the pairing connection will be used instead
 
-            return obj
+            return pairing_data
 
         return finish_pairing
 
-    async def async_identify(self):
+    @override
+    async def identify(self):
         await self._ensure_connected()
 
         response = await self.connection.post_json("/identify", {})
@@ -123,3 +109,12 @@ class IpDiscovery(ZeroconfDiscovery):
                 code=code.value,
             )
         )
+
+    async def close(self):
+        await self.connection.close()
+
+    async def _ensure_connected(self):
+        await self.connection.ensure_connection()
+
+    def __repr__(self):
+        return f"IPDiscovery(host={self.description.address}, port={self.description.port})"

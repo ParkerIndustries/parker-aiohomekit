@@ -24,6 +24,7 @@ from operator import itemgetter
 from typing import Any
 
 from aiohomekit.controller.abstract import AbstractController, PairingData
+from aiohomekit.controller.zeroconf.ip.delegate import ConnectionDelegate
 from aiohomekit.exceptions import (
     AccessoryDisconnectedError,
     AuthenticationError,
@@ -55,7 +56,7 @@ logger = logging.getLogger(__name__)
 EMPTY_EVENT = {}
 
 
-class IpPairing(ZeroconfPairing):
+class IpPairing(ZeroconfPairing, ConnectionDelegate):
     """
     This represents a paired HomeKit IP accessory.
     """
@@ -106,8 +107,8 @@ class IpPairing(ZeroconfPairing):
     def event_received(self, event):
         self._callback_characteristic_listeners(_format_characteristic_list(event))
 
-    async def connection_made(self, secure):
-        if not secure:
+    async def connection_made(self, is_secure: bool):
+        if not is_secure:
             return
 
         # Let our listeners know the connection is available again
@@ -177,7 +178,8 @@ class IpPairing(ZeroconfPairing):
         self._accessories_state = AccessoriesState(
             Accessories.from_list(accessories), self.config_num or 0
         )
-        self._update_accessories_state_cache()
+        self._update_accessories_state_cache() # TODO: fix, this method doesn't exist
+        # TOOD: call callback to save updated accessories cache in the controller
         return self._accessories_state
 
     async def list_pairings(self) -> list[AccessoryPairings]:
@@ -406,10 +408,8 @@ class IpPairing(ZeroconfPairing):
         This method is called when the config num changes.
         """
         await self.fetch_accessories_and_characteristics()
-        self._accessories_state = AccessoriesState(
-            self._accessories_state.accessories, config_num
-        )
-        self._callback_and_save_config_changed(self.config_num)
+        self._accessories_state.config_num = config_num
+        self._callback_and_save_config_changed(self.config_num) # TODO: fix, this method  doesn't exist
 
     def _process_disconnected_events(self):
         """Process any events that happened while we were disconnected.

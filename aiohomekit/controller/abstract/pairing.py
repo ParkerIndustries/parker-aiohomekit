@@ -1,3 +1,6 @@
+from __future__ import annotations
+from uuid import UUID
+from typing import Awaitable
 from aiohomekit.model import Accessory
 
 
@@ -8,15 +11,21 @@ class ResponseDict(TypedDict, total=False):
 
 type Response = dict[CharacteristicKey, ResponseDict]
 
-class AbstractPairing[Controller: AbstractController, DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
+class AbstractPairing[
+    DiscoveryInfo: AbstractDiscoveryInfo
+](metaclass=ABCMeta):
+
+    type PairingDataChangeCallback = Callable[[PairingData], None]
+
     # The current discovery information for this pairing.
     # This can be used to detect address changes, s# changes, c# changes, etc
     description: DiscoveryInfo | None = None
     id: UUID
 
-    def __init__(self, pairing_data: PairingData):
+    def __init__(self, pairing_data: PairingData, on_pairing_data_change: PairingDataChangeCallback | None = None):
         self.id = pairing_data.AccessoryPairingID
         self._pairing_data = pairing_data
+        self._on_pairing_data_change = on_pairing_data_change
 
         self._config_changed_listeners: set[Callable[[int], None]] = set()
         self._characteristic_listeners: set[Callable[[dict], None]] = set()

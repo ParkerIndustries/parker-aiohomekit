@@ -20,7 +20,7 @@ from collections.abc import Iterable
 import logging
 import socket
 from struct import Struct
-from typing import TYPE_CHECKING, Any
+from typing import Any, Optional, Protocol
 
 import aiohappyeyeballs
 from async_interrupt import interrupt
@@ -53,31 +53,34 @@ UNPACK_UNSIGNED_SHORT_LITTLE = UNSIGNED_SHORT_LITTLE.unpack
 BLOCK_SIZE_LEN = UNSIGNED_SHORT_LITTLE.size
 TAG_LENGTH = 16
 
-if TYPE_CHECKING:
-    from .pairing import IpPairing
-
 logger = logging.getLogger(__name__)
-
-
-def _convert_hosts_to_addr_infos(
-    hosts: list[str], port: int
-) -> list[aiohappyeyeballs.AddrInfoType]:
-    """Converts the list of hosts to a list of addr_infos.
-    The list of hosts is the result of a DNS lookup. The list of
-    addr_infos is the result of a call to `socket.getaddrinfo()`.
-    """
-    addr_infos: list[aiohappyeyeballs.AddrInfoType] = []
-    for host in hosts:
-        is_ipv6 = ":" in host
-        family = socket.AF_INET6 if is_ipv6 else socket.AF_INET
-        addr = (host, port, 0, 0) if is_ipv6 else (host, port)
-        addr_infos.append((family, socket.SOCK_STREAM, socket.IPPROTO_TCP, host, addr))
-    return addr_infos
 
 
 class ConnectionReady(Exception):
     """Raised when a connection is ready to be retried."""
 
+class ConnectionDelegate(Protocol):
+
+    class AccessoryDescription(Protocol):
+
+        @property
+        def addresses(self) -> list[str]: ...
+
+        @property
+        def port(self) -> int: ...
+
+    @property
+    def description(self) -> Optional[AccessoryDescription]:
+        '''Required information to connect to the accessory.'''
+        pass
+
+    def event_received(self, event: dict[str, Any]):
+        """Called when an event is received from the accessory."""
+        pass
+
+    async def connection_made(self, is_secure: bool):
+        """Called when a connection has been established."""
+        pass
 
 class InsecureHomeKitProtocol(asyncio.Protocol):
     """An asyncio.Protocol implementation for HomeKit connections."""
@@ -92,8 +95,8 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         super().connection_made(transport)
         self.transport = transport
 
-    def connection_lost(self, exception: Exception):
-        self.connection._connection_lost(exception)
+    def connection_lost(self, exc: Exception):
+        self.connection._connection_lost(exc)
         self._cancel_pending_requests()
 
     def _handle_timeout(self, fut: asyncio.Future[Any]):
@@ -124,6 +127,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         self.result_cbs.append(result)
         timeout_handle = loop.call_at(loop.time() + 30, self._handle_timeout, result)
         timeout_expired = False
+
         try:
             self.transport.writelines(payload)
             return await result
@@ -253,9 +257,9 @@ class SecureHomeKitProtocol(InsecureHomeKitProtocol):
 
 class HomeKitConnection:
     def __init__(
-        self, owner: IpPairing, hosts: list[str], port: int, concurrency_limit: int = 1
+        self, delegate: ConnectionDelegate, hosts: list[str], port: int, concurrency_limit: int = 1
     ):
-        self.owner = owner
+        self.delegate = delegate
         self.hosts = hosts
         self.port = port
 
@@ -282,8 +286,6 @@ class HomeKitConnection:
     @property
     def name(self) -> str:
         """Return the name of the connection."""
-        if self.owner:
-            return self.owner.name
         return f"{self.connected_host or self.hosts}:{self.port}"
 
     @property
@@ -630,8 +632,8 @@ class HomeKitConnection:
             self.host_header = f"Host: [{connected_host}]"
         else:
             self.host_header = f"Host: {connected_host}"
-        if self.owner:
-            await self.owner.connection_made(False)
+            if self.delegate:
+                await self.delegate.connection_made(False)
 
     async def _reconnect(self):
         # When the device is seen by zeroconf, call reconnect_soon
@@ -687,7 +689,7 @@ class HomeKitConnection:
                     self._reconnect_future = None
 
     def event_received(self, event: HttpResponse):
-        if not self.owner:
+        if not self.delegate:
             return
 
         # FIXME: Should drop the connection if can't parse the event?
@@ -701,7 +703,7 @@ class HomeKitConnection:
         except hkjson.JSON_DECODE_EXCEPTIONS:
             return
 
-        self.owner.event_received(parsed)
+        self.delegate.event_received(parsed)
 
     def __repr__(self) -> str:
         return f"HomeKitConnection(host={(self.connected_host or self.hosts)!r}, port={self.port!r})"
@@ -710,9 +712,9 @@ class HomeKitConnection:
 class SecureHomeKitConnection(HomeKitConnection):
     """A HomeKit connection that negotiates a secure session."""
 
-    def __init__(self, owner: IpPairing, pairing_data: dict[str, Any]):
+    def __init__(self, delegate: ConnectionDelegate, pairing_data: Dict[str, Any]):
         super().__init__(
-            owner,
+            delegate,
             pairing_data.get("AccessoryIPs", [pairing_data["AccessoryIP"]]),
             pairing_data["AccessoryPort"],
         )
@@ -726,26 +728,25 @@ class SecureHomeKitConnection(HomeKitConnection):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""
         self.is_secure = False
 
-        if self.owner and self.owner.description:
-            pairing = self.owner
+        if self.delegate and self.delegate.description:
             try:
-                if set(self.hosts) != set(pairing.description.addresses):
+                if set(self.hosts) != set(self.delegate.description.addresses):
                     logger.debug(
                         "%s: Host changed from %s to %s",
-                        pairing.name,
+                        self.name,
                         self.hosts,
-                        pairing.description.addresses,
+                        self.delegate.description.addresses,
                     )
-                    self.hosts = pairing.description.addresses
+                    self.hosts = self.delegate.description.addresses
 
-                if self.port != pairing.description.port:
+                if self.port != self.delegate.description.port:
                     logger.debug(
                         "%s: Port changed from %s to %s",
-                        pairing.name,
+                        self.name,
                         self.port,
-                        pairing.description.port,
+                        self.delegate.description.port,
                     )
-                    self.port = pairing.description.port
+                    self.port = self.delegate.description.port
             except AccessoryNotFoundError:
                 pass
 
@@ -784,5 +785,20 @@ class SecureHomeKitConnection(HomeKitConnection):
             "Secure connection to %s:%s established", self.connected_host, self.port
         )
 
-        if self.owner:
-            await self.owner.connection_made(True)
+        if self.delegate:
+            await self.delegate.connection_made(True)
+
+def _convert_hosts_to_addr_infos(
+    hosts: list[str], port: int
+) -> list[aiohappyeyeballs.AddrInfoType]:
+    """Converts the list of hosts to a list of addr_infos.
+    The list of hosts is the result of a DNS lookup. The list of
+    addr_infos is the result of a call to `socket.getaddrinfo()`.
+    """
+    addr_infos: list[aiohappyeyeballs.AddrInfoType] = []
+    for host in hosts:
+        is_ipv6 = ":" in host
+        family = socket.AF_INET6 if is_ipv6 else socket.AF_INET
+        addr = (host, port, 0, 0) if is_ipv6 else (host, port)
+        addr_infos.append((family, socket.SOCK_STREAM, socket.IPPROTO_TCP, host, addr))
+    return addr_infos

@@ -13,7 +13,7 @@ async def test_pairing():
     device = controller.add_device(accessories)
 
     discovery = await controller.async_find(device.description.id)
-    finish_pairing = await discovery.async_start_pairing("alias")
+    finish_pairing = await discovery.start_pairing("alias")
     pairing = await finish_pairing("111-22-333")
 
     chars_and_services = await pairing.fetch_accessories_and_characteristics()
@@ -26,7 +26,7 @@ async def test_get_and_set():
     device = controller.add_device(accessories)
 
     discovery = await controller.async_find(device.description.id)
-    finish_pairing = await discovery.async_start_pairing("alias")
+    finish_pairing = await discovery.start_pairing("alias")
     pairing = await finish_pairing("111-22-333")
 
     pairing.dispatcher_connect(accessories.process_changes)
@@ -51,7 +51,7 @@ async def test_get_failure():
     device = controller.add_device(accessories)
 
     discovery = await controller.async_find(device.description.id)
-    finish_pairing = await discovery.async_start_pairing("alias")
+    finish_pairing = await discovery.start_pairing("alias")
     pairing = await finish_pairing("111-22-333")
 
     chars = await pairing.get_characteristics([(1, 10)])
@@ -68,7 +68,7 @@ async def test_put_failure():
     device = controller.add_device(accessories)
 
     discovery = await controller.async_find(device.description.id)
-    finish_pairing = await discovery.async_start_pairing("alias")
+    finish_pairing = await discovery.start_pairing("alias")
     pairing = await finish_pairing("111-22-333")
 
     chars = await pairing.put_characteristics([(1, 10, 1)])

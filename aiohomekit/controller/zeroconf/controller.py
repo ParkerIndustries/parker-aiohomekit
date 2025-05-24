@@ -3,7 +3,13 @@ class IpTransport(str, Enum):
     TCP = auto()
     UDP = auto()
 
-class ZeroconfController(AbstractController, ABC):
+class ZeroconfController[
+    Discovery: AbstractDiscovery,
+    Pairing: AbstractPairing
+](
+    AbstractController[Discovery, Pairing],
+    ABC
+):
     """
     Base class for HAP protocols that rely on Zeroconf discovery.
     """
@@ -34,20 +40,20 @@ class ZeroconfController(AbstractController, ABC):
         self._browser = self._find_broswer_for_hap_type(
             self._async_zeroconf_instance, self.hap_type
         )
-        self._browser.service_state_changed.register_handler(self._handle_discovery_service)
-        await self._update_zeroconf_from_cache(zc)
+        self._browser.service_state_changed.register_handler(self._zeroconf_did_discover_service)
+        await self._load_zeroconf_from_cache(zc)
 
         return self
 
     async def stop(self):
         """Stop the controller."""
         self._running = False
-        self._browser.service_state_changed.unregister_handler(self._handle_discovery_service)
+        self._browser.service_state_changed.unregister_handler(self._zeroconf_did_discover_service)
         while self._resolve_later:
             _, cancel = self._resolve_later.popitem()
             cancel.cancel()
 
-    async def find(self, device_id: str, timeout_sec: float = 10.0) -> ZeroconfDiscovery:
+    async def find(self, device_id: str, timeout_sec: float = 10.0) -> Discovery:
         device_id = device_id.lower()
 
         if discovery := self._discoveries.get(device_id):
@@ -86,12 +92,11 @@ class ZeroconfController(AbstractController, ABC):
         zc = self._async_zeroconf_instance.zeroconf
         return info.load_from_cache(zc) or await info.async_request(zc, _TIMEOUT_MS)
 
-    async def discover(self) -> AsyncIterable[ZeroconfDiscovery]:
+    async def discover(self) -> AsyncIterable[Discovery]:
         for device in self._discoveries.values():
             yield device
 
-    async def _update_zeroconf_from_cache(self, zc: Zeroconf):
-        """Load the records from the cache."""
+    async def _load_zeroconf_from_cache(self, zc: Zeroconf):
         tasks: list[asyncio.Task] = []
         now = current_time_millis()
         for record in self._async_get_ptr_records(zc):
@@ -105,7 +110,7 @@ class ZeroconfController(AbstractController, ABC):
             if info.load_from_cache(zc, now):
                 self._handle_loaded_discovery_info(info)
             else:
-                tasks.append(self._handle_discovered_service(info))
+                tasks.append(self._handle_discovery_service(info))
 
         if tasks:
             await asyncio.gather(*tasks)
@@ -114,7 +119,7 @@ class ZeroconfController(AbstractController, ABC):
         """Return all PTR records for the HAP type."""
         return zc.cache.async_all_by_details(self.hap_type, TYPE_PTR, CLASS_IN)
 
-    def _handle_discovery_service(
+    def _zeroconf_did_discover_service(
         self,
         zeroconf: Zeroconf,
         service_type: str,
@@ -144,14 +149,14 @@ class ZeroconfController(AbstractController, ABC):
             self._loop.time() + 0.5, self._resolve_later, name, info
         )
 
-    async def _handle_discovered_service(self, info: AsyncServiceInfo):
-        """Add a device that became visible via zeroconf."""
+    async def _handle_discovery_service(self, info: AsyncServiceInfo):
+        """Handle a device that became visible via zeroconf."""
         # AsyncServiceInfo already tries 3x
         await info.async_request(self._async_zeroconf_instance.zeroconf, _TIMEOUT_MS)
         self._handle_loaded_discovery_info(info)
 
     def _handle_loaded_discovery_info(self, info: AsyncServiceInfo):
-        """Handle a service info that was discovered via zeroconf."""
+        """Process loaded or discovered service"""
         try:
             description = HomeKitService.from_service_info(info)
         except ValueError as e:

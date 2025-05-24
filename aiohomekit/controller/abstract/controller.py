@@ -10,7 +10,11 @@ from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol, 
 logger = logging.getLogger(__name__)
 
 
-class AbstractController[Discovery: AbstractDiscovery, Pairing: AbstractPairing](ABC):
+class AbstractController[
+    DiscoveryInfo: Any,
+    Discovery: AbstractDiscovery,
+    Pairing: AbstractPairing
+](ABC):
 
     OnDiscoveryCallback = Callable[[Self, Discovery], None]
 
@@ -25,7 +29,10 @@ class AbstractController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         self.char_cache = char_cache
         self.pairing_data_storage = pairing_data_storage
 
-    @property # TODO: abstractproperty
+    # Abstract
+
+    @property
+    @abstractmethod
     def transport_type(self) -> TransportType:
         raise NotImplementedError(self.transport_type)
 
@@ -50,14 +57,7 @@ class AbstractController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
     @abstractmethod
     async def stop(self): ...
 
-    @final
-    async def __aenter__(self):
-        await self.start()
-        return self
-
-    @final
-    async def __aexit__(self, *args):
-        await self.stop()
+    # Public
 
     @final
     @property
@@ -66,6 +66,8 @@ class AbstractController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
     @final
     @property
     def discoveries(self) -> dict[str, Discovery]: return self._discoveries
+
+    # Implementations
 
     @final
     def on_discovery(self, callback: OnDiscoveryCallback):
@@ -76,7 +78,7 @@ class AbstractController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         for pairing_data in self.pairing_data_storage.get_all():
             self.load_pairing(pairing_data["AccessoryPairingID"], pairing_data)
 
-    def load_pairing(self, id: UUID, pairing_data: PairingData) -> Pairing | None:
+    def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
         if pairing_data["Connection"] != self.transport_type:
             return None
 
@@ -85,9 +87,27 @@ class AbstractController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         if accessory_id:
             return None
 
-        pairing = self._pairings[UUID(accessory_id)] = Pairing(pairing_data)
+        pairing = self._pairings[UUID(accessory_id)] = Pairing(pairing_data, self.pairing_data_storage.save)
 
         if discovery := self._discoveries.get(accessory_id):
             pairing._async_description_update(discovery.description)
 
         return pairing
+
+    def _on_pairing(self, pairing_data: PairingData):
+        self.load_pairing(pairing_data)
+        self.pairing_data_storage.save(pairing_data)
+
+    def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
+        return Discovery(discovery_info, self._on_pairing)
+
+    # Context Manager
+
+    @final
+    async def __aenter__(self):
+        await self.start()
+        return self
+
+    @final
+    async def __aexit__(self, *args):
+        await self.stop()
