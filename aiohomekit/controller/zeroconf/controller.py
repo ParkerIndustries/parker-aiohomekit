@@ -178,7 +178,7 @@ class ZeroconfController[
                 description.id,
                 description,
             )
-            pairing._async_description_update(description)
+            pairing.process_description_update(description)
 
         if waiters := self._waiters.pop(description.id, None):
             for waiter in waiters:

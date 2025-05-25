@@ -379,7 +379,7 @@ class BlePairing(AbstractPairing):
         self.device = device
         self.ble_advertisement = ble_advertisement
 
-    def _async_description_update(
+    def process_description_update(
         self, description: HomeKitAdvertisement | None
     ):
         """Update the description of the accessory."""
@@ -396,7 +396,7 @@ class BlePairing(AbstractPairing):
                 description,
             )
 
-        super()._async_description_update(description)
+        super().process_description_update(description)
         self._update_cached_state_num(description.state_num)
 
     async def _async_request(
@@ -951,11 +951,14 @@ class BlePairing(AbstractPairing):
             "%s: Connection closed from close call; rssi=%s", self.name, self.rssi
         )
 
+    @override
     @operation_lock
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
     @restore_connection_and_resume
     async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+        if not self.accessories:
+            await self._do_fetch_accessories_and_characteristics()
         return self.accessories
 
     async def get_primary_name(self) -> str:
@@ -1060,13 +1063,11 @@ class BlePairing(AbstractPairing):
         self._fetched_gsn_this_session = True
         return protocol_params
 
-    async def async_populate_accessories_state(
+    @override
+    async def _do_fetch_accessories_and_characteristics(
         self, force_update: bool = False, attempts: int | None = None
     ):
         """Populate the state of all accessories.
-
-        This method should try not to fetch all the accessories unless
-        we know the config num is out of date.
 
         Callers should not get BleakError as they expect to trap
         AccessoryDisconnectedError.

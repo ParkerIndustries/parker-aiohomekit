@@ -282,7 +282,7 @@ class FakePairing(AbstractPairing):
         return True
 
     async def _process_config_changed(self, config_num: int):
-        await self.fetch_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics(force_update=True)
         self._accessories_state = AccessoriesState(
             self._accessories_state.accessories, config_num
         )
@@ -291,8 +291,8 @@ class FakePairing(AbstractPairing):
     async def _process_disconnected_events(self):
         """Process any events that happened while we were disconnected."""
 
-    async def fetch_accessories_and_characteristics(self):
-        """Fake implementation of fetch_accessories_and_characteristics."""
+    async def _fetch_accessories_and_characteristics(self):
+        """Fake implementation of _fetch_accessories_and_characteristics."""
         self._ensure_connected()
         return self.accessories
 

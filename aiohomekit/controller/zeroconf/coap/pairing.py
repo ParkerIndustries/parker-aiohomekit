@@ -143,7 +143,8 @@ class CoAPPairing(ZeroconfPairing):
         await self._ensure_connected()
         return await self.connection.do_identify()
 
-    async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    @override
+    async def _do_fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
         await self._ensure_connected()
 
         accessories = await self.connection.get_accessory_info()
@@ -166,28 +167,17 @@ class CoAPPairing(ZeroconfPairing):
 
         This method is called when the config num changes.
         """
-        await self.fetch_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics(force_update=True)
         self._accessories_state = AccessoriesState(
             self._accessories_state.accessories, config_num
         )
-        self._callback_and_save_config_changed(config_num)
+        self._callback_config_changed(config_num)
 
     def _process_disconnected_events(self):
         """Process any events that happened while we were disconnected.
 
         We don't disconnect in COAP so there is no need to do anything here.
         """
-
-    async def async_populate_accessories_state(
-        self, force_update: bool = False, attempts: int | None = None
-    ) -> bool:
-        """Populate the state of all accessories.
-
-        This method should try not to fetch all the accessories unless
-        we know the config num is out of date or force_update is True
-        """
-        if not self.accessories or force_update:
-            await self.fetch_accessories_and_characteristics()
 
     async def get_characteristics(
         self,

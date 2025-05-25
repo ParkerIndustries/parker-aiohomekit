@@ -90,7 +90,11 @@ class AbstractController[
         pairing = self._pairings[UUID(accessory_id)] = Pairing(pairing_data, self.pairing_data_storage.save)
 
         if discovery := self._discoveries.get(accessory_id):
-            pairing._async_description_update(discovery.description)
+            pairing.process_description_update(discovery.description)
+
+        # subscribe to pairing updates
+
+
 
         return pairing
 

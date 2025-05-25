@@ -117,6 +117,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         if self.subscriptions:
             await self.subscribe(self.subscriptions)
 
+    @override
     async def _ensure_connected(self):
         """Ensure we are connected to the device."""
         connection = self.connection
@@ -148,6 +149,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         self._callback_availability_changed(True)
 
+    @override
     async def close(self):
         """
         Close the pairing's communications. This closes the session.
@@ -155,9 +157,13 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await self.connection.close()
         await asyncio.sleep(0)
 
-    async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    @override
+    async def _do_fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
         """
+        You probably want to use `fetch_accessories_and_characteristics` instead.
+        For internal use only.
         This retrieves a current set of accessories and characteristics behind this pairing.
+
 
         :return: the accessory data as described in the spec on page 73 and following
         :raises AccessoryNotFoundError: if the device can not be found via zeroconf
@@ -178,10 +184,10 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         self._accessories_state = AccessoriesState(
             Accessories.from_list(accessories), self.config_num or 0
         )
-        self._update_accessories_state_cache() # TODO: fix, this method doesn't exist
-        # TOOD: call callback to save updated accessories cache in the controller
+        # TODO: some callback?
         return self._accessories_state
 
+    @override
     async def list_pairings(self) -> list[AccessoryPairings]:
         """
         This method returns all pairings of a HomeKit accessory. This always includes the local controller and can only
@@ -230,6 +236,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
                 r["controllerType"] = controller_type
         return tmp
 
+    @override
     async def get_characteristics(
         self,
         characteristics: Iterable[CharacteristicKey],
@@ -251,9 +258,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
                  }
         """
         await self._ensure_connected()
-
-        if not self.accessories:
-            await self.fetch_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics()
 
         if isinstance(characteristics, set):
             characteristics_set = characteristics
@@ -268,6 +273,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         return _format_characteristic_list(response)
 
+    @override
     async def put_characteristics(
         self, characteristics: Iterable[CharacteristicKeyValue]
     ) -> Response:
@@ -283,9 +289,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
                              requested
         """
         await self._ensure_connected()
-
-        if not self.accessories:
-            await self.fetch_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics()
 
         char_payload: list[dict[str, Any]] = []
         listener_update: Response = {}
@@ -325,6 +329,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
     ):
         """Provision a device with Thread network credentials."""
 
+    @override
     async def subscribe(self, characteristics): # TODO: annotate return
         await super().subscribe(set(characteristics))
 
@@ -348,6 +353,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
             self.supports_subscribe = False
             return {}
 
+    @override
     async def unsubscribe(self, characteristics): # TODO: annotate return
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
@@ -391,32 +397,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         return status
 
-    async def async_populate_accessories_state(
-        self, force_update: bool = False, attempts: int | None = None
-    ) -> bool:
-        """Populate the state of all accessories.
-
-        This method should try not to fetch all the accessories unless
-        we know the config num is out of date or force_update is True
-        """
-        if not self.accessories or force_update:
-            await self.fetch_accessories_and_characteristics()
-
-    async def _process_config_changed(self, config_num: int):
-        """Process a config change.
-
-        This method is called when the config num changes.
-        """
-        await self.fetch_accessories_and_characteristics()
-        self._accessories_state.config_num = config_num
-        self._callback_and_save_config_changed(self.config_num) # TODO: fix, this method  doesn't exist
-
-    def _process_disconnected_events(self):
-        """Process any events that happened while we were disconnected.
-
-        We don't disconnect in IP so there is no need to do anything here.
-        """
-
+    @override
     async def identify(self):
         """
         This call can be used to trigger the identification of a paired accessory. A successful call should
@@ -428,9 +409,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         :return True, if the identification was run, False otherwise
         """
         await self._ensure_connected()
-
-        if not self.accessories:
-            await self.fetch_accessories_and_characteristics()
+        await self.fetch_accessories_and_characteristics()
 
         # we are looking for a characteristic of the identify type
         identify_type = CharacteristicsTypes.IDENTIFY
@@ -482,6 +461,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         return True
 
+    @override
     async def remove_pairing(self, pairingId: str | None = None) -> bool:
         """
         :param pairingId: the pairing id of the controller (ios device) to be removed
@@ -541,6 +521,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         return resp.body
 
+    @override
     def _async_endpoint_changed(self):
         super()._async_endpoint_changed()
         self.connection.reconnect_soon() # hasten the process if we are not connected, or are in the process of reconnecting

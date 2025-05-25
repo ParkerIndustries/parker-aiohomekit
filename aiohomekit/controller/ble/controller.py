@@ -99,7 +99,7 @@ class BleController(AbstractController):
                 data.name = old_name
 
         if pairing := self.pairings.get(data.id):
-            pairing._async_description_update(data)
+            pairing.process_description_update(data)
             pairing._async_ble_update(device, advertisement_data)
 
         if futures := self._ble_futures.get(data.id):

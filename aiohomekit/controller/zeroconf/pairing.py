@@ -1,9 +1,10 @@
 class ZeroconfPairing(AbstractPairing[HomeKitService]):
 
-    async def _async_description_update(self, description: HomeKitService | None):
+    @override
+    def process_description_update(self, description: HomeKitService | None):
         old_description = self.description
 
-        super()._async_description_update(description)
+        super().process_description_update(description)
 
         if not description:
             return
