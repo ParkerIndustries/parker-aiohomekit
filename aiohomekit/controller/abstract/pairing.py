@@ -1,6 +1,7 @@
 from __future__ import annotations
+from abc import abstractmethod
 from uuid import UUID
-from typing import Awaitable
+from typing import Callable
 from aiohomekit.model import Accessory
 from aiohomekit.model.accessories.accessory_state import AccessoriesState
 
@@ -21,14 +22,14 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     description: DiscoveryInfo | None = None
     id: UUID
 
-    def __init__(self, pairing_data: PairingData, on_pairing_data_change: PairingDataChangeCallback | None = None):
+    def __init__(self, pairing_data: PairingData):
         self.id = pairing_data.AccessoryPairingID
-        self._pairing_data = pairing_data
+        self.pairing_data = pairing_data
 
-        self._on_pairing_data_change = on_pairing_data_change
-        self._config_changed_listeners: set[Callable[[int], None]] = set()
-        self._availability_listeners: set[Callable[[bool], None]] = set()
-        self._characteristic_listeners: set[Callable[[dict], None]] = set()
+        self._availability_observers: list[Callable[[bool], None]] = list()
+        self._pairing_data_observers: list[Callable[[PairingData], None]] = list()
+        self._config_observers: list[Callable[[int], None]] = list()
+        self._characteristic_observers: list[Callable[[dict], None]] = list()
         self._observed_characteristics: set[CharacteristicKey] = set()
 
         self._accessories_state: AccessoriesState | None = None # has public read
@@ -72,6 +73,10 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         """List pairings."""
 
     @abstractmethod
+    async def identify(self):
+        """Identify the device."""
+
+    @abstractmethod
     async def get_characteristics(
         self,
         characteristics: Iterable[CharacteristicKey],
@@ -87,8 +92,16 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         """Put characteristics."""
 
     @abstractmethod
-    async def identify(self):
-        """Identify the device."""
+    async def subscribe_characteristics(
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> set[CharacteristicKey]:
+        new_characteristics = set(characteristics) - self._observed_characteristics
+        self._observed_characteristics.update(characteristics)
+        return new_characteristics # that's not the actual response, the actual one has status and reason
+
+    @abstractmethod
+    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]):
+        self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
     async def remove_pairing(self, pairingId: UUID):
@@ -229,81 +242,93 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         if repopulate_accessories:
             async_create_task(self._process_config_changed(description.config_num))
 
-    # Subscription methods
+    # Observers
 
-    async def subscribe(
-        self, characteristics: Iterable[CharacteristicKey]
-    ) -> set[CharacteristicKey]:
-        new_characteristics = set(characteristics) - self._observed_characteristics
-        self._observed_characteristics.update(characteristics)
-        return new_characteristics # that's not the actual response, the actual one has status and reason
-
-    async def unsubscribe(self, characteristics: Iterable[CharacteristicKey]):
-        self._observed_characteristics.difference_update(characteristics)
-
-    def dispatcher_availability_changed(
+    def add_observer_for_availability(
         self, callback: Callable[[bool], None]
     ) -> Callable[[], None]:
-        """Notify subscribers when availablity changes.
+        """Notify observers when availability changes.
 
         Currently this only notifies when a device is seen as available and
         not when it is seen as unavailable.
         """
-        self._availability_listeners.add(callback)
+        self._availability_observers.append(callback)
 
-        def stop_listening():
-            self._availability_listeners.discard(callback)
+        def stop_observing():
+            self._availability_observers.remove(callback)
 
-        return stop_listening
+        return stop_observing
 
-    def dispatcher_connect_config_changed(
+    def add_observer_for_pairing_data(
+        self, callback: Callable[[PairingData], None]
+    ) -> Callable[[], None]:
+        """Register an event handler to be called when pairing data is updated.
+
+        This function returns immediately. It returns a callable you can use to cancel the subscription.
+        """
+        self._pairing_data_observers.append(callback)
+
+        def stop_observing():
+            self._pairing_data_observers.remove(callback)
+
+        return stop_observing
+
+    def add_observer_for_config(
         self, callback: Callable[[int], None]
     ) -> Callable[[], None]:
-        """Notify subscribers of a new accessories state."""
-        self._config_changed_listeners.add(callback)
+        """
+        Register an event handler to be called when config (services and characteristics model) changes. Tipically, after a firmware update.
+        """
+        self._config_observers.append(callback)
 
-        def stop_listening():
-            self._config_changed_listeners.discard(callback)
+        def stop_observing():
+            self._config_observers.remove(callback)
 
-        return stop_listening
+        return stop_observing
 
-    def dispatcher_connect(
+    def add_observer_for_characteristics(
         self, callback: Callable[[UUID, dict[CharacteristicKey, Value]], None]
     ) -> Callable[[], None]:
         """
-        Register an event handler to be called when a characteristic (or multiple characteristics) change.
+        Register an event handler to be called when a characteristic (or multiple characteristics) changes.
+
+        Each characteristics must be subscribed using `subscribe`, otherwise the callback will not be called.
 
         This function returns immediately. It returns a callable you can use to cancel the subscription.
 
         The callback is called in the event loop, but should not be a coroutine.
         """
-        self._characteristic_listeners.add(callback)
+        self._characteristic_observers.append(callback)
 
-        def stop_listening():
-            self._characteristic_listeners.discard(callback)
+        def stop_observing():
+            self._characteristic_observers.remove(callback)
 
-        return stop_listening
+        return stop_observing
 
-    # Callbacks
+    # Callbacks for observers
 
     def _callback_availability_changed(self, available: bool):
-        for callback in self._availability_listeners:
+        for callback in self._availability_observers:
             callback(available)
 
     def _callback_config_changed(self, _config_num: int):
-        '''Notify all registered listeners of a config (services and characteristics model) change.'''
-        for callback in self._config_changed_listeners:
+        for callback in self._config_observers:
             callback(self.config_num)
 
-    def _callback_characteristic_listeners(self, event):
-        '''Notify all registered listeners of a characteristic value change.'''
-        for listener in self._characteristic_listeners:
+    def _callback_characteristic_changed(self, event):
+        for observer in self._characteristic_observers:
             try:
                 logger.debug("callback ev:%s", event)
-                listener(self.id, event)
+                observer(self.id, event)
             except Exception:
                 logger.exception("Unhandled error when processing event")
 
+    def _callback_pairing_data_changed(self, pairing_data: PairingData):
+        for observer in self._pairing_data_observers:
+            try:
+                observer(pairing_data)
+            except Exception:
+                logger.exception("Unhandled error when processing pairing data change")
 
     # Private implementations
 
@@ -313,5 +338,10 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._callback_config_changed(self.config_num)
 
     async def _shutdown_if_primary_pairing_removed(self, pairingId: str):
-        if pairingId == self._pairing_data.iOSDeviceId:
+        if pairingId == self.pairing_data.iOSDeviceId:
             await self.shutdown()
+
+    def update_pairing_data(self, pairing_data: PairingData):
+        """Update the pairing data and notify listeners."""
+        self.pairing_data = pairing_data
+        self._callback_pairing_data_changed(pairing_data)

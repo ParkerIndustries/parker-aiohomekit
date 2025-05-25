@@ -370,7 +370,7 @@ class BlePairing(AbstractPairing):
         old_state_num = self._accessories_state.state_num
         self._accessories_state.state_num = state_num
         if old_state_num != state_num:
-            self._update_accessories_state_cache()
+            self._process_config_changed(state_num)
 
     def _async_ble_update(
         self, device: BLEDevice, ble_advertisement: AdvertisementData
@@ -1143,7 +1143,6 @@ class BlePairing(AbstractPairing):
 
             if update_values:
                 await self._populate_char_values(config_changed)
-                self._update_accessories_state_cache()
 
             if config_changed:
                 self._callback_config_changed(self.config_num)
@@ -1601,7 +1600,7 @@ class BlePairing(AbstractPairing):
 
     async def subscribe(self, characteristics: Iterable[CharacteristicKey]):
         """Subscribe to characteristics."""
-        new_chars = await super().subscribe(characteristics)
+        new_chars = await super().subscribe_characteristics(characteristics)
         if not new_chars or not self.client or not self.client.is_connected:
             # Don't force a new connection if we are not already
             # connected as we will get disconnected events.

@@ -86,7 +86,7 @@ class Controller(AbstractController[AbstractDiscovery, AbstractPairing]):
 
             await self._register_backend(
                 IpController(
-                    char_cache=self.char_cache,
+                    char_cache=self.char_cache_storage,
                     pairing_data_storage=self.pairing_data_storage,
                     zeroconf_instance=self._zeroconf_instance,
                 )
@@ -99,7 +99,7 @@ class Controller(AbstractController[AbstractDiscovery, AbstractPairing]):
 
             await self._register_backend(
                 CoAPController(
-                    char_cache=self.char_cache,
+                    char_cache=self.char_cache_storage,
                     pairing_data_storage=self.pairing_data_storage,
                     zeroconf_instance=self._zeroconf_instance,
                 )
@@ -112,7 +112,7 @@ class Controller(AbstractController[AbstractDiscovery, AbstractPairing]):
 
             await self._register_backend(
                 BleController(
-                    char_cache=self.char_cache,
+                    char_cache=self.char_cache_storage,
                     pairing_data_storage=self.pairing_data_storage,
                     bleak_scanner_instance=self._bleak_scanner_instance,
                 )

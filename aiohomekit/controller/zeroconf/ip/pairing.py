@@ -330,7 +330,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         """Provision a device with Thread network credentials."""
 
     @override
-    async def subscribe(self, characteristics): # TODO: annotate return
+    async def subscribe_characteristics(self, characteristics): # TODO: annotate return
         await super().subscribe(set(characteristics))
 
         if not self.supports_subscribe:
@@ -354,7 +354,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
             return {}
 
     @override
-    async def unsubscribe(self, characteristics): # TODO: annotate return
+    async def unsubscribe_characteristics(self, characteristics): # TODO: annotate return
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
             await super().unsubscribe(characteristics)

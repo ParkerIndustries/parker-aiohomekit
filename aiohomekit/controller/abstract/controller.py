@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Callable, AsyncIterable, TypeVar, Any, Protocol
+from typing import Callable, AsyncIterable, Any
 from uuid import UUID
-from aiohomekit.model import Accessories
-from aiohomekit.model.accessories.accessory_state import AccessoriesState
+
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol, PairingData
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -18,16 +17,17 @@ class AbstractController[
 
     OnDiscoveryCallback = Callable[[Self, Discovery], None]
 
-    char_cache: CharacteristicsStorageProtocol
+    char_cache_storage: CharacteristicsStorageProtocol
     pairing_data_storage: PairingDataStorageProtocol
 
     _discoveries: dict[UUID, Discovery]
     _pairings: dict[UUID, Pairing]
     _on_discovery_callback: OnDiscoveryCallback | None = None
 
-    def __init__(self, char_cache: CharacteristicsStorageProtocol, pairing_data_storage: PairingDataStorageProtocol | None = None):
-        self.char_cache = char_cache
+    def __init__(self, char_cache_storage: CharacteristicsStorageProtocol, pairing_data_storage: PairingDataStorageProtocol | None = None):
+        self.char_cache_storage = char_cache_storage
         self.pairing_data_storage = pairing_data_storage
+        self._pairing_cleanups: dict[UUID, list[Callable[[], None]]] = {}
 
     # Abstract
 
@@ -55,7 +55,8 @@ class AbstractController[
     async def start(self): ...
 
     @abstractmethod
-    async def stop(self): ...
+    async def stop(self):
+        self._stop_observing()
 
     # Public
 
@@ -84,7 +85,7 @@ class AbstractController[
 
         accessory_id = pairing_data.get("AccessoryPairingID")
 
-        if accessory_id:
+        if not accessory_id:
             return None
 
         pairing = self._pairings[UUID(accessory_id)] = Pairing(pairing_data, self.pairing_data_storage.save)
@@ -92,9 +93,11 @@ class AbstractController[
         if discovery := self._discoveries.get(accessory_id):
             pairing.process_description_update(discovery.description)
 
-        # subscribe to pairing updates
-
-
+        # observe pairing data changes and store unsubscribe callables
+        unsubscribes = []
+        unsubscribes.append(pairing.add_observer_for_config(lambda _: self.char_cache_storage.save(pairing.pairing_data)))
+        unsubscribes.append(pairing.add_observer_for_pairing_data(self.pairing_data_storage.save))
+        self._pairing_cleanups[UUID(accessory_id)] = unsubscribes
 
         return pairing
 
@@ -104,6 +107,12 @@ class AbstractController[
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return Discovery(discovery_info, self._on_pairing)
+
+    def _stop_observing(self):
+        for unsubscribes in self._pairing_cleanups.values():
+            for unsubscribe in unsubscribes:
+                unsubscribe()
+        self._pairing_cleanups.clear()
 
     # Context Manager
 

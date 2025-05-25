@@ -159,25 +159,7 @@ class CoAPPairing(ZeroconfPairing):
         self._accessories_state = AccessoriesState(
             Accessories.from_list(accessories), self.config_num or 0
         )
-        self._update_accessories_state_cache()
         return self._accessories_state
-
-    async def _process_config_changed(self, config_num: int):
-        """Process a config change.
-
-        This method is called when the config num changes.
-        """
-        await self.fetch_accessories_and_characteristics(force_update=True)
-        self._accessories_state = AccessoriesState(
-            self._accessories_state.accessories, config_num
-        )
-        self._callback_config_changed(config_num)
-
-    def _process_disconnected_events(self):
-        """Process any events that happened while we were disconnected.
-
-        We don't disconnect in COAP so there is no need to do anything here.
-        """
 
     async def get_characteristics(
         self,

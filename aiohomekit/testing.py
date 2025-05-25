@@ -256,7 +256,6 @@ class FakePairing(AbstractPairing):
             raise AccessoryNotFoundError("Accessory not found")
         if not self._accessories_state:
             self._accessories_state = self._initial_accessories_state
-            self._update_accessories_state_cache()
 
     async def identify(self):
         """Identify the accessory."""
