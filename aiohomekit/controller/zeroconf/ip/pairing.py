@@ -462,7 +462,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         return True
 
     @override
-    async def remove_pairing(self, pairingId: str | None = None) -> bool:
+    async def remove_pairing(self, pairingId: UUID | None = None) -> bool:
         """
         :param pairingId: the pairing id of the controller (ios device) to be removed
         :raises AuthenticationError: if the controller isn't authenticated to the accessory.

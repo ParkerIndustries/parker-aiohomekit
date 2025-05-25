@@ -58,15 +58,41 @@ class AbstractController[
     async def stop(self):
         self._stop_observing()
 
+    @abstractmethod
+    async def remove_pairing(self, pairing_id: UUID) -> Pairing:
+        """
+        Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
+        accessory and the controller.
+
+        :param alias: the controller's alias for the accessory
+        :raises AuthenticationError: if the controller isn't authenticated to the accessory.
+        :raises AccessoryNotFoundError: if the device can not be found via zeroconf
+        :raises UnknownError: on unknown errors
+        """
+
+        if pairing_id not in self.pairings:
+            raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found.')
+
+        pairing = self.pairings.pop(pairing_id)
+
+        for cleanup in self._pairing_cleanups[pairing_id]:
+            cleanup()
+
+        await pairing.remove_pairing(pairing_id)
+        await self.char_cache_storage.delete(pairing_id)
+        await self.pairing_data_storage.delete(pairing_id)
+
+        return pairing
+
     # Public
 
     @final
     @property
-    def pairings(self) -> dict[str, Pairing]: return self._pairings
+    def pairings(self) -> dict[UUID, Pairing]: return self._pairings
 
     @final
     @property
-    def discoveries(self) -> dict[str, Discovery]: return self._discoveries
+    def discoveries(self) -> dict[UUID, Discovery]: return self._discoveries
 
     # Implementations
 

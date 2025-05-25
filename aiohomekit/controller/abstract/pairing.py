@@ -104,7 +104,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
-    async def remove_pairing(self, pairingId: UUID):
+    async def remove_pairing(self, pairingId: UUID | None = None):
         """Remove an accessory pairing to some controller (not necessarily this one)."""
 
     @abstractmethod
@@ -182,10 +182,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         return accessory_info.value(CharacteristicsTypes.NAME, "")
 
     async def shutdown(self):
-        """Shutdown the pairing.
-
-        This method is irreversible. It should be called when
-        the pairing is removed or the controller is shutdown.
+        """
+        This method should be called from the controller, otherwise cache and storage cleanup will not happen.
+        This method is irreversible. It should be called when the pairing is removed or the controller is shutdown.
         """
         self._shutdown = True
         await self.close()

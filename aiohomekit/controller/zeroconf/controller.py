@@ -96,6 +96,8 @@ class ZeroconfController[
         for device in self._discoveries.values():
             yield device
 
+    # Private methods
+
     async def _load_zeroconf_from_cache(self, zc: Zeroconf):
         tasks: list[asyncio.Task] = []
         now = current_time_millis()
