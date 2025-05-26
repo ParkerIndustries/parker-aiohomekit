@@ -7,7 +7,7 @@ from asyncio.protocols import Protocol
 
 #     async def get(self) -> StorageLayout | None: ...
 
-#     async def create_or_update(self, data: StorageLayout): ...
+#     async def save(self, data: StorageLayout): ...
 
 #     async def delete(self) -> None: ...
 
@@ -17,13 +17,13 @@ class DictStorageProtocol[ID, StorageLayoutItem](Protocol):
 
     async def get(self, id: ID) -> StorageLayoutItem | None: ...
 
-    async def create_or_update(self, id: ID, item: StorageLayoutItem): ...
+    async def save(self, id: ID, item: StorageLayoutItem): ...
 
     async def delete(self, id: ID) -> None: ...
 
 # MARK: - Generic Implementations
 
-class DictStorageMemory[ID, StorageLayoutItem]:
+class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
 
     _storage_data: dict[ID, StorageLayoutItem]
 
@@ -38,7 +38,7 @@ class DictStorageMemory[ID, StorageLayoutItem]:
     async def get(self, id: ID) -> StorageLayoutItem | None:
         return self._storage_data.get(id)
 
-    async def create_or_update_map(self, id: ID, item: StorageLayoutItem):
+    async def save(self, id: ID, item: StorageLayoutItem):
         self._storage_data[id] = item
 
     async def delete(self, id: ID):
@@ -72,7 +72,7 @@ class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory
                     f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self.storage_data}"
                 )
 
-    async def create_or_update(self, id: ID, item: StorageLayoutItem):
+    async def save(self, id: ID, item: StorageLayoutItem):
         self._storage_data[id] = item
         self._do_save()
 

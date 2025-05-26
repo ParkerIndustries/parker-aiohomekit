@@ -8,27 +8,20 @@ from aiohomekit.controller.coap.pairing import CoAPPairing
 from aiohomekit.zeroconf import HAP_TYPE_UDP, ZeroconfController
 
 
-class CoAPController(ZeroconfController):
-    hap_type = HAP_TYPE_UDP
-    discoveries: dict[str, CoAPDiscovery]
-    pairings: dict[str, CoAPPairing]
-    transport_type = TransportType.COAP
+class CoAPController(ZeroconfController[CoAPDiscovery, CoAPPairing]):
 
-    # def _make_discovery(self, discovery) -> CoAPDiscovery:
-    #     return CoAPDiscovery(self, discovery)
+    def __init__(
+        self,
+        char_cache_storage: CharacteristicsStorageProtocol,
+        pairing_data_storage: PairingDataStorageProtocol,
+        zeroconf_instance: AsyncZeroconf,
+    ):
+        super().__init__(CoAPDiscovery, CoAPPairing, char_cache_storage, pairing_data_storage, zeroconf_instance)
 
-    def load_pairing(
-        self, id: UUID, pairing_data: dict[str, Any]
-    ) -> CoAPPairing | None:
-        if pairing_data["Connection"] != "CoAP":
-            return None
+    @property
+    def transport_type(self) -> TransportType:
+        return TransportType.COAP
 
-        if not (hkid := pairing_data.get("AccessoryPairingID")):
-            return None
-
-        pairing = self.pairings[hkid.lower()] = CoAPPairing(self, pairing_data)
-
-        if discovery := self.discoveries.get(hkid.lower()):
-            pairing.process_description_update(discovery.description)
-
-        return pairing
+    @property
+    def _hap_type(self) -> str:
+        return IpTransport.UDP

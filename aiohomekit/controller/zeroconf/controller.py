@@ -22,10 +22,13 @@ class ZeroconfController[
 
     def __init__(
         self,
-        char_cache: CharacteristicCacheType,
+        Discovery: type[Discovery],
+        Pairing: type[Pairing],
+        char_cache_storage: CharacteristicsStorageProtocol,
+        pairing_data_storage: PairingDataStorageProtocol,
         zeroconf_instance: AsyncZeroconf,
     ):
-        super().__init__(char_cache)
+        super().__init__(Discovery, Pairing, char_cache_storage, pairing_data_storage)
         self._async_zeroconf_instance = zeroconf_instance
         self._waiters: dict[str, list[asyncio.Future]] = {}
         self._resolve_later: dict[str, asyncio.TimerHandle] = {}

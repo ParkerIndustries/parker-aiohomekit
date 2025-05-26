@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from uuid import UUID
 from typing import Callable
-from aiohomekit.model import Accessory
+
 from aiohomekit.model.accessories.accessory_state import AccessoriesState
 
 

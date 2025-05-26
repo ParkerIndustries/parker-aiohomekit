@@ -62,7 +62,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
     """
 
     def __init__(
-        self, controller: AbstractController, pairing_data: PairingData # NOTE: doesn't correspond; has AccessoryIP instead of AccessoryAddress
+        self, controller: AbstractController, pairing_data: PairingData
     ):
         """
         Initialize a Pairing by using the data either loaded from file or obtained after calling

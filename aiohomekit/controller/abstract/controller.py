@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractController[
-    DiscoveryInfo: Any,
+    DiscoveryInfo: Any, # TODO: check if this should be inside AbstractDiscovery
     Discovery: AbstractDiscovery,
     Pairing: AbstractPairing
 ](ABC):
@@ -24,7 +24,14 @@ class AbstractController[
     _pairings: dict[UUID, Pairing]
     _on_discovery_callback: OnDiscoveryCallback | None = None
 
-    def __init__(self, char_cache_storage: CharacteristicsStorageProtocol, pairing_data_storage: PairingDataStorageProtocol | None = None):
+    def __init__(self,
+        Discovery: type[Discovery], # anoying workaround for 'typing.TypeVar' object is not callable
+        Pairing: type[Pairing],
+        char_cache_storage: CharacteristicsStorageProtocol,
+        pairing_data_storage: PairingDataStorageProtocol
+    ):
+        self.Discovery = Discovery
+        self.Pairing = Pairing
         self.char_cache_storage = char_cache_storage
         self.pairing_data_storage = pairing_data_storage
         self._pairing_cleanups: dict[UUID, list[Callable[[], None]]] = {}
@@ -103,7 +110,7 @@ class AbstractController[
 
     def load_pairings_from_storage(self):
         for pairing_data in self.pairing_data_storage.get_all():
-            self.load_pairing(pairing_data["AccessoryPairingID"], pairing_data)
+            self.load_pairing(pairing_data)
 
     def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
         if pairing_data["Connection"] != self.transport_type:
@@ -114,7 +121,7 @@ class AbstractController[
         if not accessory_id:
             return None
 
-        pairing = self._pairings[UUID(accessory_id)] = Pairing(pairing_data, self.pairing_data_storage.save)
+        pairing = self._pairings[UUID(accessory_id)] = self.Pairing(pairing_data, self.pairing_data_storage.save)
 
         if discovery := self._discoveries.get(accessory_id):
             pairing.process_description_update(discovery.description)
@@ -132,7 +139,7 @@ class AbstractController[
         self.pairing_data_storage.save(pairing_data)
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
-        return Discovery(discovery_info, self._on_pairing)
+        return self.Discovery(discovery_info, self._on_pairing)
 
     def _stop_observing(self):
         for unsubscribes in self._pairing_cleanups.values():
