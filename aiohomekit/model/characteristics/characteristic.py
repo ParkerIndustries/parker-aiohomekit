@@ -20,7 +20,7 @@ import base64
 import binascii
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from aiohomekit.exceptions import CharacteristicPermissionError, FormatError
 from aiohomekit.protocol.statuscodes import HapStatusCode
@@ -60,7 +60,7 @@ INTEGER_TYPES = [
 NUMBER_TYPES = INTEGER_TYPES + [CharacteristicFormats.float]
 
 
-def strtobool(val):
+def strtobool(val: str) -> Literal[0, 1]:
     """Convert a string representation of truth to true (1) or false (0).
     True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
     are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
@@ -68,6 +68,8 @@ def strtobool(val):
 
     This is inlined instead of imported from distutils to avoid
     importing the ~82 modules that come along with the import.
+
+    raises: ValueError
     """
     val = val.lower()
     if val in ("y", "yes", "t", "true", "on", "1"):
@@ -104,9 +106,9 @@ class Characteristic:
     _value: Any
     _status: HapStatusCode
 
-    def __init__(self, service: Service, characteristic_type: str, **kwargs):
+    def __init__(self, service: Service, characteristic_type: UUID, **kwargs):
         self.parent_service = service
-        self.type = normalize_uuid(characteristic_type)
+        self.type = characteristic_type
         self.iid = self._get_configuration(
             kwargs, "iid", service.accessory.get_next_id()
         )
@@ -170,9 +172,9 @@ class Characteristic:
             return kwargs[key]
         if self.type not in characteristics:
             return default
-        if key not in characteristics[self.type]:
+        if key not in characteristics[str(self.type).upper()]:
             return default
-        return characteristics[self.type][key]
+        return characteristics[str(self.type).upper()][key]
 
     @property
     def status(self) -> HapStatusCode:
@@ -212,7 +214,7 @@ class Characteristic:
 
         If the characteristic is an enum, returns the enum value
         """
-        if not (extra_data := characteristics.get(self.type)):
+        if not (extra_data := characteristics.get(str(self.type).upper())):
             return self._value
 
         if self.format == CharacteristicFormats.tlv8:
@@ -314,7 +316,7 @@ class Characteristic:
             raise CharacteristicPermissionError(HapStatusCode.CANT_READ_WRITE_ONLY)
         return self.value
 
-    def to_accessory_and_service_list(self):
+    def as_dict(self):
         d = {
             "type": self.type,
             "iid": self.iid,

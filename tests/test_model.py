@@ -504,7 +504,7 @@ def test_enum_encode():
     accessories = Accessories.from_file("tests/fixtures/nanoleaf_bulb.json")
     status = accessories.aid(1).characteristics.iid(117)
     status.value = ThreadStatus.DISABLED
-    assert status.to_accessory_and_service_list()["value"] == 1
+    assert status.as_dict()["value"] == 1
 
 
 def test_needs_polling():

@@ -1,5 +1,7 @@
+from typing import Any
+from dataclasses import dataclass
+from .accessories import Accessories
 
-# TODO: move to models
 
 @dataclass
 class AccessoriesState:
@@ -8,4 +10,4 @@ class AccessoriesState:
     broadcast_key: bytes | None = None
     state_num: int | None = None
 
-    def as_dict(self) -> dict[str, Any]: raise NotImplementedError() # TODO: implement if needed
+    def as_dict(self) -> dict[str, Any]: raise NotImplementedError() # implement if needed

@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 import logging
-from typing import Any, Callable, TypedDict, final
+from typing import Any, final
 
 from aiohomekit.characteristic_cache import CharacteristicCacheType
 from aiohomekit.model import Accessories, AccessoriesState, Transport

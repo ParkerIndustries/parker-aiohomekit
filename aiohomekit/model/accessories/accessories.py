@@ -1,5 +1,9 @@
 from __future__ import annotations
-from typing import Any, Iterator, Self
+from typing import Iterator, Self
+from aiohomekit import hkjson
+from aiohomekit.model.characteristics import CharacteristicKey, EVENT_CHARACTERISTICS
+from aiohomekit.model import typed_dicts
+from aiohomekit.protocol.statuscodes import to_status_code
 from .accessory import Accessory
 
 
@@ -25,7 +29,7 @@ class Accessories:
             return cls.from_list(hkjson.loads(fp.read()))
 
     @classmethod
-    def from_list(cls, accessories: entity_map.Accesories) -> Accessories:
+    def from_list(cls, accessories: typed_dicts.Accessories) -> Self:
         self = cls()
         for accessory in accessories:
             self.add_accessory(Accessory.create_from_dict(accessory))
@@ -36,12 +40,12 @@ class Accessories:
         self.accessories.append(accessory)
         self._aid_to_accessory[accessory.aid] = accessory
 
-    def serialize(self) -> entity_map.Accesories:
+    def serialize(self) -> typed_dicts.Accessories:
         """Serialize the accessories to a list of dicts."""
-        return [a.to_accessory_and_service_list() for a in self.accessories]
+        return [a.as_dict() for a in self.accessories]
 
-    def to_accessory_and_service_list(self) -> dict[str, entity_map.Accesories]:
-        return hkjson.dumps({"accessories": self.serialize()})
+    def as_dict(self) -> dict[str, typed_dicts.Accessories]:
+        return {"accessories": self.serialize()}
 
     def aid(self, aid: int) -> Accessory:
         """Return the accessory with the given aid, raising KeyError if it does not exist."""
@@ -56,7 +60,7 @@ class Accessories:
         return aid in self._aid_to_accessory
 
     def process_changes(
-        self, changes: Response
+        self, changes: typed_dicts.Response
     ) -> set[CharacteristicKey]:
         """Process changes from a HomeKit controller.
 
@@ -73,7 +77,7 @@ class Accessories:
                     changed.add(aid_iid)
 
             previous_status = char.status
-            char.status = to_status_code(value.get("status", 0))
+            char.status = to_status_code(value.get("status") or 0)
             if previous_status != char.status:
                 changed.add(aid_iid)
 

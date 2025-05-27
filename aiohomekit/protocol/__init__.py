@@ -46,6 +46,7 @@ from aiohomekit.exceptions import (
     UnavailableError,
 )
 from aiohomekit.protocol.tlv import TLV
+from aiohomekit.model import typed_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ def validate_mfi(session_key, response_tlv):
 
 def perform_pair_setup_part2(
     pin: str, ios_pairing_id: str, salt: bytearray, server_public_key: bytearray
-) -> Generator[tuple[list[tuple[int, bytearray]], list[int]], None, dict[str, str]]:
+) -> Generator[tuple[list[tuple[int, bytearray]], list[int]], None, typed_dicts.PairingCredentials]:
     """
     Performs a pair setup operation as described in chapter 4.7 page 39 ff.
 
@@ -346,7 +347,7 @@ def perform_pair_setup_part2(
         encryption_algorithm=serialization.NoEncryption(),
     )
 
-    return { # TODO: to model
+    return {
         "AccessoryPairingID": accessory_pairing_id.decode(),
         "AccessoryLTPK": hexlify(accessory_ltpk).decode(),
         "iOSDeviceId": ios_pairing_id,

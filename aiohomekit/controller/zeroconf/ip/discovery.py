@@ -22,9 +22,9 @@ from aiohomekit.exceptions import AlreadyPairedError
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.protocol.statuscodes import to_status_code
 from aiohomekit.utils import check_pin_format, pair_with_auth
-
+from aiohomekit.model.typed_dicts import PairingData
 from .connection import HomeKitConnection
-from .pairing import IpPairing
+
 
 
 class IpDiscovery(AbstractDiscovery[HomeKitService]):
@@ -98,8 +98,8 @@ class IpDiscovery(AbstractDiscovery[HomeKitService]):
 
         response = await self.connection.post_json("/identify", {})
 
-        if not response:
-            return True
+        # if not response:
+        #     return True
 
         code = to_status_code(response["code"])
 

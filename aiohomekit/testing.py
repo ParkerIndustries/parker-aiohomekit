@@ -238,10 +238,10 @@ class FakePairing(AbstractPairing):
     def transport(self) -> Transport:
         transport_type = self.pairing_data.get("Connection", "IP")
         return {
-            "BLE": Transport.BLE,
-            "CoAP": Transport.COAP,
-            "IP": Transport.IP,
-        }.get(transport_type, Transport.IP)
+            "BLE": TransportType.BLE,
+            "CoAP": TransportType.COAP,
+            "IP": TransportType.IP,
+        }.get(transport_type, TransportType.IP)
 
     @property
     def poll_interval(self) -> timedelta:

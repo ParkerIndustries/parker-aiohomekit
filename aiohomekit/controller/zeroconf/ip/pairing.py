@@ -88,7 +88,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
     @property
     def transport(self) -> Transport:
         """The transport used for the connection."""
-        return Transport.IP
+        return TransportType.IP
 
     @property
     def poll_interval(self) -> timedelta:
@@ -184,7 +184,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         self._accessories_state = AccessoriesState(
             Accessories.from_list(accessories), self.config_num or 0
         )
-        # TODO: some callback?
+
         return self._accessories_state
 
     @override

@@ -16,16 +16,23 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
-from aiohomekit.model.characteristics import Characteristic, CharacteristicsTypes
-from aiohomekit.model.characteristics.characteristic import check_convert_value
+from aiohomekit.model.characteristics import (
+    Characteristic,
+    Characteristics,
+    CharacteristicsTypes,
+    CharacteristicKeyValue,
+    check_convert_value
+)
 from aiohomekit.model.services.data import services
 from aiohomekit.uuid import normalize_uuid
 
 if TYPE_CHECKING:
-    from aiohomekit.model import Accessory
+    from aiohomekit.model.accessories import Accessory
+    from aiohomekit.model import typed_dicts
 
 
 class Service:
@@ -33,10 +40,10 @@ class Service:
 
     type: str
     iid: int
-    linked: set[Service]
+    linked: list[Service]
 
     characteristics: Characteristics
-    characteristics_by_type: dict[str, Characteristic]
+    characteristics_by_type: dict[UUID, Characteristic]
     accessory: Accessory
 
     def __init__(
@@ -53,11 +60,11 @@ class Service:
         self.accessory = accessory
         self.iid = iid or accessory.get_next_id()
         self.characteristics = Characteristics()
-        self.characteristics_by_type: dict[str, Characteristic] = {}
-        self.linked: list[Service] = []
+        self.characteristics_by_type = dict()
+        self.linked = list()
 
         if name:
-            char = self.add_char(CharacteristicsTypes.NAME)
+            char = self.add_char(UUID(CharacteristicsTypes.NAME))
             char.set_value(name)
 
         if add_required:
@@ -65,25 +72,31 @@ class Service:
                 if required not in self.characteristics_by_type:
                     self.add_char(required)
 
-    def has(self, char_type: str) -> bool:
+    def has(self, char_type: UUID) -> bool:
         """Return True if the service has a characteristic."""
-        return normalize_uuid(char_type) in self.characteristics_by_type
+        return char_type in self.characteristics_by_type
 
-    def value(self, char_type: str, default_value: Any | None = None) -> Any:
+    def value(self, char_type: UUID | str, default_value: Any | None = None) -> Any:
         """Return the value of a characteristic."""
-        char_type = normalize_uuid(char_type)
 
-        if char_type not in self.characteristics_by_type:
+        if isinstance(char_type, str):
+            char_type = UUID(char_type)
+
+        if not self.has(char_type):
             return default_value
 
         return self.characteristics_by_type[char_type].value
 
-    def __getitem__(self, key) -> Characteristic:
+    def __getitem__(self, key: UUID) -> Characteristic:
         """Get a characteristic by type."""
-        return self.characteristics_by_type[normalize_uuid(key)]
+        return self.characteristics_by_type[key]
 
-    def add_char(self, char_type: str, **kwargs: Any) -> Characteristic:
+    def add_char(self, char_type: UUID | str, **kwargs: Any) -> Characteristic:
         """Add a characteristic to the service."""
+
+        if isinstance(char_type, str):
+            char_type = UUID(char_type)
+
         char = Characteristic(self, char_type, **kwargs)
         self.characteristics.append(char)
         self.characteristics_by_type[char.type] = char
@@ -105,22 +118,23 @@ class Service:
         result = []
 
         for char_type, value in payload.items():
-            char = self[char_type]
+            char = self[UUID(char_type)]
             value = check_convert_value(value, char)
             result.append((self.accessory.aid, char.iid, value))
 
         return result
 
-    def to_accessory_and_service_list(self) -> dict[str, Any]:
+    def as_dict(self) -> typed_dicts.Service:
         """Return the service as a dictionary."""
         characteristics_list = []
         for c in self.characteristics:
-            characteristics_list.append(c.to_accessory_and_service_list())
+            characteristics_list.append(c.as_dict())
 
-        d = {
+        d: typed_dicts.Service = {
             "iid": self.iid,
             "type": self.type,
             "characteristics": characteristics_list,
+            "linked": [],
         }
         if linked := [service.iid for service in self.linked]:
             d["linked"] = linked
@@ -162,10 +176,10 @@ class Services:
     def filter(
         self,
         *,
-        service_type: str = None,
-        characteristics: dict[str, str] = None,
-        parent_service: Service = None,
-        child_service: Service = None,
+        service_type: str | None  = None,
+        characteristics: dict[str, str] | None  = None,
+        parent_service: Service | None  = None,
+        child_service: Service | None  = None,
         order_by: list[str] | None = None,
     ) -> Iterator[Service]:
         """Filter services by type and characteristics."""
@@ -178,7 +192,7 @@ class Services:
         if characteristics:
             for characteristic, value in characteristics.items():
                 matches = filter(
-                    lambda service: service.value(characteristic) == value, matches
+                    lambda service: service.value(UUID(characteristic)) == value, matches
                 )
 
         if parent_service:
@@ -188,22 +202,22 @@ class Services:
             matches = filter(lambda service: child_service in service.linked, matches)
 
         if order_by:
-            matches = sorted(
+            matches = iter(sorted(
                 matches,
                 key=lambda service: tuple(
-                    service.value(char_type) for char_type in order_by
+                    service.value(UUID(char_type)) for char_type in order_by
                 ),
-            )
+            ))
 
         return matches
 
     def first(
         self,
         *,
-        service_type: str = None,
-        characteristics: dict[str, str] = None,
-        parent_service: Service = None,
-        child_service: Service = None,
+        service_type: str | None = None,
+        characteristics: dict[str, str] | None  = None,
+        parent_service: Service | None  = None,
+        child_service: Service | None  = None,
     ) -> Service | None:
         """Get the first service."""
         if (

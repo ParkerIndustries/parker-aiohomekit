@@ -358,7 +358,7 @@ class BlePairing(AbstractPairing):
     @property
     def transport(self) -> Transport:
         """The transport used for the connection."""
-        return Transport.BLE
+        return TransportType.BLE
 
     def _update_state_num(self, state_num: int):
         """Update the state number."""

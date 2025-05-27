@@ -59,13 +59,6 @@ class AbstractController[
     async def discover(self, timeout_sec: float = 10) -> AsyncIterable[Discovery]: ...
 
     @abstractmethod
-    async def start(self): ...
-
-    @abstractmethod
-    async def stop(self):
-        self._stop_observing()
-
-    @abstractmethod
     async def remove_pairing(self, pairing_id: UUID) -> Pairing:
         """
         Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
@@ -107,6 +100,12 @@ class AbstractController[
     def on_discovery(self, callback: OnDiscoveryCallback):
         """Register a callback to be called when a device is discovered."""
         self._on_discovery_callback = callback
+
+    async def start(self):
+        self.load_pairings_from_storage()
+
+    async def stop(self):
+        self._stop_observing()
 
     def load_pairings_from_storage(self):
         for pairing_data in self.pairing_data_storage.get_all():

@@ -251,8 +251,8 @@ def test_coap_pdu09_decode_2():
     accessory = Accessory.create_from_dict(info.to_dict()[0])
     import json
 
-    print(json.dumps(accessory.to_accessory_and_service_list()))
-    assert accessory.to_accessory_and_service_list() == {
+    print(json.dumps(accessory.as_dict()))
+    assert accessory.as_dict() == {
         "aid": 1,
         "services": [
             {

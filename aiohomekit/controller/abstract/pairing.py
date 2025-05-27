@@ -6,13 +6,6 @@ from typing import Callable
 from aiohomekit.model.accessories.accessory_state import AccessoriesState
 
 
-class ResponseDict(TypedDict, total=False):
-    value: Value | None
-    status: int | None
-    description: str | None
-
-type Response = dict[CharacteristicKey, ResponseDict]
-
 class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     type PairingDataChangeCallback = Callable[[PairingData], None]
@@ -58,7 +51,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         """Returns how often the device should be polled."""
 
     # @abstractmethod
-    # async def thread_provision( # TODO: review
+    # async def thread_provision( # TODO: review; shouldn't be implemented in discovery? how is wifi provisioned?
     #     self,
     #     dataset: str,
     # ):

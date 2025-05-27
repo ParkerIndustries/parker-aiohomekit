@@ -67,7 +67,7 @@ class CoAPPairing(ZeroconfPairing):
     @property
     def transport(self) -> Transport:
         """The transport used for the connection."""
-        return Transport.COAP
+        return TransportType.COAP
 
     @property
     def name(self) -> str:

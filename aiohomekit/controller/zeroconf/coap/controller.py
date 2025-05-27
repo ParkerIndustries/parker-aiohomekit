@@ -24,4 +24,4 @@ class CoAPController(ZeroconfController[CoAPDiscovery, CoAPPairing]):
 
     @property
     def _hap_type(self) -> str:
-        return IpTransport.UDP
+        return IpTransportType.UDP

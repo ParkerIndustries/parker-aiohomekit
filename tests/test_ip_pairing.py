@@ -380,7 +380,7 @@ async def test_identify(pairing):
 
 
 async def test_transport_property(pairing: IpPairing):
-    assert pairing.transport == Transport.IP
+    assert pairing.transport == TransportType.IP
 
 
 async def test_polling_property(pairing: IpPairing):

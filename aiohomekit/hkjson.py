@@ -49,7 +49,7 @@ def dumps(data: Any) -> str:
     return dump_bytes(data).decode("utf-8")
 
 
-def dump_bytes(data: Any) -> str:
+def dump_bytes(data: Any) -> bytes:
     """JSON encoder that works with iOS.
 
     An iPhone sends JSON like this:

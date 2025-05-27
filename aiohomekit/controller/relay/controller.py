@@ -118,8 +118,6 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                 )
             )
 
-        await self._load_pairings_from_storage() # TODO: review
-
     async def _register_backend(self, controller: AbstractController):
         self._transports[controller.transport_type] = await self._tasks.enter_context(controller)
 

@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import pathlib
 from uuid import UUID
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol
 
 import aiohomekit.hkjson as hkjson
 from aiohomekit.model.characteristics.characteristic import Characteristics

@@ -1,3 +1,9 @@
+from typing import Self
+from uuid import UUID
+from aiohomekit.model import typed_dicts
+from aiohomekit.model.characteristics import Characteristics, CharacteristicsTypes, NEEDS_POLLINGS_CHARS
+from aiohomekit.model.services import Service, Services, ServicesTypes
+
 
 class Accessory:
     """Represents a HomeKit accessory."""
@@ -19,7 +25,7 @@ class Accessory:
         model: str,
         serial_number: str,
         firmware_revision: str,
-    ) -> Accessory:
+    ) -> Self:
         """Create an accessory with the required services for HomeKit.
 
         This method should only be used for testing purposes as it assigns
@@ -37,6 +43,44 @@ class Accessory:
 
         return self
 
+    @classmethod
+    def create_from_dict(cls, data: typed_dicts.Accessory) -> Self:
+        """Create an accessory from a dict."""
+        accessory = cls(data["aid"])
+
+        for service_data in data["services"]:
+            service = accessory.add_service(
+                service_data["type"], iid=service_data["iid"], add_required=False
+            )
+            for char_data in service_data["characteristics"]:
+                kwargs = dict()
+                keys = {"perms", "format", "description", "min_value", "max_value", "valid_values", "unit", "min_step", "max_len", "handle", "broadcast_events", "disconnected_events"}
+
+                for key in keys:
+                    camel_key = ''.join(word.title() for word in key.split('_'))
+                    if value := char_data.get(camel_key):
+                        kwargs[key] = value
+
+                assert "type" in char_data, f"Characteristic type is missing in {char_data}"
+                assert "iid" in char_data, f"Characteristic iid is missing in {char_data}"
+
+                char = service.add_char(
+                    UUID(char_data["type"]), iid=char_data["iid"], **kwargs
+                )
+                if value := char_data.get("value"):
+                    char.set_value(value)
+
+        for service_data in data["services"]:
+            for linked_service in service_data.get("linked", []):
+                # https://github.com/home-assistant/core/issues/100160
+                # The Schlage Encode Plus can contain a 0 in this list which we have to ignore
+                if linked_service:
+                    accessory.services.iid(service_data["iid"]).add_linked_service(
+                        accessory.services.iid(linked_service)
+                    )
+
+        return accessory
+
     @property
     def accessory_information(self) -> Service:
         """Returns the ACCESSORY_INFORMATION service for this accessory."""
@@ -44,6 +88,7 @@ class Accessory:
             self._accessory_information = self.services.first(
                 service_type=ServicesTypes.ACCESSORY_INFORMATION
             )
+        assert self._accessory_information is not None, 'No ACCESSORY_INFORMATION service found'
         return self._accessory_information
 
     @property
@@ -98,59 +143,6 @@ class Accessory:
                     return True
         return False
 
-    @classmethod
-    def create_from_dict(cls, data: dict[str, Any]) -> Accessory: # TODO: refactor entity_map to normal Codable or pydantic protocol, or merge with typed dict
-        """Create an accessory from a dict."""
-        accessory = cls(data["aid"])
-
-        for service_data in data["services"]:
-            service = accessory.add_service(
-                service_data["type"], iid=service_data["iid"], add_required=False
-            )
-            for char_data in service_data["characteristics"]:
-                kwargs = {
-                    "perms": char_data["perms"],
-                }
-                if "format" in char_data:
-                    kwargs["format"] = char_data["format"]
-                if "description" in char_data:
-                    kwargs["description"] = char_data["description"]
-                if "minValue" in char_data:
-                    kwargs["min_value"] = char_data["minValue"]
-                if "maxValue" in char_data:
-                    kwargs["max_value"] = char_data["maxValue"]
-                if "valid-values" in char_data:
-                    kwargs["valid_values"] = char_data["valid-values"]
-                if "unit" in char_data:
-                    kwargs["unit"] = char_data["unit"]
-                if "minStep" in char_data:
-                    kwargs["min_step"] = char_data["minStep"]
-                if "maxLen" in char_data:
-                    kwargs["max_len"] = char_data["maxLen"]
-                if "handle" in char_data:
-                    kwargs["handle"] = char_data["handle"]
-                if "broadcast_events" in char_data:
-                    kwargs["broadcast_events"] = char_data["broadcast_events"]
-                if "disconnected_events" in char_data:
-                    kwargs["disconnected_events"] = char_data["disconnected_events"]
-
-                char = service.add_char(
-                    char_data["type"], iid=char_data["iid"], **kwargs
-                )
-                if char_data.get("value") is not None:
-                    char.set_value(char_data["value"])
-
-        for service_data in data["services"]:
-            for linked_service in service_data.get("linked", []):
-                # https://github.com/home-assistant/core/issues/100160
-                # The Schlage Encode Plus can contain a 0 in this list which we have to ignore
-                if linked_service:
-                    accessory.services.iid(service_data["iid"]).add_linked_service(
-                        accessory.services.iid(linked_service)
-                    )
-
-        return accessory
-
     def get_next_id(self) -> int:
         """Return the next available id for a service."""
         self._next_id += 1
@@ -170,9 +162,9 @@ class Accessory:
         self.services.append(service)
         return service
 
-    def to_accessory_and_service_list(self) -> dict[str, Any]:
+    def as_dict(self) -> typed_dicts.Accessory:
         """Serialize the accessory to a dict."""
         return {
             "aid": self.aid,
-            "services": [s.to_accessory_and_service_list() for s in self.services],
+            "services": [s.as_dict() for s in self.services],
         }

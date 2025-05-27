@@ -21,4 +21,4 @@ class IpController(ZeroconfController[IpDiscovery, IpPairing]):
 
     @property
     def _hap_type(self) -> str:
-        return IpTransport.TCP
+        return IpTransportType.TCP

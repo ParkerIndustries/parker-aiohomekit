@@ -393,3 +393,13 @@ class CharacteristicsTypes(str, Enum):
 
     # r/w, int - 1 for on, 0 for off
     VENDOR_AIRVERSA_SLEEP_MODE = "00000006-5E50-11EC-B400-0A80FF2603DE"
+
+NEEDS_POLLINGS_CHARS = {
+    CharacteristicsTypes.VENDOR_EVE_ENERGY_WATT,
+    CharacteristicsTypes.VENDOR_CONNECTSENSE_ENERGY_WATT,
+}
+
+EVENT_CHARACTERISTICS = {
+    CharacteristicsTypes.INPUT_EVENT,
+    CharacteristicsTypes.BUTTON_EVENT,
+}
