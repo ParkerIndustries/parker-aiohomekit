@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+# TODO: review and use
 
 class HomeKitException(Exception):
     """Generic HomeKit exception.

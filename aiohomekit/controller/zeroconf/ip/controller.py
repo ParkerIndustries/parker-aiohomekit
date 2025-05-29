@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from aiohomekit.controller.abstract import TransportType
-from aiohomekit.controller.ip.discovery import IpDiscovery
-from aiohomekit.controller.ip.pairing import IpPairing
+from aiohomekit.model.transport_type import TransportType, IpTransportType
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
+from aiohomekit.zeroconf import AsyncZeroconf
+from ..controller import ZeroconfController
+from .discovery import IpDiscovery
+from .pairing import IpPairing
 
 
 class IpController(ZeroconfController[IpDiscovery, IpPairing]):
@@ -20,5 +24,5 @@ class IpController(ZeroconfController[IpDiscovery, IpPairing]):
         return TransportType.IP
 
     @property
-    def _hap_type(self) -> str:
+    def _hap_type(self) -> IpTransportType:
         return IpTransportType.TCP

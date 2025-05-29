@@ -1,13 +1,17 @@
+from typing import override
+import logging
+from aiohomekit.zeroconf import HomeKitService
+from ..abstract.pairing import AbstractPairing
+
+
+logger = logging.getLogger(__name__)
+
 class ZeroconfPairing(AbstractPairing[HomeKitService]):
 
     @override
-    def process_description_update(self, description: HomeKitService | None):
+    def process_description_update(self, description: HomeKitService):
         old_description = self.description
-
         super().process_description_update(description)
-
-        if not description:
-            return
 
         endpoint_changed = False
         if not old_description:
@@ -35,7 +39,9 @@ class ZeroconfPairing(AbstractPairing[HomeKitService]):
 
     def _endpoint_changed(self):
         """The IP and/or port of the accessory has changed."""
+        if not self.pairing_data or not self.description: return
+
         self.pairing_data['AccessoryIP'] = self.description.address
         self.pairing_data['AccessoryIPs'] = self.description.addresses
-        if callback := self._on_pairing_data_change:
-            callback(self.pairing_data)
+
+        self._callback_pairing_data_changed(self.pairing_data)

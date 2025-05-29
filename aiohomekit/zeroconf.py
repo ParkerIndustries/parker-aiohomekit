@@ -41,11 +41,13 @@ from aiohomekit.controller.abstract import (
     AbstractPairing,
 )
 from aiohomekit.exceptions import AccessoryNotFoundError, TransportNotSupportedError
-from aiohomekit.model import Categories
+from aiohomekit.model.categories import Categories
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.model.status_flags import StatusFlags
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 
 from .utils import async_create_task
+
 
 HAP_TYPE_TCP = "_hap._tcp.local."
 HAP_TYPE_UDP = "_hap._udp.local."
@@ -56,9 +58,8 @@ _TIMEOUT_MS = 3000
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass(slots=True)
-class HomeKitService:
+class HomeKitService(AbstractDiscoveryInfo):
     name: str
     id: str
     model: str
@@ -117,7 +118,7 @@ class HomeKitService:
             type=service.type,
             address=address,
             addresses=valid_addresses,
-            port=service.port,
+            port=service.port or 0,
         )
 
 class EmptyZeroconfServiceListener(ServiceListener):

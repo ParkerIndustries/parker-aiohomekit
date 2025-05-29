@@ -22,7 +22,6 @@ from collections.abc import AsyncIterator
 import contextlib
 import locale
 import logging
-import pathlib
 import re
 import sys
 

@@ -1,10 +1,22 @@
 from __future__ import annotations
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable
+from datetime import timedelta
 from uuid import UUID
 from typing import Callable
+import logging
 
-from aiohomekit.model.accessories.accessory_state import AccessoriesState
+from aiohomekit.model.accessories import Accessories, AccessoriesState
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey, CharacteristicKeyValue, Value
+from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
+from aiohomekit.model.services.service_types import ServicesTypes
+from aiohomekit.model.typed_dicts import PairingData, Response, AccessoryPairings
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
+from aiohomekit.utils import async_create_task
 
+
+logger = logging.getLogger(__name__)
 
 class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
@@ -16,13 +28,13 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     id: UUID
 
     def __init__(self, pairing_data: PairingData):
-        self.id = pairing_data.AccessoryPairingID
+        self.id = UUID(pairing_data["AccessoryPairingID"])
         self.pairing_data = pairing_data
 
-        self._availability_observers: list[Callable[[bool], None]] = list()
-        self._pairing_data_observers: list[Callable[[PairingData], None]] = list()
-        self._config_observers: list[Callable[[int], None]] = list()
-        self._characteristic_observers: list[Callable[[dict], None]] = list()
+        self._availability_observers: list[Callable[[UUID, bool], None]] = list()
+        self._pairing_data_observers: list[Callable[[UUID, PairingData], None]] = list()
+        self._config_observers:        list[Callable[[UUID, int], None]] = list()
+        self._characteristic_observers: list[Callable[[UUID, dict[CharacteristicKey, Value]], None]] = list()
         self._observed_characteristics: set[CharacteristicKey] = set()
 
         self._accessories_state: AccessoriesState | None = None # has public read
@@ -62,12 +74,14 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         """Close the connection."""
 
     @abstractmethod
-    async def list_pairings(self):
+    async def list_pairings(self) -> list[AccessoryPairings]:
         """List pairings."""
 
     @abstractmethod
-    async def identify(self):
-        """Identify the device."""
+    async def identify(self) -> bool:
+        """Identify the device.
+        returns: True if the identify was successful, False if not.
+        """
 
     @abstractmethod
     async def get_characteristics(
@@ -87,10 +101,8 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     @abstractmethod
     async def subscribe_characteristics(
         self, characteristics: Iterable[CharacteristicKey]
-    ) -> set[CharacteristicKey]:
-        new_characteristics = set(characteristics) - self._observed_characteristics
+    ) -> Response:
         self._observed_characteristics.update(characteristics)
-        return new_characteristics # that's not the actual response, the actual one has status and reason
 
     @abstractmethod
     async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]):
@@ -112,20 +124,21 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     @property
     def accessories_state(self) -> AccessoriesState:
+        '''
+        The current state of the accessories.
+        raises: AssertionError if the state is not populated, by cache or `fetch_accessories_and_characteristics`
+        '''
+        assert self._accessories_state, "Accessories state is not populated"
         return self._accessories_state
 
     @property
-    def accessories(self) -> Accessories | None:
-        if not self._accessories_state:
-            return None
-        return self._accessories_state.accessories
+    def accessories(self) -> Accessories:
+        return self.accessories_state.accessories
 
     @property
     def config_num(self) -> int:
         """Wrapper around the accessories state to make it easier to use."""
-        if not self._accessories_state:
-            return -1
-        return self._accessories_state.config_num
+        return self.accessories_state.config_num
 
     @property
     def name(self) -> str:
@@ -136,16 +149,12 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     @property
     def broadcast_key(self) -> bytes | None:
-        if not self._accessories_state:
-            return None
-        return self._accessories_state.broadcast_key
+        return self.accessories_state.broadcast_key
 
     @property
-    def state_num(self) -> bytes | None:
+    def state_num(self) -> int | None:
         """Returns gsn that is saved between restarts."""
-        if not self._accessories_state:
-            return None
-        return self._accessories_state.state_num
+        return self.accessories_state.state_num
 
     # Public methods
 
@@ -157,21 +166,19 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         This method should try not to fetch all the accessories unless
         we know the config num is out of date or force_update is True
         """
-        if not self.accessories or force_update:
-            return await self.fetch_accessories_and_characteristics()
-        return self.accessories
+        if not self._accessories_state or force_update:
+            return await self._do_fetch_accessories_and_characteristics()
+        return self._accessories_state
 
     async def get_primary_name(self) -> str:
         """Return the primary name of the device from the accessory information service."""
-        if not self.accessories:
-            accessories = await self.fetch_accessories_and_characteristics()
-            parsed = Accessories.from_list(accessories)
-        else:
-            parsed = self.accessories
+        await self.fetch_accessories_and_characteristics()
+        assert self.accessories_state
 
-        accessory_info = parsed.aid(1).services.first(
+        accessory_info = self.accessories_state.accessories.aid(1).services.first(
             service_type=ServicesTypes.ACCESSORY_INFORMATION
         )
+        assert accessory_info, "Accessory Information service not found"
         return accessory_info.value(CharacteristicsTypes.NAME, "")
 
     async def shutdown(self):
@@ -183,7 +190,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         await self.close()
 
     def process_description_update(
-        self, description: DiscoveryDescription | None
+        self, description: DiscoveryInfo
     ):
         '''Called from outside on each discovery'''
 
@@ -199,35 +206,35 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
             )
 
         repopulate_accessories = False
-        if description:
-            if description.config_num > self.config_num:
-                logger.debug(
-                    "%s: Config number has changed from %s to %s; char cache invalid",
-                    self.name,
-                    self.config_num,
-                    description.config_num,
-                )
-                repopulate_accessories = True
 
-            elif (
-                not self.description
-                or description.state_num != self.description.state_num
-            ):
-                # Only process disconnected events if the config number has
-                # not also changed since we will do  a full repopulation
-                # of the accessories anyway when the config number changes.
-                #
-                # Otherwise, if only the state number we trigger a poll.
-                #
-                # The number will eventually roll over
-                # so we don't want to use a > comparison here. Also, its
-                # safer to poll the device again to get the latest state
-                # as we don't want to miss events.
-                logger.debug(
-                    "%s: Disconnected event notification received; Triggering catch-up poll",
-                    self.name,
-                )
-                self._process_disconnected_events()
+        if description.config_num > self.accessories_state.config_num:
+            logger.debug(
+                "%s: Config number has changed from %s to %s; char cache invalid",
+                self.name,
+                self.config_num,
+                description.config_num,
+            )
+            repopulate_accessories = True
+
+        elif (
+            not self.description
+            or description.state_num != self.description.state_num
+        ):
+            # Only process disconnected events if the config number has
+            # not also changed since we will do  a full repopulation
+            # of the accessories anyway when the config number changes.
+            #
+            # Otherwise, if only the state number we trigger a poll.
+            #
+            # The number will eventually roll over
+            # so we don't want to use a > comparison here. Also, its
+            # safer to poll the device again to get the latest state
+            # as we don't want to miss events.
+            logger.debug(
+                "%s: Disconnected event notification received; Triggering catch-up poll",
+                self.name,
+            )
+            self._process_disconnected_events()
 
         self.description = description
 
@@ -237,7 +244,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     # Observers
 
     def add_observer_for_availability(
-        self, callback: Callable[[bool], None]
+        self, callback: Callable[[UUID, bool], None]
     ) -> Callable[[], None]:
         """Notify observers when availability changes.
 
@@ -252,7 +259,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         return stop_observing
 
     def add_observer_for_pairing_data(
-        self, callback: Callable[[PairingData], None]
+        self, callback: Callable[[UUID, PairingData], None]
     ) -> Callable[[], None]:
         """Register an event handler to be called when pairing data is updated.
 
@@ -266,7 +273,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         return stop_observing
 
     def add_observer_for_config(
-        self, callback: Callable[[int], None]
+        self, callback: Callable[[UUID, int], None]
     ) -> Callable[[], None]:
         """
         Register an event handler to be called when config (services and characteristics model) changes. Tipically, after a firmware update.
@@ -301,11 +308,11 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     def _callback_availability_changed(self, available: bool):
         for callback in self._availability_observers:
-            callback(available)
+            callback(self.id, available)
 
     def _callback_config_changed(self, _config_num: int):
         for callback in self._config_observers:
-            callback(self.config_num)
+            callback(self.id, self.config_num)
 
     def _callback_characteristic_changed(self, event):
         for observer in self._characteristic_observers:
@@ -318,7 +325,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     def _callback_pairing_data_changed(self, pairing_data: PairingData):
         for observer in self._pairing_data_observers:
             try:
-                observer(pairing_data)
+                observer(self.id, pairing_data)
             except Exception:
                 logger.exception("Unhandled error when processing pairing data change")
 
@@ -326,11 +333,13 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     async def _process_config_changed(self, config_num: int):
         await self.fetch_accessories_and_characteristics(force_update=True)
+        if not self._accessories_state:
+            return
         self._accessories_state.config_num = config_num
         self._callback_config_changed(self.config_num)
 
     async def _shutdown_if_primary_pairing_removed(self, pairingId: str):
-        if pairingId == self.pairing_data.iOSDeviceId:
+        if pairingId == self.pairing_data["iOSDeviceId"]:
             await self.shutdown()
 
     def update_pairing_data(self, pairing_data: PairingData):

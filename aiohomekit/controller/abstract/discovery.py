@@ -1,18 +1,21 @@
 from __future__ import annotations
 from uuid import UUID
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, final
 from abc import ABC, abstractmethod
+from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
+from aiohomekit.model.status_flags import StatusFlags
 
 
-class AbstractDiscovery[PairingDescription: AbstractDescription](ABC):
+class AbstractDiscovery[DiscoveryDescription: AbstractDiscoveryInfo](ABC):
 
     type FinishPairing = Callable[[str], Awaitable[PairingData]]
     type DiscoveryDidFinishPairingCallback = Callable[[PairingData], None]
 
-    description: Description
+    description: DiscoveryDescription
     _pairing_finished_callback: DiscoveryDidFinishPairingCallback
 
-    def __init__(self, description: Description, pairing_finished_callback: DiscoveryDidFinishPairingCallback):
+    def __init__(self, description: DiscoveryDescription, pairing_finished_callback: DiscoveryDidFinishPairingCallback):
         self.description = description
         self._pairing_finished_callback = pairing_finished_callback
         self.setup()
@@ -40,5 +43,5 @@ class AbstractDiscovery[PairingDescription: AbstractDescription](ABC):
 
     # Private
 
-    def _update_from_discovery(self, description: Description):
+    def _update_from_discovery(self, description: DiscoveryDescription):
         self.description = description
