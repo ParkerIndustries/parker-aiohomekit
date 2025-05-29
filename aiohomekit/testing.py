@@ -32,7 +32,7 @@ from aiohomekit.controller.abstract import (
     FinishPairing,
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
-from aiohomekit.model import Accessories, AccessoriesState, Transport
+from aiohomekit.model import Accessories, AccessoriesState, TransportType
 from aiohomekit.model.categories import Categories
 from aiohomekit.model.characteristics import Characteristic, CharacteristicsTypes
 from aiohomekit.model.characteristics.characteristic_formats import (
@@ -235,7 +235,7 @@ class FakePairing(AbstractPairing):
         return True
 
     @property
-    def transport(self) -> Transport:
+    def transport(self) -> TransportType:
         transport_type = self.pairing_data.get("Connection", "IP")
         return {
             "BLE": TransportType.BLE,

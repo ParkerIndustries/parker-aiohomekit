@@ -1,4 +1,4 @@
-a#
+#
 # Copyright 2019 aiohomekit team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ import base64
 import binascii
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Iterator
 
 from aiohomekit.exceptions import CharacteristicPermissionError, FormatError
 from aiohomekit.protocol.statuscodes import HapStatusCode
@@ -33,7 +33,7 @@ from .data import characteristics
 from .permissions import CharacteristicPermissions
 
 if TYPE_CHECKING:
-    from aiohomekit.model import Service
+    from aiohomekit.model.services import Service
 
 
 DEFAULT_FOR_TYPE = {
@@ -111,11 +111,11 @@ class Characteristic:
         self.type = characteristic_type
         self.iid = self._get_configuration(
             kwargs, "iid", service.accessory.get_next_id()
-        )
+        ) or 0
 
         self.perms = self._get_configuration(
             kwargs, "perms", [CharacteristicPermissions.paired_read]
-        )
+        ) or []
         self.format = self._get_configuration(kwargs, "format", None)
 
         self.ev = None
@@ -150,7 +150,8 @@ class Characteristic:
             self._value = self.valid_values[0]
             return
 
-        self._value = DEFAULT_FOR_TYPE.get(self.format, None)
+        if self.format:
+            self._value = DEFAULT_FOR_TYPE.get(self.format, None)
 
         if self.minValue:
             if not self._value:
@@ -350,7 +351,7 @@ class Characteristic:
         return d
 
 
-def check_convert_value(val: str, char: Characteristic) -> Any:
+def check_convert_value(val: str, char: Characteristic) -> Literal[0, 1] | int | float | TLV | bytes | str:
     """
     Checks if the given value is of the given type or is convertible into the type. If the value is not convertible, a
     HomeKitTypeException is thrown.
@@ -363,26 +364,24 @@ def check_convert_value(val: str, char: Characteristic) -> Any:
 
     if char.format == CharacteristicFormats.bool:
         try:
-            val = strtobool(str(val))
+            # We have seen iPhone's sending 1 and 0 for True and False
+            # This is in spec
+            # It is also *required* for Ecobee Switch+ devices (as at Mar 2020)
+            return strtobool(str(val))
         except ValueError:
             raise FormatError(f'"{val}" is no valid "{char.format}"!')
 
-        # We have seen iPhone's sending 1 and 0 for True and False
-        # This is in spec
-        # It is also *required* for Ecobee Switch+ devices (as at Mar 2020)
-        return 1 if val else 0
-
     if char.format in NUMBER_TYPES:
         try:
-            val = Decimal(val)
+            num_val = Decimal(val)
         except ValueError:
             raise FormatError(f'"{val}" is no valid "{char.format}"!')
 
         if char.minValue is not None:
-            val = max(Decimal(char.minValue), val)
+            num_val = max(Decimal(char.minValue), num_val)
 
         if char.maxValue is not None:
-            val = min(Decimal(char.maxValue), val)
+            num_val = min(Decimal(char.maxValue), num_val)
 
         # Honeywell T6 Pro cannot handle arbritary precision, the values we send
         # *must* respect minStep
@@ -395,31 +394,31 @@ def check_convert_value(val: str, char: Characteristic) -> Any:
                 # This is surprising for most people
                 ctx.rounding = ROUND_HALF_UP
 
-                val = Decimal(val)
+                # val = Decimal(val) # We already converted val to Decimal above
                 offset = Decimal(char.minValue if char.minValue is not None else 0)
                 min_step = Decimal(char.minStep)
 
                 # We use to_integral_value() here rather than round as it respsects
                 # ctx.rounding
-                val = offset + (
-                    ((val - offset) / min_step).to_integral_value() * min_step
+                num_val = offset + (
+                    ((num_val - offset) / min_step).to_integral_value() * min_step
                 )
 
         if char.format in INTEGER_TYPES:
-            val = int(val.to_integral_value())
-        else:
-            val = float(val)
+            return int(num_val.to_integral_value())
+
+        return float(num_val)
 
     if char.format == CharacteristicFormats.data:
         try:
-            base64.decodebytes(val.encode())
+            return base64.decodebytes(val.encode())
         except binascii.Error:
             raise FormatError(f'"{val}" is no valid "{char.format}"!')
 
     if char.format == CharacteristicFormats.tlv8:
         try:
             tmp_bytes = base64.decodebytes(val.encode())
-            TLV.decode_bytes(tmp_bytes)
+            return TLV.decode_bytes(tmp_bytes) # TODO: verify
         except (binascii.Error, TlvParseException):
             raise FormatError(f'"{val}" is no valid "{char.format}"!')
 

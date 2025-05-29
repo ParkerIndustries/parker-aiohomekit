@@ -21,10 +21,11 @@ from datetime import timedelta
 from itertools import groupby
 import logging
 from operator import itemgetter
-from typing import Any
+from typing import Any, override
+from uuid import UUID
 
-from aiohomekit.controller.abstract import AbstractController, PairingData
-from aiohomekit.controller.zeroconf.ip.delegate import ConnectionDelegate
+from aiohomekit.controller.abstract import AbstractController
+from aiohomekit.controller.zeroconf.ip.connection import ConnectionDelegate
 from aiohomekit.exceptions import (
     AccessoryDisconnectedError,
     AuthenticationError,
@@ -36,18 +37,22 @@ from aiohomekit.exceptions import (
 )
 import aiohomekit.hkjson as hkjson
 from aiohomekit.http import HttpContentTypes
-from aiohomekit.model import Accessories, AccessoriesState, Transport
+from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.characteristics import (
     CharacteristicPermissions,
     CharacteristicsTypes,
+    CharacteristicKey,
+    CharacteristicKeyValue
 )
 from aiohomekit.protocol import error_handler
 from aiohomekit.protocol.statuscodes import HapStatusCode, to_status_code
 from aiohomekit.protocol.tlv import TLV
 from aiohomekit.utils import asyncio_timeout
 from aiohomekit.uuid import normalize_uuid
-from aiohomekit.zeroconf import HomeKitService, ZeroconfPairing
+from aiohomekit.model.typed_dicts import ResponseDict, PairingData, AccessoryPairings
+from aiohomekit.model.transport_type import TransportType
 
+from ..pairing import ZeroconfPairing
 from .connection import SecureHomeKitConnection
 
 logger = logging.getLogger(__name__)
@@ -86,7 +91,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         return self.connection.is_connected
 
     @property
-    def transport(self) -> Transport:
+    def transport(self) -> TransportType:
         """The transport used for the connection."""
         return TransportType.IP
 
@@ -100,12 +105,10 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         """Return the name of the pairing with the address."""
         connection = self.connection
         host = connection.connected_host or connection.hosts
-        if self.description:
-            return f"{self.description.name} [{host}:{connection.port}] (id={self.id})"
         return f"[{host}:{connection.port}] (id={self.id})"
 
     def event_received(self, event):
-        self._callback_characteristic_listeners(_format_characteristic_list(event))
+        self._callback_characteristic_listeners(_format_characteristics_response(event))
 
     async def connection_made(self, is_secure: bool):
         if not is_secure:
@@ -158,7 +161,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await asyncio.sleep(0)
 
     @override
-    async def _do_fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    async def _do_fetch_accessories_and_characteristics(self) -> AccessoriesState:
         """
         You probably want to use `fetch_accessories_and_characteristics` instead.
         For internal use only.
@@ -176,10 +179,10 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         for accessory in accessories:
             for service in accessory["services"]:
-                service["type"] = normalize_uuid(service["type"])
+                service["type"] = UUID(service["type"])
 
                 for characteristic in service["characteristics"]:
-                    characteristic["type"] = normalize_uuid(characteristic["type"])
+                    characteristic["type"] = UUID(characteristic["type"])
 
         self._accessories_state = AccessoriesState(
             Accessories.from_list(accessories), self.config_num or 0
@@ -240,7 +243,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
     async def get_characteristics(
         self,
         characteristics: Iterable[CharacteristicKey],
-    ) -> Response:
+    ) -> dict[CharacteristicKey, ResponseDict]:
         """
         This method is used to get the current cached readouts of any characteristic of the accessory.
 
@@ -271,12 +274,12 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
 
         response = await self.connection.get_json(url)
 
-        return _format_characteristic_list(response)
+        return _format_characteristics_response(response)
 
     @override
     async def put_characteristics(
         self, characteristics: Iterable[CharacteristicKeyValue]
-    ) -> Response:
+    ) -> dict[CharacteristicKey, ResponseDict]:
         """
         Update the values of writable characteristics. The characteristics have to be identified by accessory id (aid),
         instance id (iid). If do_conversion is False (the default), the value must be of proper format for the
@@ -292,26 +295,27 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await self.fetch_accessories_and_characteristics()
 
         char_payload: list[dict[str, Any]] = []
-        listener_update: Response = {}
+        listener_update: dict[CharacteristicKey, ResponseDict] = {}
         for characteristic in characteristics:
             aid, iid, value = characteristic
             char_payload.append({"aid": aid, "iid": iid, "value": value})
-            accessory_chars = self.accessories.aid(aid).characteristics
+            accessory_chars = self._accessories_state.accessories.aid(aid).characteristics
             char = accessory_chars.iid(iid)
+            if not char: continue
             if CharacteristicPermissions.paired_read in char.perms:
-                listener_update[(aid, iid)] = {"value": value}
+                listener_update[CharacteristicKey(aid, iid)] = {"value": value}
 
         response = await self.connection.put_json(
             "/characteristics", {"characteristics": char_payload}
         )
-        response_status: Response = {}
+        response_status: dict[CharacteristicKey, ResponseDict] = {}
         if response:
             # If there is a response it means something failed so
             # we need to remove the listener update for the failed
             # characteristics.
             for characteristic in response["characteristics"]:
                 aid, iid = characteristic["aid"], characteristic["iid"]
-                key = (aid, iid)
+                key = CharacteristicKey(aid, iid)
                 status = characteristic["status"]
                 status_code = to_status_code(status).description
                 if status_code != HapStatusCode.SUCCESS:
@@ -330,14 +334,14 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         """Provision a device with Thread network credentials."""
 
     @override
-    async def subscribe_characteristics(self, characteristics): # TODO: annotate return
+    async def subscribe_characteristics(self, characteristics) -> dict[CharacteristicKey, ResponseDict]:
         await super().subscribe(set(characteristics))
 
         if not self.supports_subscribe:
             logger.info(
                 "This device does not support push, so only polling operations will be supported during this session"
             )
-            return
+            return {}
 
         try:
             await self._ensure_connected()
@@ -354,7 +358,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
             return {}
 
     @override
-    async def unsubscribe_characteristics(self, characteristics): # TODO: annotate return
+    async def unsubscribe_characteristics(self, characteristics) -> dict[CharacteristicKey, ResponseDict]:
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
             await super().unsubscribe(characteristics)
@@ -369,7 +373,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await super().unsubscribe(char_set)
         return status
 
-    async def _update_subscriptions(self, characteristics, ev): # TODO: annotate return
+    async def _update_subscriptions(self, characteristics, ev) -> dict[CharacteristicKey, ResponseDict]:
         """Subscribe or unsubscribe to characteristics."""
         status = {}
         # We do one aid at a time to match what iOS does
@@ -398,7 +402,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         return status
 
     @override
-    async def identify(self):
+    async def identify(self) -> bool:
         """
         This call can be used to trigger the identification of a paired accessory. A successful call should
         cause the accessory to perform some specific action by which it can be distinguished from the others (blink a
@@ -415,8 +419,8 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         identify_type = CharacteristicsTypes.IDENTIFY
 
         # search all accessories, all services and all characteristics
-        logger.debug("Searching for identify characteristic in %s", self.accessories)
-        for accessory in self.accessories:
+        logger.debug("Searching for identify characteristic in %s", self._accessories_state.accessories)
+        for accessory in self._accessories_state.accessories:
             aid = accessory.aid
             for service in accessory.services:
                 for characteristic in service.characteristics:
@@ -424,7 +428,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
                     c_type = normalize_uuid(characteristic.type)
                     if identify_type == c_type:
                         # found the identify characteristic, so let's put a value there
-                        if not await self.put_characteristics([(aid, iid, True)]):
+                        if not await self.put_characteristics([CharacteristicKeyValue(aid, iid, True)]):
                             return True
         return False
 
@@ -477,7 +481,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         request_tlv = [
             (TLV.kTLVType_State, TLV.M1),
             (TLV.kTLVType_Method, TLV.RemovePairing),
-            (TLV.kTLVType_Identifier, pairingId.encode("utf-8")),
+            (TLV.kTLVType_Identifier, str(pairingId).encode("utf-8")),
         ]
 
         data = dict(await self.connection.post_tlv("/pairings", request_tlv)) # TODO: all endpoints to enum
@@ -493,7 +497,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await self._shutdown_if_primary_pairing_removed(pairingId)
         return True
 
-    async def image(self, accessory: int, width: int, height: int) -> bytes:
+    async def image(self, accessory: int, width: int, height: int) -> bytearray | None:
         await self._ensure_connected()
 
         try:
@@ -526,7 +530,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         super()._async_endpoint_changed()
         self.connection.reconnect_soon() # hasten the process if we are not connected, or are in the process of reconnecting
 
-def _format_characteristic_list(data):
+def _format_characteristics_response(data) -> dict[CharacteristicKey, ResponseDict]:
     tmp = {}
     for c in data["characteristics"]:
         key = (c["aid"], c["iid"])

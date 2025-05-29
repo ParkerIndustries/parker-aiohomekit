@@ -48,7 +48,7 @@ from aiohomekit.model import (
     AccessoriesState,
     Accessory,
     CharacteristicsTypes,
-    Transport,
+    TransportType,
 )
 from aiohomekit.model.characteristics import (
     EVENT_CHARACTERISTICS,
@@ -356,7 +356,7 @@ class BlePairing(AbstractPairing):
         return self.is_connected or monotonic - self._last_seen < AVAILABILITY_INTERVAL
 
     @property
-    def transport(self) -> Transport:
+    def transport(self) -> TransportType:
         """The transport used for the connection."""
         return TransportType.BLE
 

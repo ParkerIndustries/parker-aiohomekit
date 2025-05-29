@@ -23,7 +23,8 @@ from typing import Any
 
 from aiohomekit.controller.abstract import AbstractController, PairingData
 from aiohomekit.exceptions import AccessoryDisconnectedError
-from aiohomekit.model import Accessories, AccessoriesState, Transport
+from aiohomekit.model import Accessories, AccessoriesState
+from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.characteristics import CharacteristicPermissions
 from aiohomekit.protocol.statuscodes import HapStatusCode
 from aiohomekit.utils import async_create_task
@@ -65,7 +66,7 @@ class CoAPPairing(ZeroconfPairing):
         return self.connection.is_connected
 
     @property
-    def transport(self) -> Transport:
+    def transport(self) -> TransportType:
         """The transport used for the connection."""
         return TransportType.COAP
 

@@ -25,8 +25,8 @@ from enum import Enum
 import logging
 from typing import Any, final
 
-from aiohomekit.characteristic_cache import CharacteristicCacheType
-from aiohomekit.model import Accessories, AccessoriesState, Transport
+from aiohomekit.model.accessories import Accessories, AccessoriesState
+from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.categories import Categories
 from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
 from aiohomekit.model.services.service_types import ServicesTypes

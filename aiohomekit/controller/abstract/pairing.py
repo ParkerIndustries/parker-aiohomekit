@@ -42,7 +42,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def transport(self) -> Transport:
+    def transport(self) -> TransportType:
         """The transport used for the connection."""
 
     @property

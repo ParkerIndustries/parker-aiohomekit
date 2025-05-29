@@ -7,7 +7,7 @@ import pytest
 
 from aiohomekit.controller.ip.pairing import IpPairing
 from aiohomekit.exceptions import AccessoryDisconnectedError
-from aiohomekit.model import Transport
+from aiohomekit.model import TransportType
 from aiohomekit.protocol.statuscodes import HapStatusCode
 
 
