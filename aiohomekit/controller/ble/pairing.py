@@ -42,28 +42,24 @@ from aiohomekit.exceptions import (
     InvalidError,
     UnknownError,
 )
-from aiohomekit.meshcop import Meshcop
-from aiohomekit.model import (
-    Accessories,
-    AccessoriesState,
-    Accessory,
-    CharacteristicsTypes,
-    TransportType,
-)
+from aiohomekit.protocol.tlv import TLV
+
+from aiohomekit.model.typed_dicts import Response, PairingData
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.characteristics import (
-    EVENT_CHARACTERISTICS,
     Characteristic,
     CharacteristicPermissions,
+    CharacteristicsTypes,
+    CharacteristicKey,
+    CharacteristicKeyValue,
+    EVENT_CHARACTERISTICS
 )
-from aiohomekit.model.services import Service, ServicesTypes
-from aiohomekit.pdu import OpCode, PDUStatus, decode_pdu, encode_pdu
-from aiohomekit.protocol import get_session_keys
-from aiohomekit.protocol.statuscodes import HapStatusCode
-from aiohomekit.protocol.tlv import TLV
+from aiohomekit.model.services import ServicesTypes, Service
 from aiohomekit.utils import async_create_task
-from aiohomekit.uuid import normalize_uuid
+from ..abstract import AbstractPairing
 
-from ..abstract import AbstractPairing, PairingData
+from aiohomekit.pdu import OpCode
 from .bleak import AIOHomeKitBleakClient
 from .client import (
     PDUStatusError,
@@ -261,14 +257,14 @@ class BlePairing(AbstractPairing):
         self.description = description
         self.pairing_data = pairing_data
 
-        super().__init__(controller, pairing_data)
+        super().__init__(pairing_data)
 
         self._last_seen = time.monotonic() if description else NEVER_TIME
 
         if not description and self.state_num:
             self.description = HomeKitAdvertisement.from_cache(
+                id=self.id, # TODO: resolve uuid vs id
                 address=self.address,
-                id=self.id,
                 config_num=self.config_num,
                 state_num=self.state_num,
             )
@@ -367,8 +363,8 @@ class BlePairing(AbstractPairing):
 
     def _update_cached_state_num(self, state_num: int):
         """Update the cached state number which is restored between restarts."""
-        old_state_num = self._accessories_state.state_num
-        self._accessories_state.state_num = state_num
+        old_state_num = self.accessories_state.state_num
+        self.accessories_state.state_num = state_num
         if old_state_num != state_num:
             self._process_config_changed(state_num)
 
@@ -380,7 +376,7 @@ class BlePairing(AbstractPairing):
         self.ble_advertisement = ble_advertisement
 
     def process_description_update(
-        self, description: HomeKitAdvertisement | None
+        self, description: HomeKitAdvertisement
     ):
         """Update the description of the accessory."""
         now = time.monotonic()
@@ -403,7 +399,7 @@ class BlePairing(AbstractPairing):
         self,
         opcode: OpCode,
         char: Characteristic,
-        data: bytes | None = None,
+        data: bytearray | bytes | None = None,
         iid: int | None = None,
     ) -> bytes:
         async with self._ble_request_lock:
@@ -413,7 +409,7 @@ class BlePairing(AbstractPairing):
         self,
         opcode: OpCode,
         char: Characteristic,
-        data: bytes | None = None,
+        data: bytearray | bytes | None = None,
         iid: int | None = None,
     ) -> bytes:
         assert self._ble_request_lock.locked(), "_ble_request_lock Should be locked"
@@ -423,7 +419,7 @@ class BlePairing(AbstractPairing):
 
         endpoint_iid = iid if iid is not None else char.iid
         endpoint = await self.client.get_characteristic(
-            char.parent_service.type, char.type, endpoint_iid
+            char.parent_service.type, char.type.hex, endpoint_iid
         )
 
         try:
@@ -1647,11 +1643,12 @@ class BlePairing(AbstractPairing):
         info = self.accessories.aid(BLE_AID).services.first(
             service_type=ServicesTypes.ACCESSORY_INFORMATION
         )
-        char = info[CharacteristicsTypes.IDENTIFY]
+        assert info
+        char = info[UUID(CharacteristicsTypes.IDENTIFY)]
 
         await self.put_characteristics(
             [
-                (BLE_AID, char.iid, True),
+                CharacteristicKeyValue(BLE_AID, char.iid, True),
             ]
         )
 
@@ -1692,7 +1689,9 @@ class BlePairing(AbstractPairing):
         info = self.accessories.aid(BLE_AID).services.first(
             service_type=ServicesTypes.PAIRING
         )
-        char = info[CharacteristicsTypes.PAIRING_PAIRINGS]
+        assert info
+
+        char = info[UUID(CharacteristicsTypes.PAIRING_PAIRINGS)]
 
         resp = await self._async_request(OpCode.CHAR_WRITE, char, request_tlv)
 
@@ -1716,12 +1715,15 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error(attempts=10)
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def remove_pairing(self, pairingId: str) -> bool:
+    async def remove_pairing(self, pairingId: UUID | None = None) -> bool:
+        if pairingId is None:
+            pairingId = UUID(self.pairing_data["iOSDeviceId"])
+
         request_tlv = TLV.encode_list(
             [
                 (TLV.kTLVType_State, TLV.M1),
                 (TLV.kTLVType_Method, TLV.RemovePairing),
-                (TLV.kTLVType_Identifier, pairingId.encode("utf-8")),
+                (TLV.kTLVType_Identifier, pairingId.hex.encode("utf-8")),
             ]
         )
 
@@ -1735,7 +1737,9 @@ class BlePairing(AbstractPairing):
         info = self.accessories.aid(BLE_AID).services.first(
             service_type=ServicesTypes.PAIRING
         )
-        char = info[CharacteristicsTypes.PAIRING_PAIRINGS]
+        assert info
+
+        char = info[UUID(CharacteristicsTypes.PAIRING_PAIRINGS)]
 
         resp = await self._async_request(OpCode.CHAR_WRITE, char, request_tlv)
 

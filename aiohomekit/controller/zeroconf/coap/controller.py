@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import Any
+from aiohomekit.model.transport_type import TransportType, IpTransportType
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
+from zeroconf.asyncio import AsyncZeroconf
 
-from aiohomekit.controller.abstract import TransportType
-from aiohomekit.controller.coap.discovery import CoAPDiscovery
-from aiohomekit.controller.coap.pairing import CoAPPairing
-from aiohomekit.zeroconf import HAP_TYPE_UDP, ZeroconfController
+from ..controller import ZeroconfController
+from .discovery import CoAPDiscovery
+from .pairing import CoAPPairing
 
 
 class CoAPController(ZeroconfController[CoAPDiscovery, CoAPPairing]):
@@ -23,5 +25,5 @@ class CoAPController(ZeroconfController[CoAPDiscovery, CoAPPairing]):
         return TransportType.COAP
 
     @property
-    def _hap_type(self) -> str:
+    def _hap_type(self) -> IpTransportType:
         return IpTransportType.UDP

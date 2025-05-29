@@ -59,15 +59,15 @@ logger = logging.getLogger(__name__)
 class ConnectionReady(Exception):
     """Raised when a connection is ready to be retried."""
 
+class AccessoryDescription(Protocol):
+
+    @property
+    def addresses(self) -> list[str]: ...
+
+    @property
+    def port(self) -> int: ...
+
 class ConnectionDelegate(Protocol):
-
-    class AccessoryDescription(Protocol):
-
-        @property
-        def addresses(self) -> list[str]: ...
-
-        @property
-        def port(self) -> int: ...
 
     @property
     def description(self) -> Optional[AccessoryDescription]:

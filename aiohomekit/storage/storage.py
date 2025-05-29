@@ -1,5 +1,11 @@
+import pathlib
+import logging
+from aiohomekit import hkjson
 from asyncio.protocols import Protocol
+from lark.exceptions import UnexpectedToken
 
+
+logger = logging.getLogger(__name__)
 
 # MARK: - Protocols
 
@@ -45,7 +51,7 @@ class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
         if id in self._storage_data:
             self._storage_data.pop(id)
 
-class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory):
+class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory): # TODO: what's Codable
 
     def __init__(self, location: pathlib.Path):
         """Create a new entity map store."""
@@ -64,12 +70,12 @@ class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory
             except hkjson.JSON_DECODE_EXCEPTIONS as e:
                 self._do_save() # write a correct empty schema to replace the corrupted cache
                 logger.debug(
-                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self.storage_data}"
+                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
                 )
             except (UnexpectedToken, TypeError, KeyError) as e:
                 self._do_save() # write a correct schema to replace the corrupted cache
                 logger.debug(
-                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self.storage_data}"
+                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
                 )
 
     async def save(self, id: ID, item: StorageLayoutItem):
@@ -82,5 +88,5 @@ class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory
         self._do_save()
 
     def _do_save(self):
-        with open(self.location, mode="w", encoding="utf-8") as fp:
+        with open(self._location, mode="w", encoding="utf-8") as fp:
             fp.write(hkjson.dumps(self._storage_data))

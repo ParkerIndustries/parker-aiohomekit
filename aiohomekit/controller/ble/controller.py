@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+from typing import override
 from collections.abc import AsyncIterable
 import logging
-
+from uuid import UUID
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakDBusError, BleakError
 
-from aiohomekit.characteristic_cache import CharacteristicCacheType
 from aiohomekit.controller.abstract import (
-    AbstractController,
-    PairingData,
-    TransportType,
+    AbstractController
 )
 from aiohomekit.controller.ble.manufacturer_data import (
     APPLE_MANUFACTURER_ID,
@@ -25,27 +23,129 @@ from aiohomekit.controller.ble.manufacturer_data import (
 from aiohomekit.controller.ble.pairing import BlePairing
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.utils import asyncio_timeout
-
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import PairingData
 from .discovery import BleDiscovery
+
 
 logger = logging.getLogger(__name__)
 
-
 class BleController(AbstractController):
-    discoveries: dict[str, BleDiscovery]
-    pairings: dict[str, BlePairing]
-    transport_type = TransportType.BLE
-
-    _scanner: BleakScanner | None
 
     def __init__(
         self,
-        char_cache: CharacteristicCacheType,
+        char_cache_storage: CharacteristicsStorageProtocol,
+        pairing_data_storage: PairingDataStorageProtocol,
         bleak_scanner_instance: BleakScanner | None = None,
     ):
-        super().__init__(char_cache=char_cache)
+        super().__init__(
+            BleDiscovery,
+            BlePairing,
+            char_cache_storage,
+            pairing_data_storage,
+        )
         self._scanner = bleak_scanner_instance
         self._ble_futures: dict[str, list[asyncio.Future[BLEDevice]]] = {}
+
+    @property
+    def transport_type(self) -> TransportType:
+        return TransportType.BLE
+
+    @override
+    async def start(self):
+        logger.debug("Starting BLE controller with instance: %s", self._scanner)
+        if not self._scanner:
+            try:
+                self._scanner = BleakScanner()
+            except (FileNotFoundError, BleakDBusError, BleakError) as e:
+                logger.debug(
+                    "Failed to init scanner, HAP-BLE not available: %s", str(e)
+                )
+                self._scanner = None
+                return
+
+        try:
+            self._scanner.register_detection_callback(self._device_detected)
+            await self._scanner.start()
+        except (FileNotFoundError, BleakDBusError, BleakError) as e:
+            logger.debug("Failed to start scanner, HAP-BLE not available: %s", str(e))
+            self._scanner = None
+
+    @override
+    async def stop(self, *args):
+        if self._scanner:
+            await self._scanner.stop()
+            self._scanner.register_detection_callback(None)
+            self._scanner = None
+
+    @override
+    async def is_reachable(self, device_id: str, timeout: float = 10) -> bool:
+        """Check if a device is reachable on the network."""
+        return bool(
+            (discovery := self.discoveries.get(device_id))
+            and discovery.device.address
+            in self._scanner.discovered_devices_and_advertisement_data
+        )
+
+    @override
+    async def find(self, device_id: str, timeout: float = 10) -> BleDiscovery:
+        if discovery := self.discoveries.get(device_id):
+            logger.debug("Discovery for %s already found", device_id)
+            return discovery
+
+        logger.debug(
+            "Discovery for hkid %s not found, waiting for advertisement with timeout: %s",
+            device_id,
+            timeout,
+        )
+        future = asyncio.get_running_loop().create_future()
+        try:
+            async with asyncio_timeout(timeout):
+                return await future
+        except asyncio.TimeoutError:
+            logger.debug(
+                "Timed out after %s waiting for discovery with hkid %s",
+                timeout,
+                device_id,
+            )
+            raise AccessoryNotFoundError(
+                f"Accessory with device id {device_id} not found"
+            )
+        finally:
+            # if device_id not in self._ble_futures:
+            #     return
+            if future in self._ble_futures[device_id]:
+                self._ble_futures[device_id].remove(future)
+            if not self._ble_futures[device_id]:
+                del self._ble_futures[device_id]
+
+    @override
+    async def discover(self, timeout_sec: float = 10) -> AsyncIterable[BleDiscovery]:
+        for device in self.discoveries.values():
+            yield device
+
+    def load_pairing(
+        self, id: UUID, pairing_data: PairingData
+    ) -> BlePairing | None:
+        if pairing_data["Connection"] != "BLE":
+            return None
+
+        if not (hkid := pairing_data.get("AccessoryPairingID")):
+            return None
+
+        device: BLEDevice | None = None
+        description: HomeKitAdvertisement | None = None
+
+        # if discovery := self.discoveries.get(id):
+        #     device = discovery.device
+        #     description = discovery.description
+
+        pairing = self.pairings[id_] = BlePairing(
+            pairing_data#, device=device, description=description
+        )
+        return pairing
 
     def _device_detected(
         self, device: BLEDevice, advertisement_data: AdvertisementData
@@ -116,93 +216,3 @@ class BleController(AbstractController):
             return
 
         self.discoveries[data.id] = BleDiscovery(self, device, data, advertisement_data)
-
-    async def async_start(self):
-        logger.debug("Starting BLE controller with instance: %s", self._scanner)
-        if not self._scanner:
-            try:
-                self._scanner = BleakScanner()
-            except (FileNotFoundError, BleakDBusError, BleakError) as e:
-                logger.debug(
-                    "Failed to init scanner, HAP-BLE not available: %s", str(e)
-                )
-                self._scanner = None
-                return
-
-        try:
-            self._scanner.register_detection_callback(self._device_detected)
-            await self._scanner.start()
-        except (FileNotFoundError, BleakDBusError, BleakError) as e:
-            logger.debug("Failed to start scanner, HAP-BLE not available: %s", str(e))
-            self._scanner = None
-
-    async def async_stop(self, *args):
-        if self._scanner:
-            await self._scanner.stop()
-            self._scanner.register_detection_callback(None)
-            self._scanner = None
-
-    async def async_reachable(self, device_id: str, timeout: float = 10) -> bool:
-        """Check if a device is reachable on the network."""
-        return bool(
-            (discovery := self.discoveries.get(device_id))
-            and discovery.device.address
-            in self._scanner.discovered_devices_and_advertisement_data
-        )
-
-    async def async_find(self, device_id: str, timeout: float = 10) -> BleDiscovery:
-        if discovery := self.discoveries.get(device_id):
-            logger.debug("Discovery for %s already found", device_id)
-            return discovery
-
-        logger.debug(
-            "Discovery for hkid %s not found, waiting for advertisement with timeout: %s",
-            device_id,
-            timeout,
-        )
-        future = asyncio.get_running_loop().create_future()
-        try:
-            async with asyncio_timeout(timeout):
-                return await future
-        except asyncio.TimeoutError:
-            logger.debug(
-                "Timed out after %s waiting for discovery with hkid %s",
-                timeout,
-                device_id,
-            )
-            raise AccessoryNotFoundError(
-                f"Accessory with device id {device_id} not found"
-            )
-        finally:
-            if device_id not in self._ble_futures:
-                return
-            if future in self._ble_futures[device_id]:
-                self._ble_futures[device_id].remove(future)
-            if not self._ble_futures[device_id]:
-                del self._ble_futures[device_id]
-
-    async def async_discover(self) -> AsyncIterable[BleDiscovery]:
-        for device in self.discoveries.values():
-            yield device
-
-    def load_pairing(
-        self, id: UUID, pairing_data: PairingData
-    ) -> BlePairing | None:
-        if pairing_data["Connection"] != "BLE":
-            return None
-
-        if not (hkid := pairing_data.get("AccessoryPairingID")):
-            return None
-
-        id_ = hkid.lower()
-        device: BLEDevice | None = None
-        description: HomeKitAdvertisement | None = None
-
-        if discovery := self.discoveries.get(id_):
-            device = discovery.device
-            description = discovery.description
-
-        pairing = self.pairings[id_] = BlePairing(
-            self, pairing_data, device=device, description=description
-        )
-        return pairing

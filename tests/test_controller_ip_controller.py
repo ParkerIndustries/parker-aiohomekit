@@ -11,7 +11,7 @@ from zeroconf.asyncio import AsyncServiceInfo, AsyncZeroconf
 from aiohomekit.characteristic_cache import CharacteristicCacheMemory
 from aiohomekit.controller.ip.controller import IpController
 from aiohomekit.exceptions import AccessoryNotFoundError
-from aiohomekit.model.categories import Categories
+from aiohomekit.model.categories import Category
 from aiohomekit.model.status_flags import StatusFlags
 
 HAP_TYPE_TCP = "_hap._tcp.local."
@@ -78,7 +78,7 @@ async def test_discover_find_one(mock_asynczeroconf: AsyncZeroconf):
         await controller._async_update_from_cache(mock_asynczeroconf.zeroconf)
 
     assert result.description.id == "00:00:01:00:00:02"
-    assert result.description.category == Categories.LIGHTBULB
+    assert result.description.category == Category.LIGHTBULB
     assert result.description.config_num == 1
     assert result.description.state_num == 1
     assert result.description.model == "unittest"
@@ -204,7 +204,7 @@ async def test_discover_discover_one(mock_asynczeroconf: AsyncZeroconf):
             results = [d async for d in controller.async_discover()]
 
     assert results[0].description.id == "00:00:01:00:00:02"
-    assert results[0].description.category == Categories.LIGHTBULB
+    assert results[0].description.category == Category.LIGHTBULB
     assert results[0].description.config_num == 1
     assert results[0].description.state_num == 1
     assert results[0].description.model == "unittest"

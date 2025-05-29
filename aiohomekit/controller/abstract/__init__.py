@@ -1,9 +1,3 @@
-from .controller import AbstractController
+from .controller import AbstractController, GenericDiscoveryCallback
 from .pairing import AbstractPairing
 from .discovery import AbstractDiscovery
-from .models import (
-    PairingData,
-    AbstractDescription,
-    TransportType,
-    FinishPairing
-)

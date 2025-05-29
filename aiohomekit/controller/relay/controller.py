@@ -16,37 +16,29 @@
 from __future__ import annotations
 
 import asyncio
-from asyncio.log import logger
-from collections.abc import AsyncIterable
 from contextlib import AsyncExitStack
-from typing import Any
-from typing_extensions import override
+from typing import Any, AsyncIterable, override
 from uuid import UUID
 
 from bleak import BleakScanner
 from zeroconf.asyncio import AsyncZeroconf
 
-from aiohomekit.characteristic_cache import (
-    CharacteristicCacheMemory,
-    CharacteristicCacheType,
-)
-from aiohomekit.controller.abstract.controller import (
-    AbstractController,
-    AbstractDiscovery,
-    AbstractPairing,
-    TransportType,
-)
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol, PairingData
-
-from ..const import (
+from aiohomekit.const import (
     BLE_TRANSPORT_SUPPORTED,
     COAP_TRANSPORT_SUPPORTED,
     IP_TRANSPORT_SUPPORTED,
 )
-from ..exceptions import (
-    AccessoryNotFoundError,
-    TransportNotSupportedError,
+from aiohomekit.controller.abstract import (
+    AbstractController,
+    AbstractDiscovery,
+    AbstractPairing,
+    GenericDiscoveryCallback
 )
+from aiohomekit.exceptions import AccessoryNotFoundError
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 
 
 class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
@@ -54,9 +46,11 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     This class represents a HomeKit controller (normally your iPhone or iPad).
     """
 
+    type DiscoveryCallback = GenericDiscoveryCallback[AbstractController, AbstractDiscovery]
+
     def __init__(
         self,
-        char_cache: CharacteristicCacheType,
+        char_cache: CharacteristicsStorageProtocol,
         pairing_data_storage: PairingDataStorageProtocol,
         zeroconf_instance: AsyncZeroconf | None = None,
         bleak_scanner_instance: BleakScanner | None = None,
@@ -68,11 +62,13 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         :param pairing_data_storage: optional storage for pairing data
         """
         super().__init__(
-            char_cache_storage=char_cache or CharacteristicCacheMemory(),
-            pairing_data_storage=pairing_data_storage
+            AbstractDiscovery,
+            AbstractPairing,
+            char_cache,
+            pairing_data_storage
         )
 
-        self._zeroconf_instance = zeroconf_instance
+        self._zeroconf_instance = zeroconf_instance or AsyncZeroconf()
         self._bleak_scanner_instance = bleak_scanner_instance
         self._transports: dict[TransportType, AbstractController] = {}
         self._tasks = AsyncExitStack()
@@ -86,9 +82,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
             await self._register_backend(
                 IpController(
-                    char_cache=self.char_cache_storage,
-                    pairing_data_storage=self.pairing_data_storage,
-                    zeroconf_instance=self._zeroconf_instance,
+                    self.char_cache_storage,
+                    self.pairing_data_storage,
+                    self._zeroconf_instance,
                 )
             )
 
@@ -99,9 +95,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
             await self._register_backend(
                 CoAPController(
-                    char_cache=self.char_cache_storage,
-                    pairing_data_storage=self.pairing_data_storage,
-                    zeroconf_instance=self._zeroconf_instance,
+                    self.char_cache_storage,
+                    self.pairing_data_storage,
+                    self._zeroconf_instance,
                 )
             )
 
@@ -112,14 +108,14 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
             await self._register_backend(
                 BleController(
-                    char_cache=self.char_cache_storage,
-                    pairing_data_storage=self.pairing_data_storage,
-                    bleak_scanner_instance=self._bleak_scanner_instance,
+                    self.char_cache_storage,
+                    self.pairing_data_storage,
+                    self._bleak_scanner_instance,
                 )
             )
 
     async def _register_backend(self, controller: AbstractController):
-        self._transports[controller.transport_type] = await self._tasks.enter_context(controller)
+        self._transports[controller.transport_type] = await self._tasks.enter_async_context(controller)
 
     # Properties override to avoid duplicate storage
 
@@ -134,7 +130,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @_pairings.setter
     @override
-    def _pairings(self, value: dict[UUID, AbstractPairing]):
+    def _pairings(self, value: dict[UUID, AbstractPairing]): # type: ignore[override]
         pass # do nothing, pairings are managed by transports
 
     @property
@@ -148,7 +144,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @_discoveries.setter
     @override
-    def _discoveries(self, value: dict[UUID, AbstractDiscovery]):
+    def _discoveries(self, value: dict[UUID, AbstractDiscovery]): # type: ignore[override]
         pass # do nothing, discoveries are managed by transports
 
     # Methods
@@ -158,7 +154,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         await self._tasks.aclose()
 
     @override
-    async def is_reachable(self, device_id: str, timeout_sec: float = 10) -> bool:
+    async def is_reachable(self, device_id: UUID, timeout_sec: float = 10) -> bool:
         try:
             for transport in self._transports.values():
                 if await transport.is_reachable(device_id, timeout_sec): # parallel?
@@ -168,36 +164,39 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             return False
 
     @override
-    async def discover(self, timeout_sec: float = 10) -> AsyncIterable[AbstractDiscovery]: # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
+    async def discover(self, timeout_sec: float = 10) -> AsyncIterable[AbstractDiscovery]:
+        # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
         '''Returns already discovered and cached devices'''
         for transport in self._transports.values(): # TODO: parallel?
-            async for device in transport.discover(timeout):
+            async for device in transport.discover(timeout_sec):
                 yield device
 
     @override
-    def on_discovery(self, callback: OnDiscoveryCallback):
+    def on_discovery(self, callback: DiscoveryCallback):
         for transport in self._transports.values():
             transport.on_discovery(callback)
 
     @override
-    def load_pairing(self, pairing_data: PairingData) -> AbstractPairing:
-        if pairing_data.Connection in self._transports:
-            self._transports[pairing_data.Connection].load_pairing(pairing_data)
+    def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
+        if pairing_data["Connection"] in self._transports:
+            if pairing := self._transports[pairing_data["Connection"]].load_pairing(pairing_data):
+                return pairing
 
     @override
-    async def remove_pairing(self, pairing_id: UUID):
+    async def remove_pairing(self, pairing_id: UUID) -> AbstractPairing:
         for transport in self._transports.values():
             if pairing_id in transport.pairings:
-                await transport.remove_pairing(pairing_id)
+                return await transport.remove_pairing(pairing_id)
+        raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found in any transport.')
 
     @override
-    async def find(self, device_id: str, timeout_sec: float = 30.0) -> AbstractDiscovery:
+    async def find(self, device_id: UUID, timeout_sec: float = 30.0) -> AbstractDiscovery:
 
         pending = []
 
         for transport in self._transports.values():
             pending.append(
-                asyncio.create_task(transport.find(device_id, timeout))
+                asyncio.create_task(transport.find(device_id, timeout_sec))
             )
 
         try:

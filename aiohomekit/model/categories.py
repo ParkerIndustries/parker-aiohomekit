@@ -17,7 +17,7 @@
 import enum
 
 
-class Categories(enum.IntFlag):
+class Category(enum.IntFlag):
     OTHER = 1
     BRIDGE = 2
     FAN = 3

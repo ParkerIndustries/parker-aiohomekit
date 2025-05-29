@@ -1,33 +1,35 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Awaitable
+# from collections.abc import Coroutine
+from typing import Any, Awaitable
+from uuid import UUID, uuid5
 import enum
 import logging
+import asyncio
 import re
-import sys
-from typing import Any, TypeVar
 
 from aiohomekit.const import COAP_TRANSPORT_SUPPORTED, IP_TRANSPORT_SUPPORTED
 from aiohomekit.exceptions import MalformedPinError
 from aiohomekit.model.characteristics import Characteristic
 from aiohomekit.model.feature_flags import FeatureFlags
 
-_LOGGER = logging.getLogger(__name__)
-
-T = TypeVar("T")
-
 if sys.version_info[:2] < (3, 11):
     from async_timeout import timeout as asyncio_timeout  # noqa: F401
 else:
     from asyncio import timeout as asyncio_timeout  # noqa: F401
 
+
+_LOGGER = logging.getLogger(__name__)
+
 _BACKGROUND_TASKS = set()
 
+def make_uuid5(id: str) -> UUID:
+    return uuid5(UUID(int=0), id)
 
-def async_create_task(coroutine: Awaitable[T], *, name=None) -> asyncio.Task[T]:
+# def async_create_task[T](coroutine: Coroutine[Any, Any, T], *, name=None) -> asyncio.Task[T]:
+def async_create_task[T](coroutine: Awaitable[T], *, name=None) -> asyncio.Task[T]:
     """Wrapper for asyncio.create_task that logs errors."""
-    task = asyncio.create_task(coroutine, name=name)
+    task = asyncio.create_task(coroutine, name=name) # type: ignore[call-arg] # TODO: resolve type error
     _BACKGROUND_TASKS.add(task)
     task.add_done_callback(_handle_task_result)
     task.add_done_callback(_BACKGROUND_TASKS.discard)
@@ -46,7 +48,7 @@ def _handle_task_result(task: asyncio.Task):
 
 
 def clamp_enum_to_char(
-    all_valid_values: enum.EnumMeta, char: Characteristic
+    all_valid_values: type[enum.IntEnum], char: Characteristic
 ) -> set[Any]:
     """Clamp possible values of an enum to restrictions imposed by a manufacturer."""
     valid_values = set(all_valid_values)

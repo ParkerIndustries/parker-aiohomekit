@@ -13,7 +13,7 @@ from aiohomekit.model.characteristics.characteristic_types import Characteristic
 from aiohomekit.model.services.service_types import ServicesTypes
 from aiohomekit.model.typed_dicts import PairingData, Response, AccessoryPairings
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
-from aiohomekit.utils import async_create_task
+from aiohomekit.utils import async_create_task, make_uuid5
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     id: UUID
 
     def __init__(self, pairing_data: PairingData):
-        self.id = UUID(pairing_data["AccessoryPairingID"])
+        self.id = make_uuid5(pairing_data["AccessoryPairingID"])
         self.pairing_data = pairing_data
 
         self._availability_observers: list[Callable[[UUID, bool], None]] = list()
@@ -105,12 +105,14 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._observed_characteristics.update(characteristics)
 
     @abstractmethod
-    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]):
+    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
-    async def remove_pairing(self, pairingId: UUID | None = None):
-        """Remove an accessory pairing to some controller (not necessarily this one)."""
+    async def remove_pairing(self, pairingId: UUID | None = None) -> bool:
+        """Remove an accessory pairing to some controller (not necessarily this one).
+        returns: True if the pairing was removed, False if not.
+        """
 
     @abstractmethod
     def _process_disconnected_events(self):
@@ -173,7 +175,6 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     async def get_primary_name(self) -> str:
         """Return the primary name of the device from the accessory information service."""
         await self.fetch_accessories_and_characteristics()
-        assert self.accessories_state
 
         accessory_info = self.accessories_state.accessories.aid(1).services.first(
             service_type=ServicesTypes.ACCESSORY_INFORMATION
@@ -338,8 +339,8 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._accessories_state.config_num = config_num
         self._callback_config_changed(self.config_num)
 
-    async def _shutdown_if_primary_pairing_removed(self, pairingId: str):
-        if pairingId == self.pairing_data["iOSDeviceId"]:
+    async def _shutdown_if_primary_pairing_removed(self, pairingId: UUID):
+        if pairingId == UUID(self.pairing_data["iOSDeviceId"]):
             await self.shutdown()
 
     def update_pairing_data(self, pairing_data: PairingData):

@@ -33,7 +33,7 @@ from aiohomekit.controller.abstract import (
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model import Accessories, AccessoriesState, TransportType
-from aiohomekit.model.categories import Categories
+from aiohomekit.model.categories import Category
 from aiohomekit.model.characteristics import Characteristic, CharacteristicsTypes
 from aiohomekit.model.characteristics.characteristic_formats import (
     CharacteristicFormats,
@@ -58,7 +58,7 @@ class FakeDescription:
     status_flags: StatusFlags = StatusFlags.UNPAIRED
     config_num: int = 1
     state_num: int = 1
-    category: Categories = Categories.OTHER
+    category: Category = Category.OTHER
 
 
 class FakeDiscovery(AbstractDiscovery):

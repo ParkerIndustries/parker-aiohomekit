@@ -19,7 +19,7 @@ import socket
 import pytest
 from zeroconf.asyncio import AsyncServiceInfo
 
-from aiohomekit.model.categories import Categories
+from aiohomekit.model.categories import Category
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.zeroconf import HomeKitService
 
@@ -53,7 +53,7 @@ def test_simple():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "127.0.0.1"
     assert svc.addresses == ["127.0.0.1"]
     assert svc.port == 1234
@@ -113,7 +113,7 @@ def test_upper_case_keys():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "127.0.0.1"
     assert svc.addresses == ["127.0.0.1"]
     assert svc.port == 1234
@@ -254,7 +254,7 @@ def test_missing_ci():
     )
     svc = HomeKitService.from_service_info(info)
 
-    assert svc.category == Categories.OTHER
+    assert svc.category == Category.OTHER
 
 
 def test_missing_id():
@@ -309,7 +309,7 @@ def test_ignore_link_local():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "127.0.0.1"
     assert svc.addresses == ["127.0.0.1"]
     assert svc.port == 1234
@@ -347,7 +347,7 @@ def test_ignore_link_local_ipv6():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "2a00:1450:4009:820::200e"
     assert svc.addresses == ["2a00:1450:4009:820::200e"]
     assert svc.port == 1234
@@ -385,7 +385,7 @@ def test_prefer_ipv4():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "127.0.0.1"
     assert svc.addresses == ["127.0.0.1", "2a00:1450:4009:820::200e"]
     assert svc.port == 1234
@@ -420,7 +420,7 @@ def test_ignore_unspecified():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "127.0.0.1"
     assert svc.addresses == ["127.0.0.1"]
     assert svc.port == 1234
@@ -458,7 +458,7 @@ def test_ignore_unspecified_ipv6():
     assert svc.state_num == 11
     assert svc.status_flags == 0
     assert svc.feature_flags == FeatureFlags.SUPPORTS_APPLE_AUTHENTICATION_COPROCESSOR
-    assert svc.category == Categories.LIGHTBULB
+    assert svc.category == Category.LIGHTBULB
     assert svc.address == "2a00:1450:4009:820::200e"
     assert svc.addresses == ["2a00:1450:4009:820::200e"]
     assert svc.port == 1234

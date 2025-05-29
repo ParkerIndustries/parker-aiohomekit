@@ -3,7 +3,7 @@ from __future__ import annotations
 from aiohomekit.model.transport_type import TransportType, IpTransportType
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from aiohomekit.zeroconf import AsyncZeroconf
+from zeroconf.asyncio import AsyncZeroconf
 from ..controller import ZeroconfController
 from .discovery import IpDiscovery
 from .pairing import IpPairing

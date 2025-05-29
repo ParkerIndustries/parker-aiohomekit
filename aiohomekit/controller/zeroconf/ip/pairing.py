@@ -25,7 +25,6 @@ from typing import Any, override
 from uuid import UUID
 
 from aiohomekit.controller.abstract import AbstractController
-from aiohomekit.controller.zeroconf.ip.connection import ConnectionDelegate
 from aiohomekit.exceptions import (
     AccessoryDisconnectedError,
     AuthenticationError,
@@ -48,7 +47,6 @@ from aiohomekit.protocol import error_handler
 from aiohomekit.protocol.statuscodes import HapStatusCode, to_status_code
 from aiohomekit.protocol.tlv import TLV
 from aiohomekit.utils import asyncio_timeout
-from aiohomekit.uuid import normalize_uuid
 from aiohomekit.model.typed_dicts import Response, PairingData, AccessoryPairings
 from aiohomekit.model.transport_type import TransportType
 
@@ -61,7 +59,7 @@ logger = logging.getLogger(__name__)
 EMPTY_EVENT = {}
 
 
-class IpPairing(ZeroconfPairing, ConnectionDelegate):
+class IpPairing(ZeroconfPairing):
     """
     This represents a paired HomeKit IP accessory.
     """
@@ -242,6 +240,10 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
     async def get_characteristics(
         self,
         characteristics: Iterable[CharacteristicKey],
+        include_meta: bool = False,
+        include_perms: bool = False,
+        include_type: bool = False,
+        include_events: bool = False,
     ) -> Response:
         """
         This method is used to get the current cached readouts of any characteristic of the accessory.
@@ -298,7 +300,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         for characteristic in characteristics:
             aid, iid, value = characteristic
             char_payload.append({"aid": aid, "iid": iid, "value": value})
-            accessory_chars = self._accessories_state.accessories.aid(aid).characteristics
+            accessory_chars = self.accessories_state.accessories.aid(aid).characteristics
             char = accessory_chars.iid(iid)
             if not char: continue
             if CharacteristicPermissions.paired_read in char.perms:
@@ -322,7 +324,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
                 response_status[key] = {"status": status, "description": status_code}
 
         if listener_update:
-            self._callback_characteristic_listeners(listener_update)
+            self._callback_characteristic_changed(listener_update)
 
         return response_status
 
@@ -333,8 +335,8 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         """Provision a device with Thread network credentials."""
 
     @override
-    async def subscribe_characteristics(self, characteristics) -> Response:
-        await super().subscribe(set(characteristics))
+    async def subscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
+        await super().subscribe_characteristics(set(characteristics))
 
         if not self.supports_subscribe:
             logger.info(
@@ -357,7 +359,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
             return {}
 
     @override
-    async def unsubscribe_characteristics(self, characteristics) -> Response:
+    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
             await super().unsubscribe_characteristics(characteristics)
@@ -415,17 +417,16 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await self.fetch_accessories_and_characteristics()
 
         # we are looking for a characteristic of the identify type
-        identify_type = CharacteristicsTypes.IDENTIFY
+        identify_type = UUID(CharacteristicsTypes.IDENTIFY)
 
         # search all accessories, all services and all characteristics
-        logger.debug("Searching for identify characteristic in %s", self._accessories_state.accessories)
-        for accessory in self._accessories_state.accessories:
+        logger.debug("Searching for identify characteristic in %s", self.accessories_state.accessories)
+        for accessory in self.accessories_state.accessories:
             aid = accessory.aid
             for service in accessory.services:
                 for characteristic in service.characteristics:
                     iid = characteristic.iid
-                    c_type = normalize_uuid(characteristic.type)
-                    if identify_type == c_type:
+                    if characteristic.type == identify_type:
                         # found the identify characteristic, so let's put a value there
                         if not await self.put_characteristics([CharacteristicKeyValue(aid, iid, True)]):
                             return True
@@ -475,7 +476,7 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         await self._ensure_connected()
 
         if pairingId is None:
-            pairingId = self._pairing_data.iOSDeviceId
+            pairingId = UUID(self.pairing_data["iOSDeviceId"])
 
         request_tlv = [
             (TLV.kTLVType_State, TLV.M1),
@@ -525,9 +526,10 @@ class IpPairing(ZeroconfPairing, ConnectionDelegate):
         return resp.body
 
     @override
-    def _async_endpoint_changed(self):
-        super()._async_endpoint_changed()
-        self.connection.reconnect_soon() # hasten the process if we are not connected, or are in the process of reconnecting
+    def _endpoint_changed(self):
+        super()._endpoint_changed()
+        # hasten the process if we are not connected, or are in the process of reconnecting
+        self.connection.reconnect_soon()
 
 def _format_characteristics_response(data) -> Response:
     tmp = {}

@@ -95,7 +95,7 @@ async def ble_request(
     opcode: OpCode,
     handle: BleakGATTCharacteristic,
     iid: int,
-    data: bytes | None = None,
+    data: bytearray | bytes | None = None,
 ) -> tuple[PDUStatus, bytes]:
     """Send a request to the accessory."""
     tid = random.randrange(1, 254)
@@ -109,7 +109,7 @@ async def _write_pdu(
     opcode: OpCode,
     handle: BleakGATTCharacteristic,
     iid: int,
-    data: bytes,
+    data: bytearray | bytes | None,
     tid: int,
 ):
     """Write a PDU to the accessory."""
@@ -263,6 +263,7 @@ async def drive_pairing_state_machine(
 ) -> Any:
     char = await client.get_characteristic(ServicesTypes.PAIRING, characteristic)
     iid = await client.get_characteristic_iid(char)
+    assert iid
 
     request, expected = state_machine.send(None)
     while True:

@@ -17,36 +17,21 @@
 """Helpers for detecing homekit devices via zeroconf."""
 from __future__ import annotations
 
-from abc import abstractmethod
-import asyncio
-from collections.abc import AsyncIterable
 from dataclasses import dataclass
 import logging
 
 from zeroconf import (
-    BadTypeInNameException,
-    DNSPointer,
     IPVersion,
     ServiceListener,
-    ServiceStateChange,
     Zeroconf,
-    current_time_millis,
 )
-from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
+from zeroconf.asyncio import AsyncServiceInfo
 
-from aiohomekit.characteristic_cache import CharacteristicCacheType
-from aiohomekit.controller.abstract import (
-    AbstractController,
-    AbstractDiscovery,
-    AbstractPairing,
-)
-from aiohomekit.exceptions import AccessoryNotFoundError, TransportNotSupportedError
-from aiohomekit.model.categories import Categories
+from aiohomekit.model.categories import Category
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.model.status_flags import StatusFlags
-from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
-
-from .utils import async_create_task
+from aiohomekit.utils import make_uuid5
 
 
 HAP_TYPE_TCP = "_hap._tcp.local."
@@ -60,17 +45,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class HomeKitService(AbstractDiscoveryInfo):
-    name: str
-    id: str
+    type: str
     model: str
     feature_flags: FeatureFlags
-    status_flags: StatusFlags
-    config_num: int
-    state_num: int
-    category: Categories
     protocol_version: str
-
-    type: str
 
     address: str
     addresses: list[str]
@@ -106,14 +84,15 @@ class HomeKitService(AbstractDiscoveryInfo):
             raise ValueError("Invalid HomeKit Zeroconf record: Missing device ID")
 
         return cls( # NOTE: looks important
+            id=make_uuid5(props["id"].lower()),
+            original_id=props["id"].lower(),
             name=service.name.removesuffix(f".{service.type}"),
-            id=props["id"].lower(),
             model=props.get("md", ""),
             config_num=int(props.get("c#", 0)),
             state_num=int(props.get("s#", 0)),
             feature_flags=FeatureFlags(int(props.get("ff", 0))),
             status_flags=StatusFlags(int(props.get("sf", 0))),
-            category=Categories(int(props.get("ci", 1))),
+            category=Category(int(props.get("ci", 1))),
             protocol_version=props.get("pv", "1.0"),
             type=service.type,
             address=address,

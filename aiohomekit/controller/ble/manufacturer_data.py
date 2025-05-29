@@ -8,7 +8,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
 from aiohomekit.controller.abstract import AbstractDescription
-from aiohomekit.model.categories import Categories
+from aiohomekit.model.categories import Category
 from aiohomekit.model.status_flags import StatusFlags
 
 UNPACK_HHBB = struct.Struct("<HHBB").unpack
@@ -47,7 +47,7 @@ class HomeKitAdvertisement(AbstractDescription):
         return cls(
             name=name,
             id=device_id,
-            category=Categories(acid),
+            category=Category(acid),
             status_flags=StatusFlags(sf),
             config_num=cn,
             state_num=gsn,
@@ -63,7 +63,7 @@ class HomeKitAdvertisement(AbstractDescription):
         return cls(
             name=address,
             id=id,
-            category=Categories(0),
+            category=Category(0),
             status_flags=StatusFlags(0),
             config_num=config_num,
             state_num=state_num,
