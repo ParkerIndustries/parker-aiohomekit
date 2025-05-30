@@ -16,18 +16,19 @@
 
 import uuid
 
-from typing import Self, override
-from aiohomekit.controller.abstract.discovery import AbstractDiscovery
+from typing import override, Any
+from aiohomekit.controller.abstract.discovery import AbstractDiscovery, FinishPairing
 from aiohomekit.exceptions import AlreadyPairedError
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.protocol.statuscodes import to_status_code
 from aiohomekit.utils import check_pin_format, pair_with_auth
 from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 from .connection import HomeKitConnection
 
 
 
-class IpDiscovery(AbstractDiscovery[HomeKitService]):
+class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
     """
     A discovered IP HAP device that is unpaired.
     """
@@ -37,7 +38,7 @@ class IpDiscovery(AbstractDiscovery[HomeKitService]):
         self.connection = HomeKitConnection(self, self.description.addresses, self.description.port)
 
     @override
-    async def start_pairing(self) -> Self.FinishPairing:
+    async def start_pairing(self) -> FinishPairing:
         await self._ensure_connected()
 
         state_machine = perform_pair_setup_part1(
@@ -118,3 +119,11 @@ class IpDiscovery(AbstractDiscovery[HomeKitService]):
 
     def __repr__(self):
         return f"IPDiscovery(host={self.description.address}, port={self.description.port})"
+
+    # ConnectionDelegate Protocol
+
+    async def connection_made(self, is_secure: bool):
+        pass
+
+    def event_received(self, event: dict[str, Any]):
+        pass # no events are received during discovery

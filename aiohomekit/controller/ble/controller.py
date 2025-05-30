@@ -80,16 +80,16 @@ class BleController(AbstractController):
             self._scanner = None
 
     @override
-    async def is_reachable(self, device_id: str, timeout: float = 10) -> bool:
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool:
         """Check if a device is reachable on the network."""
         return bool(
             (discovery := self.discoveries.get(device_id))
-            and discovery.device.address
-            in self._scanner.discovered_devices_and_advertisement_data
+            and self._scanner
+            and discovery.device.address in self._scanner.discovered_devices_and_advertisement_data
         )
 
     @override
-    async def find(self, device_id: str, timeout: float = 10) -> BleDiscovery:
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> BleDiscovery:
         if discovery := self.discoveries.get(device_id):
             logger.debug("Discovery for %s already found", device_id)
             return discovery
@@ -97,16 +97,16 @@ class BleController(AbstractController):
         logger.debug(
             "Discovery for hkid %s not found, waiting for advertisement with timeout: %s",
             device_id,
-            timeout,
+            timeout_sec,
         )
         future = asyncio.get_running_loop().create_future()
         try:
-            async with asyncio_timeout(timeout):
+            async with asyncio_timeout(timeout_sec):
                 return await future
         except asyncio.TimeoutError:
             logger.debug(
                 "Timed out after %s waiting for discovery with hkid %s",
-                timeout,
+                timeout_sec,
                 device_id,
             )
             raise AccessoryNotFoundError(
@@ -126,12 +126,9 @@ class BleController(AbstractController):
             yield device
 
     def load_pairing(
-        self, id: HKDeviceID, pairing_data: PairingData
+        self, pairing_data: PairingData
     ) -> BlePairing | None:
         if pairing_data["Connection"] != "BLE":
-            return None
-
-        if not (hkid := pairing_data.get("AccessoryPairingID")):
             return None
 
         device: BLEDevice | None = None
@@ -141,7 +138,7 @@ class BleController(AbstractController):
         #     device = discovery.device
         #     description = discovery.description
 
-        pairing = self.pairings[id_] = BlePairing(
+        pairing = self.pairings[pairing_data["AccessoryPairingID"]] = BlePairing(
             pairing_data#, device=device, description=description
         )
         return pairing
@@ -156,7 +153,7 @@ class BleController(AbstractController):
         elif mfr_data[0] == HOMEKIT_ENCRYPTED_NOTIFICATION_TYPE:
             try:
                 data = HomeKitEncryptedNotification.from_manufacturer_data(
-                    device.name, device.address, manufacturer_data
+                    device.name or '', device.address, manufacturer_data
                 )
             except ValueError:
                 return
@@ -171,7 +168,7 @@ class BleController(AbstractController):
 
         try:
             data = HomeKitAdvertisement.from_manufacturer_data(
-                device.name, device.address, manufacturer_data
+                device.name or '', device.address, manufacturer_data
             )
         except ValueError:
             return

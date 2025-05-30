@@ -21,7 +21,7 @@ from zeroconf.asyncio import AsyncServiceInfo
 
 from aiohomekit.model.categories import Category
 from aiohomekit.model.feature_flags import FeatureFlags
-from aiohomekit.zeroconf import HomeKitService
+from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 
 
 def test_simple():
@@ -43,7 +43,7 @@ def test_simple():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -78,7 +78,7 @@ def test_udp():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._udp.local."
@@ -103,7 +103,7 @@ def test_upper_case_keys():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -137,7 +137,7 @@ def test_missing_cn():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.config_num == 0
 
@@ -160,7 +160,7 @@ def test_missing_sn():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.state_num == 0
 
@@ -183,7 +183,7 @@ def test_missing_sf():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.status_flags == 0
 
@@ -206,7 +206,7 @@ def test_missing_ff():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.feature_flags == 0
 
@@ -229,7 +229,7 @@ def test_missing_md():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.model == ""
 
@@ -252,7 +252,7 @@ def test_missing_ci():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.category == Category.OTHER
 
@@ -277,7 +277,7 @@ def test_missing_id():
     )
 
     with pytest.raises(ValueError):
-        HomeKitService.from_service_info(info)
+        ZeroconfDiscoveryInfo.from_service_info(info)
 
 
 def test_ignore_link_local():
@@ -299,7 +299,7 @@ def test_ignore_link_local():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -337,7 +337,7 @@ def test_ignore_link_local_ipv6():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -375,7 +375,7 @@ def test_prefer_ipv4():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -410,7 +410,7 @@ def test_ignore_unspecified():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -448,7 +448,7 @@ def test_ignore_unspecified_ipv6():
         weight=0,
         priority=0,
     )
-    svc = HomeKitService.from_service_info(info)
+    svc = ZeroconfDiscoveryInfo.from_service_info(info)
 
     assert svc.name == "foo2"
     assert svc.zc_type == "_hap._tcp.local."
@@ -489,4 +489,4 @@ def test_no_valid_addresses():
         ValueError,
         match="Invalid HomeKit Zeroconf record: Missing non-link-local or unspecified address",
     ):
-        HomeKitService.from_service_info(info)
+        ZeroconfDiscoveryInfo.from_service_info(info)

@@ -36,7 +36,7 @@ async def test_passing_in_bleak_to_controller():
         controller = Controller(
             bleak_scanner_instance=AsyncMock(register_detection_callback=MagicMock())
         )
-        await controller.async_start()
+        await controller.start()
 
     assert len(controller.transports) == 1
     assert isinstance(controller.transports[TransportType.BLE], BleController)
@@ -53,7 +53,7 @@ async def test_passing_in_async_zeroconf(mock_asynczeroconf):
         patch.object(controller_module, "IP_TRANSPORT_SUPPORTED", False),
     ):
         controller = Controller(async_zeroconf_instance=mock_asynczeroconf)
-        await controller.async_start()
+        await controller.start()
 
     assert len(controller.transports) == 1
     assert isinstance(controller.transports[TransportType.IP], IpController)

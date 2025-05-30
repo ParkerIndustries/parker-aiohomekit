@@ -291,7 +291,7 @@ class HomeKitConnection:
     @property
     def is_connected(self) -> bool:
         """Return if the connection is active."""
-        return self.transport and self.protocol and not self.closed
+        return bool(self.transport and self.protocol and not self.closed)
 
     def _start_connector(self):
         """

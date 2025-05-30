@@ -53,5 +53,5 @@ class BroadcastDecryptionKey:
 
     def decrypt(
         self, data: bytes | bytearray, gsn: int, advertising_identifier: bytes
-    ) -> bytes | bool:
+    ) -> bytes:
         return self.key.open(PACK_NONCE(gsn), data, advertising_identifier)

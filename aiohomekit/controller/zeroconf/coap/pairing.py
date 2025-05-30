@@ -19,17 +19,17 @@ import asyncio
 from collections.abc import Iterable
 from datetime import timedelta
 import logging
-from typing import Any
+from typing import override
 
-from aiohomekit.controller.abstract import AbstractController, PairingData
 from aiohomekit.exceptions import AccessoryDisconnectedError
-from aiohomekit.model import Accessories, AccessoriesState
+from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.characteristics import CharacteristicPermissions
+from aiohomekit.model.characteristics import CharacteristicPermissions, CharacteristicKey, CharacteristicKeyValue
+from aiohomekit.model.typed_dicts import AccessoryPairings, HKDeviceID, Response, PairingData
 from aiohomekit.protocol.statuscodes import HapStatusCode
 from aiohomekit.utils import async_create_task
 from aiohomekit.uuid import normalize_uuid
-from aiohomekit.zeroconf import ZeroconfPairing
+from aiohomekit.controller.zeroconf.pairing import ZeroconfPairing
 
 from .connection import CoAPHomeKitConnection
 
@@ -38,16 +38,14 @@ logger = logging.getLogger(__name__)
 
 class CoAPPairing(ZeroconfPairing):
     def __init__(
-        self, controller: AbstractController, pairing_data: PairingData
+        self, pairing_data: PairingData
     ):
+        super().__init__(pairing_data)
         self.connection = CoAPHomeKitConnection(
-            self, pairing_data["AccessoryIP"], pairing_data["AccessoryPort"]
+            self, pairing_data["AccessoryIP"], pairing_data["AccessoryPort"] # TODO: generic DiscoveryInfo for zeroconf?
         )
         self.connection_future = None
         self.connection_lock = asyncio.Condition()
-        self.pairing_data = pairing_data
-
-        super().__init__(controller, pairing_data)
 
     def _async_endpoint_changed(self):
         """The IP/Port has changed, so close connection if active then reconnect."""
@@ -114,12 +112,12 @@ class CoAPPairing(ZeroconfPairing):
             raise AccessoryDisconnectedError("failed to connect")
         else:
             # in case this was a reconnect, re-subscribe
-            if len(self.subscriptions):
+            if len(self._observed_characteristics):
                 logger.debug(
                     "(Re-)subscribing to %d characteristics: %r"
-                    % (len(self.subscriptions), self.subscriptions)
+                    % (len(self._observed_characteristics), self._observed_characteristics)
                 )
-                await self.connection.subscribe_to(list(self.subscriptions))
+                await self.connection.subscribe_to(list(self._observed_characteristics))
             self._callback_availability_changed(True)
         finally:
             # until we re-acquire the lock & clear connection_future,
@@ -134,18 +132,18 @@ class CoAPPairing(ZeroconfPairing):
 
     async def close(self):
         if self.connection.is_connected:
-            await self.unsubscribe(list(self.subscriptions))
+            await self.unsubscribe(list(self._observed_characteristics))
         return
 
     def event_received(self, event):
-        self._callback_characteristic_listeners(event)
+        self._callback_characteristic_changed(event)
 
     async def identify(self):
         await self._ensure_connected()
         return await self.connection.do_identify()
 
     @override
-    async def _do_fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
+    async def _do_fetch_accessories_and_characteristics(self) -> AccessoriesState:
         await self._ensure_connected()
 
         accessories = await self.connection.get_accessory_info()
@@ -165,6 +163,10 @@ class CoAPPairing(ZeroconfPairing):
     async def get_characteristics(
         self,
         characteristics: Iterable[CharacteristicKey],
+        include_meta: bool = False,
+        include_perms: bool = False,
+        include_type: bool = False,
+        include_events: bool = False
     ) -> Response:
         await self._ensure_connected()
         return await self.connection.read_characteristics(characteristics)
@@ -183,12 +185,13 @@ class CoAPPairing(ZeroconfPairing):
             if (
                 response_status.get((aid, iid), HapStatusCode.SUCCESS)
                 == HapStatusCode.SUCCESS
+                and char is not None
                 and CharacteristicPermissions.paired_read in char.perms
             ):
-                listener_update[(aid, iid)] = {"value": value}
+                listener_update[CharacteristicKey(aid, iid)] = {"value": value}
 
         if listener_update:
-            self._callback_characteristic_listeners(listener_update)
+            self._callback_characteristic_changed(listener_update)
 
         return response_status
 
@@ -200,7 +203,7 @@ class CoAPPairing(ZeroconfPairing):
 
     async def subscribe(self, characteristics):
         await self._ensure_connected()
-        new_subs = await super().subscribe(set(characteristics))
+        new_subs = await super().subscribe_characteristics(set(characteristics))
         if len(new_subs) == 0:
             logger.debug("Nothing new to subscribe to, ignoring")
             return
@@ -208,29 +211,22 @@ class CoAPPairing(ZeroconfPairing):
 
     async def unsubscribe(self, characteristics):
         await self._ensure_connected()
-        await super().unsubscribe(set(characteristics))
+        await super().unsubscribe_characteristics(set(characteristics))
         return await self.connection.unsubscribe_from(characteristics)
 
-    async def list_pairings(self):
+    async def list_pairings(self) -> list[AccessoryPairings]:
         await self._ensure_connected()
         pairing_tuples = await self.connection.list_pairings()
-        pairings = list(
-            map(
-                lambda x: dict(
-                    (
-                        ("pairingId", x[0].decode()),
-                        ("publicKey", x[1].hex()),
-                        ("permissions", x[2]),
-                        ("controllerType", x[2] & 0x01 and "admin" or "regular"),
-                    )
-                ),
-                pairing_tuples,
-            )
-        )
-        return pairings
+        return [AccessoryPairings({
+            "pairingId": x[0].decode(),
+            "publicKey": x[1].hex(),
+            "permissions": x[2],
+            "controllerType": x[2] & 0x01 and "admin" or "regular"
+        }) for x in pairing_tuples]
 
-    async def remove_pairing(self, pairingId: str) -> bool:
+    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
         await self._ensure_connected()
+        pairingId = pairingId or self.pairing_data["AccessoryPairingID"]
         if await self.connection.remove_pairing(pairingId):
             await self._shutdown_if_primary_pairing_removed(pairingId)
             return True

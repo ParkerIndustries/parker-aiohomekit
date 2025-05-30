@@ -71,7 +71,7 @@ def mock_asynczeroconf():
     with patch("aiohomekit.zeroconf.AsyncServiceBrowser", AsyncServiceBrowserStub):
         with patch("aiohomekit.zeroconf.AsyncZeroconf") as mock_zc:
             zc = mock_zc.return_value
-            zc.async_register_service = AsyncMock()
+            zc.register_service = AsyncMock()
             zc.async_close = AsyncMock()
             zeroconf = MagicMock(name="zeroconf_mock")
             zeroconf.cache = DNSCache()

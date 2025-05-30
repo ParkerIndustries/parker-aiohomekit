@@ -14,23 +14,21 @@
 # limitations under the License.
 #
 
-from aiohomekit.controller.abstract import FinishPairing
+from aiohomekit.controller.abstract import AbstractDiscovery, FinishPairing, DiscoveryDidFinishPairingCallback
 from aiohomekit.utils import check_pin_format, pair_with_auth
-from aiohomekit.zeroconf import HomeKitService, ZeroconfDiscovery
-from aiohomekit.model.typed_dicts import HKDeviceID
+from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
+from aiohomekit.model.typed_dicts import PairingData
 
 from .connection import CoAPHomeKitConnection
-from .pairing import CoAPPairing
 
 
-class CoAPDiscovery(ZeroconfDiscovery):
+class CoAPDiscovery(AbstractDiscovery):
     """
     A discovered CoAP HAP device that is unpaired.
     """
 
-    def __init__(self, controller, description: HomeKitService):
-        super().__init__(description)
-        self.controller = controller
+    def __init__(self, description: ZeroconfDiscoveryInfo, pairing_finished_callback: DiscoveryDidFinishPairingCallback):
+        super().__init__(description, pairing_finished_callback)
         self.connection = CoAPHomeKitConnection(
             None, description.address, description.port
         )
@@ -50,26 +48,24 @@ class CoAPDiscovery(ZeroconfDiscovery):
         """
         return
 
-    async def async_identify(self):
+    async def identify(self):
         return await self.connection.do_identify()
 
-    async def async_start_pairing(self, id: HKDeviceID) -> FinishPairing:
+    async def start_pairing(self) -> FinishPairing:
         salt, srpB = await self.connection.do_pair_setup(
             pair_with_auth(self.description.feature_flags)
         )
 
-        async def finish_pairing(pin: str) -> CoAPPairing:
+        async def finish_pairing(pin: str) -> PairingData:
             check_pin_format(pin)
 
-            pairing = await self.connection.do_pair_setup_finish(pin, salt, srpB)
-            pairing["AccessoryIP"] = self.description.address
-            pairing["AccessoryPort"] = self.description.port
-            pairing["Connection"] = "CoAP"
+            pairing_data = await self.connection.do_pair_setup_finish(pin, salt, srpB)
+            pairing_data["AccessoryIP"] = self.description.address
+            pairing_data["AccessoryPort"] = self.description.port
+            pairing_data["Connection"] = "CoAP"
 
-            obj = self.controller.pairings[alias] = CoAPPairing(
-                self.controller, pairing
-            )
+            self._pairing_finished_callback(pairing_data)
 
-            return obj
+            return pairing_data
 
         return finish_pairing

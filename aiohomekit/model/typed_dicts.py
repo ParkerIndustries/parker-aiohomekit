@@ -3,8 +3,8 @@ Typing hints for the serialization format used by the JSON part of the HomeKit A
 """
 
 from __future__ import annotations
-from typing import TypedDict, Union, Any
-from enum import Enum, auto
+from typing import TypedDict, Union, Any, Literal
+from enum import Enum
 from .characteristics import CharacteristicKey
 from .transport_type import TransportType
 
@@ -59,18 +59,19 @@ class PairingData(PairingCredentials, total=True):
     '''data in addition to credentials to connect to the accessory'''
     Connection: TransportType
     AccessoryIP: str
-    # AccessoryIPs: str  # TODO: check which transports use
+    # AccessoryPort: int # TODO: check which transports use this
+    # AccessoryIPs: str  # TODO: check which transports use this
 
 class AccessoryPairings(TypedDict, total=True):
     '''all pairings of the accessory to controllers (including us)'''
     pairingId: str # the pairing id of the controller (iOSDeviceId)
     publicKey: str # the ED25519 long-term public key of the controller (iOSDeviceLTPK)
-    controllerType: ControllerType # either admin or regular
-    permissions: bytes # bit value for the permissions
+    controllerType: Literal['admin'] | Literal['regular']
+    permissions: int # bit value for the permissions
 
-class ControllerType(str, Enum):
-    admin = auto()
-    regular = auto()
+# class ControllerType(str, Enum):
+#     admin = 'admin'
+#     regular = 'regular'
 
 type Value = Any
 

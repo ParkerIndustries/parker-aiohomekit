@@ -52,7 +52,7 @@ def test_ignore_field():
     @dataclass
     class DummyStruct(TLVStruct):
         # fields stored locally for each house boat
-        number_of_residents: u8 = field(init=False, default=1)
+        number_of_residents: u8 = field(init=False, default=u8(1))
 
         # fields pulled from satellite network
         sharks_nearby: u8 = tlv_entry(1)

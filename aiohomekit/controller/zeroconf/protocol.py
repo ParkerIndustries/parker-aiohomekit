@@ -17,6 +17,7 @@
 """Helpers for detecing homekit devices via zeroconf."""
 from __future__ import annotations
 
+from typing import Self
 from dataclasses import dataclass
 import logging
 
@@ -43,7 +44,9 @@ _TIMEOUT_MS = 3000
 logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
-class HomeKitService(AbstractDiscoveryInfo):
+class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
+    '''HomeKit Zeroconf discovery information.'''
+
     zc_type: str
     model: str
     feature_flags: FeatureFlags
@@ -54,7 +57,7 @@ class HomeKitService(AbstractDiscoveryInfo):
     port: int
 
     @classmethod
-    def from_service_info(cls, service: AsyncServiceInfo) -> HomeKitService:
+    def from_service_info(cls, service: AsyncServiceInfo) -> Self:
         if not (addresses := service.ip_addresses_by_version(IPVersion.All)):
             raise ValueError("Invalid HomeKit Zeroconf record: Missing address")
 

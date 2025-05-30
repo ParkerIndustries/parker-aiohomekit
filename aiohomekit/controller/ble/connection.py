@@ -40,7 +40,7 @@ async def establish_connection(
     disconnected_callback: Callable[[AIOHomeKitBleakClient], None],
     max_attempts: int | None = None,
     use_services_cache: bool = False,
-    ble_device_callback: Callable[[BLEDevice], None] = None,
+    ble_device_callback: Callable[[BLEDevice], None] | None = None,
 ) -> AIOHomeKitBleakClient:
     """Establish a connection to the accessory."""
     try:

@@ -371,7 +371,7 @@ class FakeController(AbstractController):
 
     async def add_paired_device(self, accessories: Accessories, id: HKDeviceID = None):
         discovery = self.add_device(accessories)
-        finish_pairing = await discovery.async_start_pairing(
+        finish_pairing = await discovery.start_pairing(
             alias or discovery.description.id
         )
         return await finish_pairing(discovery.pairing_code)
@@ -401,7 +401,7 @@ class FakeController(AbstractController):
         pairing = self.aliases[alias]
         del self.pairings[self.aliases[alias].id]
         del self.aliases[alias]
-        self._char_cache.async_delete_map(pairing.id)
+        self._char_cache.delete_map(pairing.id)
 
     def load_pairing(self, id: HKDeviceID, pairing_data):
         # This assumes a test has already preseed self.pairings with a fake via

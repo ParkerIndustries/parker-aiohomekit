@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
 import uuid
 
 from bleak.backends.device import BLEDevice
@@ -32,7 +31,7 @@ from aiohomekit.model.services import ServicesTypes
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.utils import check_pin_format, pair_with_auth
-from aiohomekit.model.typed_dicts import HKDeviceID
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
 
 from .bleak import AIOHomeKitBleakClient
 from .client import (
@@ -43,10 +42,7 @@ from .client import (
 )
 from .connection import establish_connection
 from .manufacturer_data import HomeKitAdvertisement
-from .pairing import BlePairing
 
-if TYPE_CHECKING:
-    from aiohomekit.controller.ble.controller import BleController
 
 
 logger = logging.getLogger(__name__)
@@ -61,16 +57,14 @@ class BleDiscovery(AbstractDiscovery):
 
     def __init__(
         self,
-        controller: BleController,
         device: BLEDevice,
         description: HomeKitAdvertisement,
         ble_advertisement: AdvertisementData,
     ):
         self.description = description
-        self.controller = controller
         self.device = device
         self.ble_advertisement = ble_advertisement
-        self.client: AIOHomeKitBleakClient | None = None
+        self._client: AIOHomeKitBleakClient | None = None
         self._connection_lock = asyncio.Lock()
 
     @property
@@ -88,17 +82,19 @@ class BleDiscovery(AbstractDiscovery):
             self.device,
             self.rssi,
         )
-        if self.client and self.client.is_connected:
+
+        if self._client and self._client.is_connected:
             return
+
         async with self._connection_lock:
             # Check again while holding the lock
-            if self.client and self.client.is_connected:
+            if self._client and self._client.is_connected:
                 return
-            self.client = await establish_connection(
+            self._client = await establish_connection(
                 self.device,
                 self.name,
                 self._async_disconnected,
-                ble_device_callback=lambda: self.device,
+                # ble_device_callback=lambda: self.device, # looks like this is not needed: I don't see ble_device_callback being called, and self.device isn't right callback anyway # TODO: review
                 use_services_cache=True,
             )
 
@@ -106,27 +102,28 @@ class BleDiscovery(AbstractDiscovery):
         logger.debug("%s: Session closed callback; rssi=%s", self.name, self.rssi)
 
     async def _close(self):
-        if not self.client:
+        if not self._client:
             return
         async with self._connection_lock:
-            if not self.client or not self.client.is_connected:
+            if not self._client or not self._client.is_connected:
                 return
             logger.debug("%s: Disconnecting: %s", self.name, self.rssi)
             try:
-                await self.client.disconnect()
+                await self._client.disconnect()
             except BleakError:
                 logger.debug(
                     "%s: Failed to close connection, client may have already closed it",
                     self.name,
                 )
             finally:
-                self.client = None
+                self._client = None
 
     async def _async_start_pairing(self, id: HKDeviceID) -> tuple[bytearray, bytearray]:
         await self._ensure_connected()
+        assert self._client is not None
 
         try:
-            ff_char = await self.client.get_characteristic(
+            ff_char = await self._client.get_characteristic(
                 ServicesTypes.PAIRING,
                 CharacteristicsTypes.PAIRING_FEATURES,
             )
@@ -135,17 +132,17 @@ class BleDiscovery(AbstractDiscovery):
             # we need to reconnect since our client is now invalid.
             await self._close()
             await self._ensure_connected()
-            ff_char = await self.client.get_characteristic(
+            ff_char = await self._client.get_characteristic(
                 ServicesTypes.PAIRING,
                 CharacteristicsTypes.PAIRING_FEATURES,
             )
 
-        ff_iid = await self.client.get_characteristic_iid(ff_char)
-        ff_raw = await char_read(self.client, None, None, ff_char, ff_iid)
+        ff_iid = await self._client.get_characteristic_iid(ff_char)
+        ff_raw = await char_read(self._client, None, None, ff_char, ff_iid or 0)
         ff = FeatureFlags(ff_raw[0])
         logger.debug("%s: starting pairing; rssi=%s", self.name, self.rssi)
         return await drive_pairing_state_machine(
-            self.client,
+            self._client,
             CharacteristicsTypes.PAIR_SETUP,
             perform_pair_setup_part1(
                 with_auth=pair_with_auth(ff),
@@ -154,13 +151,16 @@ class BleDiscovery(AbstractDiscovery):
 
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
-    async def async_start_pairing(self, id: HKDeviceID) -> FinishPairing:
+    async def start_pairing(self) -> FinishPairing: # type: ignore[override] # pyright fails to recognize override with decorators, probably due to lack of @functools.wraps(func)
+        assert self._client is not None, "Client must be initialized before pairing"
+        id = self.description.id
         salt, pub_key = await self._async_start_pairing(id)
         attempt = 0
 
         @retry_bluetooth_connection_error()
         @disconnect_on_missing_services
-        async def finish_pairing(pin: str) -> BlePairing:
+        async def finish_pairing(pin: str) -> PairingData:
+            assert self._client is not None, "Client must be initialized before pairing"
             logger.debug("%s: finish pairing; rssi=%s", self.name, self.rssi)
 
             nonlocal attempt
@@ -177,10 +177,10 @@ class BleDiscovery(AbstractDiscovery):
                 # need to disconnect and restart
                 # the pairing process.
                 await self._close()
-                salt, pub_key = await self._async_start_pairing(alias)
+                salt, pub_key = await self._async_start_pairing(id)
 
-            pairing = await drive_pairing_state_machine(
-                self.client,
+            pairing_data = await drive_pairing_state_machine(
+                self._client,
                 CharacteristicsTypes.PAIR_SETUP,
                 perform_pair_setup_part2(
                     pin,
@@ -190,35 +190,40 @@ class BleDiscovery(AbstractDiscovery):
                 ),
             )
 
-            pairing["AccessoryIP"] = self.description.address
-            pairing["Connection"] = "BLE"
+            pairing_data["AccessoryIP"] = self.description.address
+            pairing_data["Connection"] = "BLE"
 
-            obj = self.controller.pairings[alias] = BlePairing(
-                self.controller,
-                pairing,
-                device=self.device,
-                client=self.client,
-                description=self.description,
-            )
-            return obj
+            self._pairing_finished_callback(pairing_data)
+
+            # obj = self.controller.pairings[id] = BlePairing(
+            #     self.controller,
+            #     pairing,
+            #     device=self.device,
+            #     client=self.client,
+            #     description=self.description,
+            # )
+            # self._call
+            return pairing_data
 
         return finish_pairing
 
-    async def async_identify(self):
+    async def identify(self):
         if self.paired:
             raise RuntimeError(
                 f"{self.name}: Cannot anonymously identify a paired accessory"
             )
 
         await self._ensure_connected()
+        assert self._client is not None, "Client must be initialized before identifying"
 
-        char = await self.client.get_characteristic(
+        char = await self._client.get_characteristic(
             ServicesTypes.ACCESSORY_INFORMATION,
             CharacteristicsTypes.IDENTIFY,
         )
-        iid = await self.client.get_characteristic_iid(char)
+        iid = await self._client.get_characteristic_iid(char)
+        assert iid is not None, "Characteristic IID must not be None for identify"
 
-        await char_write(self.client, None, None, char, iid, b"\x01")
+        await char_write(self._client, None, None, char, iid, b"\x01")
 
     def _async_process_advertisement(
         self,

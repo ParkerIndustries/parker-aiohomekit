@@ -18,10 +18,10 @@ from aiohomekit.controller.abstract import (
 from aiohomekit.exceptions import AccessoryNotFoundError, TransportNotSupportedError
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from aiohomekit.zeroconf import HomeKitService, _TIMEOUT_MS, logger, TYPE_PTR, CLASS_IN
 from aiohomekit.utils import async_create_task
 from aiohomekit.model.transport_type import IpTransportType
-from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
+from aiohomekit.model.typed_dicts import HKDeviceID
+from .protocol import ZeroconfDiscoveryInfo, _TIMEOUT_MS, logger, TYPE_PTR, CLASS_IN
 
 class IpTransport(str, Enum):
     TCP = auto()
@@ -31,7 +31,7 @@ class ZeroconfController[
     Discovery: AbstractDiscovery,
     Pairing: AbstractPairing
 ](
-    AbstractController[HomeKitService, Discovery, Pairing],
+    AbstractController[ZeroconfDiscoveryInfo, Discovery, Pairing],
     ABC
 ):
     """
@@ -149,7 +149,7 @@ class ZeroconfController[
 
     def _async_get_ptr_records(self, zc: Zeroconf) -> list[DNSRecord]:
         """Return all PTR records for the HAP type."""
-        return zc.cache.async_all_by_details(self._hap_type, TYPE_PTR, CLASS_IN)
+        return zc.cache.all_by_details(self._hap_type, TYPE_PTR, CLASS_IN)
 
     def _zeroconf_did_discover_service(
         self,
@@ -199,13 +199,13 @@ class ZeroconfController[
     async def _handle_discovery_service(self, info: AsyncServiceInfo):
         """Handle a device that became visible via zeroconf."""
         # AsyncServiceInfo already tries 3x
-        await info.async_request(self._async_zeroconf_instance.zeroconf, _TIMEOUT_MS)
+        await info.request(self._async_zeroconf_instance.zeroconf, _TIMEOUT_MS)
         self._handle_loaded_discovery_info(info)
 
     def _handle_loaded_discovery_info(self, info: AsyncServiceInfo):
         """Process loaded or discovered service"""
         try:
-            description = HomeKitService.from_service_info(info)
+            description = ZeroconfDiscoveryInfo.from_service_info(info)
         except ValueError as e:
             logger.debug("%s: Not a valid homekit device: %s", info.name, e)
             return

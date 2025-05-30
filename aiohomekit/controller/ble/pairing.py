@@ -25,6 +25,7 @@ import struct
 import time
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 from uuid import UUID
+from functools import wraps
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
@@ -43,10 +44,17 @@ from aiohomekit.exceptions import (
     UnknownError,
 )
 from aiohomekit.protocol.tlv import TLV
+from aiohomekit.protocol import get_session_keys
+from aiohomekit.pdu import (
+    OpCode,
+    PDUStatus,
+    decode_pdu,
+    encode_pdu,
+)
 
 from aiohomekit.model.typed_dicts import Response, PairingData
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.accessories import Accessories, AccessoriesState
+from aiohomekit.model.accessories import Accessory, Accessories, AccessoriesState
 from aiohomekit.model.characteristics import (
     Characteristic,
     CharacteristicPermissions,
@@ -186,6 +194,7 @@ WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 def operation_lock(func: WrapFuncType) -> WrapFuncType:
     """Define a wrapper to only allow a single operation at a time."""
 
+    @wraps(func)
     async def _async_operation_lock_wrap(
         self: BlePairing, *args: Any, **kwargs: Any
     ):
@@ -198,6 +207,7 @@ def operation_lock(func: WrapFuncType) -> WrapFuncType:
 def restore_connection_and_resume(func: WrapFuncType) -> WrapFuncType:
     """Define a wrapper restore connection, populate data, and then resume when the operation completes."""
 
+    @wraps(func)
     async def _async_restore_and_resume(
         self: BlePairing, *args: Any, **kwargs: Any
     ):
@@ -223,12 +233,13 @@ def restore_connection_and_resume(func: WrapFuncType) -> WrapFuncType:
 def force_fresh_connection(func: WrapFuncType) -> WrapFuncType:
     """Define a wrapper to force a fresh connection."""
 
+    @wraps(func)
     async def _async_force_fresh_connection(
         self: BlePairing, *args: Any, **kwargs: Any
     ):
         """Force a fresh connection."""
-        if self.client:
-            await self.client.disconnect()
+        if self._client:
+            await self._client.disconnect()
         return await func(self, *args, **kwargs)
 
     return cast(WrapFuncType, _async_force_fresh_connection)
@@ -253,7 +264,7 @@ class BlePairing(AbstractPairing):
     ):
         self.device = device
         self.ble_advertisement = ble_advertisement
-        self.client = client
+        self._client = client
         self.description = description
         self.pairing_data = pairing_data
 
@@ -270,7 +281,7 @@ class BlePairing(AbstractPairing):
             )
 
         # Encryption
-        self._derive = None
+        self._derive = None # TODO: type annotation
         self._session_id = None
         self._encryption_key: EncryptionKey | None = None
         self._decryption_key: DecryptionKey | None = None
@@ -332,7 +343,7 @@ class BlePairing(AbstractPairing):
 
     @property
     def is_connected(self) -> bool:
-        return bool(self.client and self.client.is_connected and self._encryption_key)
+        return bool(self._client and self._client.is_connected and self._encryption_key)
 
     @property
     def is_available(self) -> bool:
@@ -413,18 +424,18 @@ class BlePairing(AbstractPairing):
         iid: int | None = None,
     ) -> bytes:
         assert self._ble_request_lock.locked(), "_ble_request_lock Should be locked"
-        if not self.client or not self.client.is_connected:
+        if not self._client or not self._client.is_connected:
             logger.debug("%s: Client not connected; rssi=%s", self.name, self.rssi)
             raise AccessoryDisconnectedError(f"{self.name} is not connected")
 
         endpoint_iid = iid if iid is not None else char.iid
-        endpoint = await self.client.get_characteristic(
+        endpoint = await self._client.get_characteristic(
             char.parent_service.type, char.type.hex, endpoint_iid
         )
 
         try:
             pdu_status, result_data = await ble_request(
-                self.client,
+                self._client,
                 self._encryption_key,
                 self._decryption_key,
                 opcode,
@@ -448,11 +459,11 @@ class BlePairing(AbstractPairing):
             # especially if it was a cancellation
             raise ex
 
-        if not self.client or not self.client.is_connected:
+        if not self._client or not self._client.is_connected:
             logger.debug("%s: Client not connected; rssi=%s", self.name, self.rssi)
             raise AccessoryDisconnectedError(f"{self.name} is not connected")
 
-        raise_for_pdu_status(self.client, pdu_status)
+        raise_for_pdu_status(self._client, pdu_status)
         return result_data
 
     def _async_disconnected(self, client: AIOHomeKitBleakClient):
@@ -477,37 +488,40 @@ class BlePairing(AbstractPairing):
         returns False if we were already connected or shutdown.
         """
         assert self._config_lock.locked(), "_config_lock Should be locked"
-        if self._shutdown or (self.client and self.client.is_connected):
+        if self._shutdown or (self._client and self._client.is_connected):
             return False
         async with self._connection_lock:
             # Check again while holding the lock
-            if self._shutdown or (self.client and self.client.is_connected):
+            if self._shutdown or (self._client and self._client.is_connected):
                 return False
             if not self.device and (
-                discovery := await self.controller.async_find(self.id, DISCOVER_TIMEOUT)
+                discovery := await self.controller.find(self.id, DISCOVER_TIMEOUT)
             ):
                 self.device = discovery.device
                 self.ble_advertisement = discovery.ble_advertisement
                 self.description = discovery.description
             elif not self.device:
                 raise AccessoryNotFoundError(f"{self.name}: Could not find {self.id}")
-            self.client = await establish_connection(
+            self._client = await establish_connection(
                 self.device,
                 self.name,
                 self._async_disconnected,
                 use_services_cache=True,
-                ble_device_callback=lambda: self.device,
+                # ble_device_callback=lambda: self.device,  # looks like this is not needed: I don't see ble_device_callback being called, and self.device isn't right callback anyway # TODO: review
                 max_attempts=attempts,
             )
             return True
 
     async def _async_start_notify(self, iid: int):
         assert self._operation_lock.locked(), "_operation_lock should be locked"
+        assert self._client, "_client should be set"
+
         char = self.accessories.aid(BLE_AID).characteristics.iid(iid)
+        assert char, f"Characteristic with iid {iid} not found in accessories"
 
         # Find the GATT Characteristic object for this iid
-        endpoint = await self.client.get_characteristic(
-            char.service.type, char.type, iid
+        endpoint = await self._client.get_characteristic(
+            char.parent_service.type, char.type, iid
         )
 
         # We only want to allow one in flight read
@@ -521,7 +535,7 @@ class BlePairing(AbstractPairing):
                 # Already one being read now, and one pending
                 return
             async with max_callback_enforcer:
-                if not self.client or not self.client.is_connected:
+                if not self._client or not self._client.is_connected:
                     # Client disconnected
                     return
                 async with self._operation_lock:
@@ -529,7 +543,7 @@ class BlePairing(AbstractPairing):
                     await self._get_characteristics_while_connected(
                         [char],
                         notify_listeners=True,
-                        skip_characteristics=IGNORE_READ_CHARACTERISTICS,
+                        skip_characteristics=set(map(str, IGNORE_READ_CHARACTERISTICS)),
                     )
                     # The GSN value is always the same per session.
                     # It will never increment until the session is closed.
@@ -571,13 +585,14 @@ class BlePairing(AbstractPairing):
             async_create_task(_async_callback())
 
         logger.debug("%s: Subscribing to gatt notify for iid: %s", self.name, iid)
-        await self.client.start_notify(endpoint, _callback)
+        await self._client.start_notify(endpoint, _callback)
         self._notifications.add(iid)
 
     async def _async_pair_verify(self):
         async with self._ble_request_lock:
+            assert self._client, "_client should be set"
             session_id, derive = await drive_pairing_state_machine(
-                self.client,
+                self._client,
                 CharacteristicsTypes.PAIR_VERIFY,
                 get_session_keys(self.pairing_data, self._session_id, self._derive),
             )
@@ -645,6 +660,7 @@ class BlePairing(AbstractPairing):
         chars_to_update = []
         for _, iid in self._observed_characteristics:
             char = accessory_chars.iid(iid)
+            if not char: continue
             if char.broadcast_events or char.disconnected_events:
                 chars_to_update.append(char)
         if chars_to_update:
@@ -732,7 +748,7 @@ class BlePairing(AbstractPairing):
             results = {(BLE_AID, iid): {"value": from_bytes(char, value)}}
             logger.debug("%s: Received notification: results = %s", self.name, results)
 
-            self._callback_characteristic_listeners(results)
+            self._callback_characteristic_changed(results)
             return
 
         logger.warning(
@@ -750,14 +766,14 @@ class BlePairing(AbstractPairing):
         if not info:
             logger.debug("%s: No signature service found", self.name)
             return None
-        if not info.has(CharacteristicsTypes.SERVICE_SIGNATURE):
+        if not info.has(UUID(CharacteristicsTypes.SERVICE_SIGNATURE)):
             logger.debug(
                 "%s: No signature characteristic found, "
                 "accessory may not implement encrypted notifications",
                 self.name,
             )
             return None
-        return info[CharacteristicsTypes.SERVICE_SIGNATURE]
+        return info[UUID(CharacteristicsTypes.SERVICE_SIGNATURE)]
 
     async def _async_set_broadcast_encryption_key(self):
         """Get the broadcast key for the accessory."""
@@ -808,15 +824,16 @@ class BlePairing(AbstractPairing):
         tlv_struct: ServiceTLV | CharacteristicTLV,
     ) -> dict[str, Any]:
         """Read the signature for the given characteristic."""
+        assert self._client, "_client should be set"
         tid = random.randint(1, 254)
         for data in encode_pdu(op_code, tid, iid):
-            await self.client.write_gatt_char(
+            await self._client.write_gatt_char(
                 char,
                 data,
                 "write-without-response" not in char.properties,
             )
 
-        payload = await self.client.read_gatt_char(char)
+        payload = await self._client.read_gatt_char(char)
 
         status, _, signature = decode_pdu(tid, payload)
         if status != PDUStatus.SUCCESS:
@@ -825,11 +842,13 @@ class BlePairing(AbstractPairing):
         return tlv_struct.decode(signature).to_dict()
 
     async def _async_fetch_gatt_database(self) -> Accessories:
+        assert self._client
+
         logger.debug("%s: Fetching GATT database; rssi=%s", self.name, self.rssi)
         accessory = Accessory(1)
         # Never use the cache when fetching the GATT database
         services_to_link: list[tuple[Service, list[int]]] = []
-        services = self.client.services
+        services = self._client.services
         for service in services:
             ble_service_char = service.get_characteristic(SERVICE_INSTANCE_ID_UUID)
             if not ble_service_char:
@@ -840,7 +859,7 @@ class BlePairing(AbstractPairing):
                 )
                 continue
 
-            service_iid_bytes = await self.client.read_gatt_char(
+            service_iid_bytes = await self._client.read_gatt_char(
                 ble_service_char.handle
             )
             service_iid = int.from_bytes(service_iid_bytes, "little")
@@ -874,7 +893,7 @@ class BlePairing(AbstractPairing):
                 if normalized_uuid == SERVICE_INSTANCE_ID:
                     continue
 
-                iid = await self.client.get_characteristic_iid(char)
+                iid = await self._client.get_characteristic_iid(char)
                 if not iid:  # None or 0 are both invalid
                     logger.debug("%s: No iid for %s", self.name, char.uuid)
                     continue
@@ -931,17 +950,17 @@ class BlePairing(AbstractPairing):
             await self._close_while_locked()
 
     async def _close_while_locked(self):
-        if not self.client or not self.client.is_connected:
+        if not self._client or not self._client.is_connected:
             return
         try:
-            await self.client.disconnect()
+            await self._client.disconnect()
         except BleakError:
             logger.debug(
                 "%s: Failed to close connection, client may have already closed it; rssi=%s",
                 self.name,
                 self.rssi,
             )
-        self.client = None
+        self._client = None
         self._async_reset_connection_state()
         logger.debug(
             "%s: Connection closed from close call; rssi=%s", self.name, self.rssi
@@ -952,10 +971,10 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def fetch_accessories_and_characteristics(self) -> list[dict[str, Any]]:
-        if not self.accessories:
+    async def fetch_accessories_and_characteristics(self) -> AccessoriesState: # type: ignore[override] pyright can't handle override of async method under decorators
+        if not self._accessories_state:
             await self._do_fetch_accessories_and_characteristics()
-        return self.accessories
+        return self.accessories_state
 
     async def get_primary_name(self) -> str:
         """Return the primary name of the device.
@@ -1008,7 +1027,7 @@ class BlePairing(AbstractPairing):
         results = await self._get_characteristics_while_connected(chars)
         logger.debug("%s: Read %s", self.name, results)
         for char in chars:
-            result = results.get((BLE_AID, char.iid))
+            result = results.get(CharacteristicKey(BLE_AID, char.iid))
             if not result or "value" not in result:
                 logger.debug(
                     "%s: No value for %s/%s", self.name, char.parent_service.type, char.type
@@ -1062,7 +1081,7 @@ class BlePairing(AbstractPairing):
     @override
     async def _do_fetch_accessories_and_characteristics(
         self, force_update: bool = False, attempts: int | None = None
-    ):
+    ) -> AccessoriesState:
         """Populate the state of all accessories.
 
         Callers should not get BleakError as they expect to trap
@@ -1074,6 +1093,7 @@ class BlePairing(AbstractPairing):
             raise AccessoryDisconnectedError(
                 f"{self.name} connection failed: {ex}; rssi={self.rssi}"
             ) from ex
+        return self.accessories_state
 
     @operation_lock
     @retry_bluetooth_connection_error()
@@ -1144,11 +1164,11 @@ class BlePairing(AbstractPairing):
                 self._callback_config_changed(self.config_num)
 
     async def _async_subscribe_broadcast_events(
-        self, subscriptions: list[CharacteristicKey]
+        self, subscriptions: Iterable[CharacteristicKey]
     ):
         """Subscribe to broadcast events."""
         accessory_chars = self.accessories.aid(BLE_AID).characteristics
-        to_subscribe: list[Characteristic] = []
+        to_subscribe: set[Characteristic] = set()
         for _, iid in subscriptions:
             hap_char = accessory_chars.iid(iid)
             if (
@@ -1157,7 +1177,7 @@ class BlePairing(AbstractPairing):
                 or iid in self._broadcast_notifications
             ):
                 continue
-            to_subscribe.append(hap_char)
+            to_subscribe.add(hap_char)
 
         if not to_subscribe:
             return
@@ -1185,7 +1205,7 @@ class BlePairing(AbstractPairing):
 
     async def _async_restore_subscriptions(self):
         """Restore subscriptions and setup notifications after after connecting."""
-        if not self._restore_pending or not self.client or not self.client.is_connected:
+        if not self._restore_pending or not self._client or not self._client.is_connected:
             return
 
         if not self._observed_characteristics:
@@ -1220,7 +1240,7 @@ class BlePairing(AbstractPairing):
         to disconnect us and we are now using disconnected
         events or encrypted broadcasts to get updates.
         """
-        if not self.client or not self.client.is_connected:
+        if not self._client or not self._client.is_connected:
             return
         subscriptions = list(self._observed_characteristics)
         for _, iid in subscriptions:
@@ -1229,7 +1249,7 @@ class BlePairing(AbstractPairing):
             # The iid will not be in in self._notifications until
             # the _async_start_notify call returns.
             async with self._subscription_lock:
-                if iid in self._notifications or not self.client.is_connected:
+                if iid in self._notifications or not self._client.is_connected:
                     continue
                 try:
                     await self._async_start_notify(iid)
@@ -1332,7 +1352,7 @@ class BlePairing(AbstractPairing):
         return sorted(
             characteristics,
             key=lambda char: CHAR_FETCH_PRIORITY.get(
-                char.type,
+                CharacteristicsTypes(char.type.hex.upper()),
                 10 if char.broadcast_events or char.disconnected_events else 0,
             ),
             reverse=True,
@@ -1354,14 +1374,14 @@ class BlePairing(AbstractPairing):
         self,
         unordered_characteristics: list[Characteristic],
         notify_listeners: bool = False,
-        skip_characteristics: set[str] | None = None,
+        skip_characteristics: set[UUID] | None = None,
     ) -> Response:
         assert self._operation_lock.locked(), "_operation_lock should be locked"
         characteristics = self._sort_characteristics_by_fetch_order(
             unordered_characteristics
         )
         if skip_characteristics is None:
-            skip_characteristics = IGNORE_POLL_CHARACTERISTICS
+            skip_characteristics = {UUID(x) for x in IGNORE_POLL_CHARACTERISTICS}
 
         debug_enabled = logger.isEnabledFor(logging.DEBUG)
         if debug_enabled:
@@ -1453,7 +1473,7 @@ class BlePairing(AbstractPairing):
                     # we want to notify the listeners as soon as we have the
                     # value for each characteristic.
                     single_results = {result_key: result_value}
-                    self._callback_characteristic_listeners(single_results)
+                    self._callback_characteristic_changed(single_results)
 
         return results
 
@@ -1475,7 +1495,8 @@ class BlePairing(AbstractPairing):
         async with self._ble_request_lock:
             for aid, iid, value in characteristics:
                 char = accessory_chars.iid(iid)
-                result_key = (aid, iid)
+                assert char
+                result_key = CharacteristicKey(aid, iid)
                 logger.debug(
                     "%s: Writing characteristics: iid=%s value=%s",
                     self.name,
@@ -1534,7 +1555,8 @@ class BlePairing(AbstractPairing):
         thread_service = self.accessories.aid(BLE_AID).services.first(
             service_type=ServicesTypes.THREAD_TRANSPORT
         )
-        thread_control = thread_service[CharacteristicsTypes.THREAD_CONTROL_POINT]
+        assert thread_service
+        thread_control = thread_service[UUID(CharacteristicsTypes.THREAD_CONTROL_POINT)]
 
         inner_request_tlv = TLV.encode_list(
             [
@@ -1597,7 +1619,7 @@ class BlePairing(AbstractPairing):
     async def subscribe(self, characteristics: Iterable[CharacteristicKey]):
         """Subscribe to characteristics."""
         new_chars = await super().subscribe_characteristics(characteristics)
-        if not new_chars or not self.client or not self.client.is_connected:
+        if not new_chars or not self._client or not self._client.is_connected:
             # Don't force a new connection if we are not already
             # connected as we will get disconnected events.
             return
@@ -1716,14 +1738,13 @@ class BlePairing(AbstractPairing):
     @disconnect_on_missing_services
     @restore_connection_and_resume
     async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
-        if pairingId is None:
-            pairingId = self.pairing_data["iOSDeviceId"]
+        pairingId = pairingId or self.pairing_data["iOSDeviceId"]
 
         request_tlv = TLV.encode_list(
             [
                 (TLV.kTLVType_State, TLV.M1),
                 (TLV.kTLVType_Method, TLV.RemovePairing),
-                (TLV.kTLVType_Identifier, pairingId.hex.encode("utf-8")),
+                (TLV.kTLVType_Identifier, pairingId.encode("utf-8")),
             ]
         )
 

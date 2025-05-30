@@ -74,7 +74,7 @@ class AIOHomeKitBleakClient(BleakClientWithServiceCache):
         self._iid_cache: dict[BleakGATTCharacteristic, int] = {}
 
     async def get_characteristic(
-        self, service_uuid: str, characteristic_uuid: str, iid: int | None = None
+        self, service_uuid: UUID, characteristic_uuid: UUID, iid: int | None = None
     ) -> BleakGATTCharacteristic:
         """Get a characteristic from the cache or the BleakGATTServiceCollection.
 

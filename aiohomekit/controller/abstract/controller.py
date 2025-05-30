@@ -108,13 +108,13 @@ class AbstractController[
         self._on_discovery_callback = callback
 
     async def start(self):
-        self.load_pairings_from_storage()
+        await self.load_pairings_from_storage()
 
     async def stop(self):
         self._stop_observing()
 
-    def load_pairings_from_storage(self):
-        for pairing_data in self.pairing_data_storage.get_all():
+    async def load_pairings_from_storage(self):
+        for pairing_data in (await self.pairing_data_storage.get_all()).values():
             self.load_pairing(pairing_data)
 
     def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
@@ -154,7 +154,7 @@ class AbstractController[
 
     def _on_pairing(self, pairing_data: PairingData):
         self.load_pairing(pairing_data)
-        self.pairing_data_storage.save(pairing_data)
+        async_create_task(self.pairing_data_storage.save(pairing_data["AccessoryPairingID"], pairing_data))
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return self.Discovery(discovery_info, self._on_pairing)

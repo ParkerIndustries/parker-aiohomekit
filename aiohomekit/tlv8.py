@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections import abc
 from collections.abc import Iterable, Sequence
-from dataclasses import field, fields
+from dataclasses import field, fields, dataclass
 import enum
 from functools import lru_cache
 import struct
-from typing import Any, Callable, ClassVar, Generic, TypeVar, _GenericAlias
+from typing import Any, Callable, ClassVar, Generic, TypeVar, _GenericAlias, Self
+
 
 SerializerCallback = Callable[[type, Any], bytes]
 DeserializerCallback = Callable[[type, bytes], Any]
@@ -44,7 +45,7 @@ def get_origin(tp):
     get_origin(int) == None
     get_origin(Sequence[int]) == collections.abc.Sequence
     """
-    if isinstance(tp, _GenericAlias):
+    if isinstance(tp, _GenericAlias): # TODO: check what's this. Can't find _GenericAlias
         return tp.__origin__ if tp.__origin__ is not ClassVar else None
     if tp is Generic:
         return Generic
@@ -213,7 +214,7 @@ def serialize_typing_sequence(value_type: type, value: Sequence) -> bytes:
     return bytes(result)
 
 
-def tlv_entry(type: int, **kwargs):
+def tlv_entry(type: int, **kwargs) -> Any:
     return field(default=None, metadata={"tlv_type": type, **kwargs})
 
 
@@ -249,6 +250,7 @@ def find_deserializer(py_type: type):
     raise TlvParseException(f"Cannot deserialize TLV type {type} into {py_type}")
 
 
+@dataclass
 class TLVStruct:
     """
     A mixin that adds TLV8 encoding and decoding to dataclasses.
@@ -281,14 +283,14 @@ class TLVStruct:
 
     @classmethod
     @lru_cache(maxsize=None)
-    def _tlv_types(cls: T) -> dict:
+    def _tlv_types(cls) -> dict:
         """Return the TLV types for this class."""
         return {
             field.metadata["tlv_type"]: field for field in fields(cls) if field.init
         }
 
     @classmethod
-    def decode(cls: T, encoded_struct: bytes) -> T:
+    def decode(cls, encoded_struct: bytes) -> Self:
         kwargs = {}
         offset = 0
 

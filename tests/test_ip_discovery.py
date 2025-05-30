@@ -1,7 +1,7 @@
 from aiohomekit import Controller
 from aiohomekit.controller.ip import IpDiscovery, IpPairing
 from aiohomekit.model.categories import Category
-from aiohomekit.zeroconf import HomeKitService
+from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 
 
 async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
@@ -9,7 +9,7 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
 
     discovery = IpDiscovery(
         controller,
-        HomeKitService(
+        ZeroconfDiscoveryInfo(
             name="Test",
             id="00:01:02:03:04:05",
             model="Test",
@@ -26,7 +26,7 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
         ),
     )
 
-    finish_pairing = await discovery.async_start_pairing("alias")
+    finish_pairing = await discovery.start_pairing("alias")
     pairing = await finish_pairing("031-45-154")
 
     assert isinstance(pairing, IpPairing)
@@ -41,7 +41,7 @@ async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int
 
     discovery = IpDiscovery(
         controller,
-        HomeKitService(
+        ZeroconfDiscoveryInfo(
             name="Test",
             id="00:01:02:03:04:05",
             model="Test",
@@ -58,5 +58,5 @@ async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int
         ),
     )
 
-    identified = await discovery.async_identify()
+    identified = await discovery.identify()
     assert identified is True

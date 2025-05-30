@@ -1,15 +1,15 @@
 from typing import override
 import logging
-from aiohomekit.zeroconf import HomeKitService
+from .protocol import ZeroconfDiscoveryInfo
 from ..abstract.pairing import AbstractPairing
 
 
 logger = logging.getLogger(__name__)
 
-class ZeroconfPairing(AbstractPairing[HomeKitService]):
+class ZeroconfPairing(AbstractPairing[ZeroconfDiscoveryInfo]):
 
     @override
-    def process_description_update(self, description: HomeKitService):
+    def process_description_update(self, description: ZeroconfDiscoveryInfo):
         old_description = self.description
         super().process_description_update(description)
 

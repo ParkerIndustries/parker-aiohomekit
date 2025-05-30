@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 import logging
+from functools import wraps
 import random
 from typing import Any, Callable, TypeVar, cast
 
@@ -69,6 +70,7 @@ def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
     decorator.
     """
 
+    @wraps(func)
     async def _async_disconnect_on_missing_services_wrap(
         self, *args: Any, **kwargs: Any
     ):

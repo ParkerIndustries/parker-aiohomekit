@@ -21,7 +21,6 @@ from collections.abc import Iterable
 import logging
 import random
 import struct
-from typing import Any
 import uuid
 
 from aiocoap import Context, Message, resource
@@ -161,13 +160,13 @@ class EncryptionContext:
 
             raise EncryptionError("Decryption of PDU POST response failed")
 
-    async def post_bytes(self, payload: bytes, timeout: int = 16.0):
+    async def post_bytes(self, payload: bytes, timeout_sec: float = 16.0):
         async with self.lock:
             payload = self.encrypt(payload)
 
             try:
                 request = Message(code=Code.POST, payload=payload, uri=self.uri)
-                async with asyncio_timeout(timeout):
+                async with asyncio_timeout(timeout_sec):
                     response = await self.coap_ctx.request(request).response
             except (NetworkError, asyncio.TimeoutError):
                 logger.debug("%s: Did not receive a reply; end of session.", self.uri)
@@ -521,7 +520,7 @@ class CoAPHomeKitConnection:
         return self._read_characteristics_exit(ids, pdu_results)
 
     def _write_characteristics_enter(
-        self, ids_values: list[CharacteristicKeyValue]
+        self, ids_values: Iterable[CharacteristicKeyValue]
     ) -> list[bytearray]:
         # convert provided values to appropriate binary format for each characteristic
         tlv_values = list()
@@ -568,7 +567,7 @@ class CoAPHomeKitConnection:
 
         return results
 
-    async def write_characteristics(self, ids_values: list[CharacteristicKeyValue]):
+    async def write_characteristics(self, ids_values: Iterable[CharacteristicKeyValue]):
         tlv_values = self._write_characteristics_enter(ids_values)
 
         # batch write
@@ -640,7 +639,7 @@ class CoAPHomeKitConnection:
         pdu_results = await self.enc_ctx.post_all(OpCode.UNK_0C_UNSUBSCRIBE, iids, data)
         return self._unsubscribe_from_exit(ids, pdu_results)
 
-    async def list_pairings(self):
+    async def list_pairings(self) -> list[tuple[bytearray, bytearray, int]]:
         pairings_characteristic = self.info.accessories[
             0
         ].find_service_characteristic_by_type(0x55, 0x50)
@@ -673,12 +672,12 @@ class CoAPHomeKitConnection:
         m2_state = list(filter(lambda x: x[0] == TLV.kTLVType_State, m2))
         if len(m2_state) != 1 or m2_state[0][1] != TLV.M2:
             logger.debug("Unexpected state in list pairings M2")
-            return
+            return # TODO: raise
 
         m2_error = list(filter(lambda x: x[0] == TLV.kTLVType_Error, m2))
         if len(m2_error) != 0:
             logger.debug(f"Error from accessory during list pairings: {m2_error[0][1]}")
-            return
+            return # TODO: raise
 
         id_list = [
             pairing_tuple[1]
