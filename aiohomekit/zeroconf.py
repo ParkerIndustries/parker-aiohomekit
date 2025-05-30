@@ -31,7 +31,6 @@ from aiohomekit.model.categories import Category
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.model.status_flags import StatusFlags
-from aiohomekit.utils import make_uuid5
 
 
 HAP_TYPE_TCP = "_hap._tcp.local."
@@ -45,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class HomeKitService(AbstractDiscoveryInfo):
-    type: str
+    zc_type: str
     model: str
     feature_flags: FeatureFlags
     protocol_version: str
@@ -84,8 +83,7 @@ class HomeKitService(AbstractDiscoveryInfo):
             raise ValueError("Invalid HomeKit Zeroconf record: Missing device ID")
 
         return cls( # NOTE: looks important
-            id=make_uuid5(props["id"].lower()),
-            original_id=props["id"].lower(),
+            id=props["id"].lower(),
             name=service.name.removesuffix(f".{service.type}"),
             model=props.get("md", ""),
             config_num=int(props.get("c#", 0)),
@@ -94,7 +92,7 @@ class HomeKitService(AbstractDiscoveryInfo):
             status_flags=StatusFlags(int(props.get("sf", 0))),
             category=Category(int(props.get("ci", 1))),
             protocol_version=props.get("pv", "1.0"),
-            type=service.type,
+            zc_type=service.type,
             address=address,
             addresses=valid_addresses,
             port=service.port or 0,

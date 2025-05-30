@@ -51,7 +51,8 @@ class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
         if id in self._storage_data:
             self._storage_data.pop(id)
 
-class DictStorageFile[ID: Codable, StorageLayoutItem: Codable](DictStorageMemory): # TODO: what's Codable
+class DictStorageFile[ID, StorageLayoutItem](DictStorageMemory): # TODO: Codable protocol
+    '''ID and StorageLayoutItem must be JSON serializable and supported by aiohomekit.hkjson'''
 
     def __init__(self, location: pathlib.Path):
         """Create a new entity map store."""

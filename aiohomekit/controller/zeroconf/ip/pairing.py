@@ -466,7 +466,7 @@ class IpPairing(ZeroconfPairing):
         return True
 
     @override
-    async def remove_pairing(self, pairingId: UUID | None = None) -> bool:
+    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
         """
         :param pairingId: the pairing id of the controller (ios device) to be removed
         :raises AuthenticationError: if the controller isn't authenticated to the accessory.
@@ -476,7 +476,7 @@ class IpPairing(ZeroconfPairing):
         await self._ensure_connected()
 
         if pairingId is None:
-            pairingId = UUID(self.pairing_data["iOSDeviceId"])
+            pairingId = self.pairing_data["iOSDeviceId"]
 
         request_tlv = [
             (TLV.kTLVType_State, TLV.M1),

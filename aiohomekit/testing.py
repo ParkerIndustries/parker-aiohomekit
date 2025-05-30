@@ -22,17 +22,16 @@ from datetime import timedelta
 import logging
 
 from aiohomekit import exceptions
-from aiohomekit.characteristic_cache import CharacteristicCacheMemory
-from aiohomekit.controller import TransportType
+from aiohomekit.storage import CharacteristicCacheMemory
 from aiohomekit.controller.abstract import (
     AbstractController,
     AbstractDiscovery,
     AbstractPairing,
-    PairingData,
     FinishPairing,
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
-from aiohomekit.model import Accessories, AccessoriesState, TransportType
+from aiohomekit.model.accessories import Accessories, AccessoriesState
+from aiohomekit.model.typed_dicts import HKDeviceID, TransportType, PairingData
 from aiohomekit.model.categories import Category
 from aiohomekit.model.characteristics import Characteristic, CharacteristicsTypes
 from aiohomekit.model.characteristics.characteristic_formats import (
@@ -78,7 +77,7 @@ class FakeDiscovery(AbstractDiscovery):
             return StatusFlags.UNPAIRED
         return StatusFlags(0)
 
-    async def async_start_pairing(self, id: UUID) -> FinishPairing:
+    async def async_start_pairing(self, id: HKDeviceID) -> FinishPairing:
         if self.description.id in self.controller.pairings:
             raise exceptions.AlreadyPairedError(f"{self.description.id} already paired")
 
@@ -370,7 +369,7 @@ class FakeController(AbstractController):
         )
         return discovery
 
-    async def add_paired_device(self, accessories: Accessories, id: UUID = None):
+    async def add_paired_device(self, accessories: Accessories, id: HKDeviceID = None):
         discovery = self.add_device(accessories)
         finish_pairing = await discovery.async_start_pairing(
             alias or discovery.description.id
@@ -398,13 +397,13 @@ class FakeController(AbstractController):
     async def async_reachable(self, device_id: str, timeout=10) -> bool:
         return True
 
-    async def remove_pairing(self, id: UUID):
+    async def remove_pairing(self, id: HKDeviceID):
         pairing = self.aliases[alias]
         del self.pairings[self.aliases[alias].id]
         del self.aliases[alias]
         self._char_cache.async_delete_map(pairing.id)
 
-    def load_pairing(self, id: UUID, pairing_data):
+    def load_pairing(self, id: HKDeviceID, pairing_data):
         # This assumes a test has already preseed self.pairings with a fake via
         # add_paired_device
         pairing = self.aliases[alias]

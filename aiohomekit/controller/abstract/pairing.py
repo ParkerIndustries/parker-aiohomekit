@@ -2,7 +2,6 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterable
 from datetime import timedelta
-from uuid import UUID
 from typing import Callable
 import logging
 
@@ -11,9 +10,8 @@ from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey, CharacteristicKeyValue, Value
 from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
 from aiohomekit.model.services.service_types import ServicesTypes
-from aiohomekit.model.typed_dicts import PairingData, Response, AccessoryPairings
+from aiohomekit.model.typed_dicts import PairingData, Response, AccessoryPairings, HKDeviceID
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
-from aiohomekit.utils import async_create_task, make_uuid5
 
 
 logger = logging.getLogger(__name__)
@@ -25,16 +23,16 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     # The current discovery information for this pairing.
     # This can be used to detect address changes, s# changes, c# changes, etc
     description: DiscoveryInfo | None = None
-    id: UUID
+    id: HKDeviceID
 
     def __init__(self, pairing_data: PairingData):
-        self.id = make_uuid5(pairing_data["AccessoryPairingID"])
+        self.id = pairing_data["AccessoryPairingID"]
         self.pairing_data = pairing_data
 
-        self._availability_observers: list[Callable[[UUID, bool], None]] = list()
-        self._pairing_data_observers: list[Callable[[UUID, PairingData], None]] = list()
-        self._config_observers:        list[Callable[[UUID, int], None]] = list()
-        self._characteristic_observers: list[Callable[[UUID, dict[CharacteristicKey, Value]], None]] = list()
+        self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list()
+        self._pairing_data_observers: list[Callable[[HKDeviceID, PairingData], None]] = list()
+        self._config_observers:        list[Callable[[HKDeviceID, int], None]] = list()
+        self._characteristic_observers: list[Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]] = list()
         self._observed_characteristics: set[CharacteristicKey] = set()
 
         self._accessories_state: AccessoriesState | None = None # has public read
@@ -109,7 +107,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
-    async def remove_pairing(self, pairingId: UUID | None = None) -> bool:
+    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
         """Remove an accessory pairing to some controller (not necessarily this one).
         returns: True if the pairing was removed, False if not.
         """
@@ -245,7 +243,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
     # Observers
 
     def add_observer_for_availability(
-        self, callback: Callable[[UUID, bool], None]
+        self, callback: Callable[[HKDeviceID, bool], None]
     ) -> Callable[[], None]:
         """Notify observers when availability changes.
 
@@ -260,7 +258,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         return stop_observing
 
     def add_observer_for_pairing_data(
-        self, callback: Callable[[UUID, PairingData], None]
+        self, callback: Callable[[HKDeviceID, PairingData], None]
     ) -> Callable[[], None]:
         """Register an event handler to be called when pairing data is updated.
 
@@ -274,7 +272,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         return stop_observing
 
     def add_observer_for_config(
-        self, callback: Callable[[UUID, int], None]
+        self, callback: Callable[[HKDeviceID, int], None]
     ) -> Callable[[], None]:
         """
         Register an event handler to be called when config (services and characteristics model) changes. Tipically, after a firmware update.
@@ -287,7 +285,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         return stop_observing
 
     def add_observer_for_characteristics(
-        self, callback: Callable[[UUID, dict[CharacteristicKey, Value]], None]
+        self, callback: Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]
     ) -> Callable[[], None]:
         """
         Register an event handler to be called when a characteristic (or multiple characteristics) changes.
@@ -339,8 +337,8 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._accessories_state.config_num = config_num
         self._callback_config_changed(self.config_num)
 
-    async def _shutdown_if_primary_pairing_removed(self, pairingId: UUID):
-        if pairingId == UUID(self.pairing_data["iOSDeviceId"]):
+    async def _shutdown_if_primary_pairing_removed(self, pairingId: HKDeviceID):
+        if pairingId == self.pairing_data["iOSDeviceId"]:
             await self.shutdown()
 
     def update_pairing_data(self, pairing_data: PairingData):

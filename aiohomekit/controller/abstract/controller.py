@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 import logging
 from typing import Callable, AsyncIterable, Self, final
-from uuid import UUID
 
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from aiohomekit.model.typed_dicts import TransportType, PairingData
+from aiohomekit.model.typed_dicts import TransportType, PairingData, HKDeviceID
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.utils import async_create_task
@@ -28,8 +27,8 @@ class AbstractController[
     char_cache_storage: CharacteristicsStorageProtocol
     pairing_data_storage: PairingDataStorageProtocol
 
-    _discoveries: dict[UUID, Discovery]
-    _pairings: dict[UUID, Pairing]
+    _discoveries: dict[HKDeviceID, Discovery]
+    _pairings: dict[HKDeviceID, Pairing]
     _on_discovery_callback: DiscoveryCallback | None = None
 
     def __init__(self,
@@ -42,7 +41,7 @@ class AbstractController[
         self.Pairing = Pairing
         self.char_cache_storage = char_cache_storage
         self.pairing_data_storage = pairing_data_storage
-        self._pairing_cleanups: dict[UUID, list[Callable[[], None]]] = {}
+        self._pairing_cleanups: dict[HKDeviceID, list[Callable[[], None]]] = {}
 
     # Abstract
 
@@ -52,10 +51,10 @@ class AbstractController[
         raise NotImplementedError(self.transport_type)
 
     @abstractmethod
-    async def find(self, device_id: UUID, timeout_sec: float = 10) -> Discovery | None: ...
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> Discovery | None: ...
 
     @abstractmethod
-    async def is_reachable(self, device_id: UUID, timeout_sec: float = 10) -> bool: ...
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool: ...
 
     @abstractmethod
     def discover(self, timeout_sec: float = 10) -> AsyncIterable[Discovery]: ...
@@ -64,22 +63,22 @@ class AbstractController[
 
     @final
     @property
-    def pairings(self) -> dict[UUID, Pairing]: return self._pairings
+    def pairings(self) -> dict[HKDeviceID, Pairing]: return self._pairings
 
     @final
     @property
-    def discoveries(self) -> dict[UUID, Discovery]: return self._discoveries
+    def discoveries(self) -> dict[HKDeviceID, Discovery]: return self._discoveries
 
     # Implementations
 
-    async def identify(self, id: UUID):
+    async def identify(self, id: HKDeviceID):
         pairing = self.pairings.get(id)
         if pairing is None:
             raise AccessoryNotFoundError(f'Pairing with ID {id} not found.')
 
         await pairing.identify()
 
-    async def remove_pairing(self, pairing_id: UUID) -> Pairing:
+    async def remove_pairing(self, pairing_id: HKDeviceID) -> Pairing:
         """
         Remove a pairing between the controller and the accessory. The pairing data is delete on both ends, on the
         accessory and the controller.
@@ -122,7 +121,7 @@ class AbstractController[
         if pairing_data["Connection"] != self.transport_type:
             return None
 
-        accessory_id = UUID(pairing_data["AccessoryPairingID"])
+        accessory_id = pairing_data["AccessoryPairingID"]
 
         if not accessory_id:
             return None
@@ -135,14 +134,14 @@ class AbstractController[
         # observe pairing data changes and store unsubscribe callables
         unsubscribes = []
 
-        def _schedule_save_config(id: UUID, config_num: int):
+        def _schedule_save_config(id: HKDeviceID, config_num: int):
             async_create_task(self.char_cache_storage.save(accessory_id, pairing.accessories_state))
 
         unsubscribes.append(
             pairing.add_observer_for_config(_schedule_save_config)
         )
 
-        def _schedule_pairing_save(id: UUID, pairing_data: PairingData):
+        def _schedule_pairing_save(id: HKDeviceID, pairing_data: PairingData):
             async_create_task(self.pairing_data_storage.save(id, pairing_data))
 
         unsubscribes.append(

@@ -23,8 +23,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _BACKGROUND_TASKS = set()
 
-def make_uuid5(id: str) -> UUID:
-    return uuid5(UUID(int=0), id)
 
 # def async_create_task[T](coroutine: Coroutine[Any, Any, T], *, name=None) -> asyncio.Task[T]:
 def async_create_task[T](coroutine: Awaitable[T], *, name=None) -> asyncio.Task[T]:

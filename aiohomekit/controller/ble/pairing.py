@@ -263,7 +263,7 @@ class BlePairing(AbstractPairing):
 
         if not description and self.state_num:
             self.description = HomeKitAdvertisement.from_cache(
-                id=self.id, # TODO: resolve uuid vs id
+                id=self.id,
                 address=self.address,
                 config_num=self.config_num,
                 state_num=self.state_num,
@@ -361,7 +361,7 @@ class BlePairing(AbstractPairing):
         self.description.state_num = state_num
         self._update_cached_state_num(state_num)
 
-    def _update_cached_state_num(self, state_num: int):
+    def _update_cached_state_num(self, state_num: int): # TODO: review state_num vs config_num for this file
         """Update the cached state number which is restored between restarts."""
         old_state_num = self.accessories_state.state_num
         self.accessories_state.state_num = state_num
@@ -1715,9 +1715,9 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error(attempts=10)
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def remove_pairing(self, pairingId: UUID | None = None) -> bool:
+    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
         if pairingId is None:
-            pairingId = UUID(self.pairing_data["iOSDeviceId"])
+            pairingId = self.pairing_data["iOSDeviceId"]
 
         request_tlv = TLV.encode_list(
             [

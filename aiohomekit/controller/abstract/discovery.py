@@ -1,8 +1,7 @@
 from __future__ import annotations
-from uuid import UUID
 from typing import Awaitable, Callable, final
 from abc import ABC, abstractmethod
-from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.status_flags import StatusFlags
 
@@ -27,7 +26,7 @@ class AbstractDiscovery[DiscoveryDescription: AbstractDiscoveryInfo](ABC):
         """Setup the discovery here to avoid init overrides."""
 
     @abstractmethod
-    async def start_pairing(self, id: UUID) -> FinishPairing:
+    async def start_pairing(self, id: HKDeviceID) -> FinishPairing:
         """Start pairing."""
 
     @abstractmethod

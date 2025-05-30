@@ -27,10 +27,12 @@ from bleak.exc import BleakError
 from bleak_retry_connector import retry_bluetooth_connection_error
 
 from aiohomekit.controller.abstract import AbstractDiscovery, FinishPairing
-from aiohomekit.model import CharacteristicsTypes, ServicesTypes
+from aiohomekit.model.characteristics import CharacteristicsTypes
+from aiohomekit.model.services import ServicesTypes
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.utils import check_pin_format, pair_with_auth
+from aiohomekit.model.typed_dicts import HKDeviceID
 
 from .bleak import AIOHomeKitBleakClient
 from .client import (
@@ -120,7 +122,7 @@ class BleDiscovery(AbstractDiscovery):
             finally:
                 self.client = None
 
-    async def _async_start_pairing(self, id: UUID) -> tuple[bytearray, bytearray]:
+    async def _async_start_pairing(self, id: HKDeviceID) -> tuple[bytearray, bytearray]:
         await self._ensure_connected()
 
         try:
@@ -152,8 +154,8 @@ class BleDiscovery(AbstractDiscovery):
 
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
-    async def async_start_pairing(self, id: UUID) -> FinishPairing:
-        salt, pub_key = await self._async_start_pairing(alias)
+    async def async_start_pairing(self, id: HKDeviceID) -> FinishPairing:
+        salt, pub_key = await self._async_start_pairing(id)
         attempt = 0
 
         @retry_bluetooth_connection_error()

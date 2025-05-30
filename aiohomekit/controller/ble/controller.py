@@ -4,7 +4,6 @@ import asyncio
 from typing import override
 from collections.abc import AsyncIterable
 import logging
-from uuid import UUID
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -26,7 +25,7 @@ from aiohomekit.utils import asyncio_timeout
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
 from .discovery import BleDiscovery
 
 
@@ -127,7 +126,7 @@ class BleController(AbstractController):
             yield device
 
     def load_pairing(
-        self, id: UUID, pairing_data: PairingData
+        self, id: HKDeviceID, pairing_data: PairingData
     ) -> BlePairing | None:
         if pairing_data["Connection"] != "BLE":
             return None

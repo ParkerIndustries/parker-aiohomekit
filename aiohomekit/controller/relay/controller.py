@@ -18,7 +18,6 @@ from __future__ import annotations
 import asyncio
 from contextlib import AsyncExitStack
 from typing import Any, AsyncIterable, override
-from uuid import UUID
 
 from bleak import BleakScanner
 from zeroconf.asyncio import AsyncZeroconf
@@ -36,7 +35,7 @@ from aiohomekit.controller.abstract import (
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 
@@ -121,7 +120,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @property
     @override
-    def _pairings(self) -> dict[UUID, AbstractPairing]:
+    def _pairings(self) -> dict[HKDeviceID, AbstractPairing]:
         '''Returns all pairings from all transports'''
         pairings = {}
         for transport in self._transports.values():
@@ -130,12 +129,12 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @_pairings.setter
     @override
-    def _pairings(self, value: dict[UUID, AbstractPairing]): # type: ignore[override]
+    def _pairings(self, value: dict[HKDeviceID, AbstractPairing]): # type: ignore[override]
         pass # do nothing, pairings are managed by transports
 
     @property
     @override
-    def _discoveries(self) -> dict[UUID, AbstractDiscovery]:
+    def _discoveries(self) -> dict[HKDeviceID, AbstractDiscovery]:
         '''Returns all discoveries from all transports'''
         discoveries = {}
         for transport in self._transports.values():
@@ -144,7 +143,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @_discoveries.setter
     @override
-    def _discoveries(self, value: dict[UUID, AbstractDiscovery]): # type: ignore[override]
+    def _discoveries(self, value: dict[HKDeviceID, AbstractDiscovery]): # type: ignore[override]
         pass # do nothing, discoveries are managed by transports
 
     # Methods
@@ -154,7 +153,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         await self._tasks.aclose()
 
     @override
-    async def is_reachable(self, device_id: UUID, timeout_sec: float = 10) -> bool:
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool:
         try:
             for transport in self._transports.values():
                 if await transport.is_reachable(device_id, timeout_sec): # parallel?
@@ -183,14 +182,14 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                 return pairing
 
     @override
-    async def remove_pairing(self, pairing_id: UUID) -> AbstractPairing:
+    async def remove_pairing(self, pairing_id: HKDeviceID) -> AbstractPairing:
         for transport in self._transports.values():
             if pairing_id in transport.pairings:
                 return await transport.remove_pairing(pairing_id)
         raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found in any transport.')
 
     @override
-    async def find(self, device_id: UUID, timeout_sec: float = 30.0) -> AbstractDiscovery:
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 30.0) -> AbstractDiscovery:
 
         pending = []
 

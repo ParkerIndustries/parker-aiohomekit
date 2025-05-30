@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import override, Coroutine, Any
-from uuid import UUID
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import AsyncIterable
@@ -22,6 +21,7 @@ from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 from aiohomekit.zeroconf import HomeKitService, _TIMEOUT_MS, logger, TYPE_PTR, CLASS_IN
 from aiohomekit.utils import async_create_task
 from aiohomekit.model.transport_type import IpTransportType
+from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
 
 class IpTransport(str, Enum):
     TCP = auto()
@@ -79,12 +79,12 @@ class ZeroconfController[
             cancel.cancel()
 
     @override
-    async def find(self, device_id: UUID, timeout_sec: float = 10.0) -> Discovery | None:
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> Discovery | None:
 
         if discovery := self._discoveries.get(device_id):
             return discovery
 
-        waiters = self._waiters.setdefault(device_id.hex, [])
+        waiters = self._waiters.setdefault(device_id, [])
         waiter = self._loop.create_future()
         waiters.append(waiter)
         cancel_timeout = self._loop.call_later(timeout_sec, self._on_timeout, waiter)
@@ -100,7 +100,7 @@ class ZeroconfController[
             cancel_timeout.cancel()
 
     @override
-    async def is_reachable(self, device_id: UUID, timeout_sec: float = 10.0) -> bool:
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> bool:
         """Check if a device is reachable.
 
         This method will return True if the device is reachable, False if it is not.
@@ -227,7 +227,7 @@ class ZeroconfController[
             )
             pairing.process_description_update(description)
 
-        if waiters := self._waiters.pop(description.id.hex, None):
+        if waiters := self._waiters.pop(description.id, None):
             for waiter in waiters:
                 if not waiter.cancelled() and not waiter.done():
                     waiter.set_result(discovery)

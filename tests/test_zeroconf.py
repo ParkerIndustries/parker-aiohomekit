@@ -46,7 +46,7 @@ def test_simple():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1
@@ -81,7 +81,7 @@ def test_udp():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._udp.local."
+    assert svc.zc_type == "_hap._udp.local."
 
 
 def test_upper_case_keys():
@@ -106,7 +106,7 @@ def test_upper_case_keys():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1
@@ -302,7 +302,7 @@ def test_ignore_link_local():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1
@@ -340,7 +340,7 @@ def test_ignore_link_local_ipv6():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1
@@ -378,7 +378,7 @@ def test_prefer_ipv4():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1
@@ -413,7 +413,7 @@ def test_ignore_unspecified():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1
@@ -451,7 +451,7 @@ def test_ignore_unspecified_ipv6():
     svc = HomeKitService.from_service_info(info)
 
     assert svc.name == "foo2"
-    assert svc.type == "_hap._tcp.local."
+    assert svc.zc_type == "_hap._tcp.local."
     assert svc.id == "00:00:01:00:00:02"
     assert svc.model == "unittest"
     assert svc.config_num == 1

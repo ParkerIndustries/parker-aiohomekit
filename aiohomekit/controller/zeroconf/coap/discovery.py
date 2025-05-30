@@ -17,6 +17,7 @@
 from aiohomekit.controller.abstract import FinishPairing
 from aiohomekit.utils import check_pin_format, pair_with_auth
 from aiohomekit.zeroconf import HomeKitService, ZeroconfDiscovery
+from aiohomekit.model.typed_dicts import HKDeviceID
 
 from .connection import CoAPHomeKitConnection
 from .pairing import CoAPPairing
@@ -52,7 +53,7 @@ class CoAPDiscovery(ZeroconfDiscovery):
     async def async_identify(self):
         return await self.connection.do_identify()
 
-    async def async_start_pairing(self, id: UUID) -> FinishPairing:
+    async def async_start_pairing(self, id: HKDeviceID) -> FinishPairing:
         salt, srpB = await self.connection.do_pair_setup(
             pair_with_auth(self.description.feature_flags)
         )
