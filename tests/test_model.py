@@ -16,7 +16,7 @@
 
 import base64
 
-from aiohomekit.model import Accessories
+from aiohomekit.model.accessories import Accessories
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.characteristics.const import (
     AudioCodecValues,

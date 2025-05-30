@@ -7,7 +7,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 import pytest
 
-from aiohomekit.characteristic_cache import CharacteristicCacheMemory
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.controller.ble.controller import BleController
 
 ADVERTISEMENT_DATA_DEFAULTS = {
@@ -64,7 +64,7 @@ def mock_bleak_scanner() -> MagicMock:
 
 @pytest.fixture
 def ble_controller(mock_bleak_scanner: MagicMock) -> BleController:
-    controller = BleController(CharacteristicCacheMemory(), mock_bleak_scanner)
+    controller = BleController(CharacteristicsStorageMemory(), mock_bleak_scanner)
     return controller
 
 

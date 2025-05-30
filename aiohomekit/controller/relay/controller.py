@@ -40,12 +40,12 @@ from aiohomekit.storage.characteristics_storage import CharacteristicsStoragePro
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 
 
+type DiscoveryCallback = GenericDiscoveryCallback[AbstractController, AbstractDiscovery]
+
 class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     """
     This class represents a HomeKit controller (normally your iPhone or iPad).
     """
-
-    type DiscoveryCallback = GenericDiscoveryCallback[AbstractController, AbstractDiscovery]
 
     def __init__(
         self,
@@ -71,6 +71,11 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         self._bleak_scanner_instance = bleak_scanner_instance
         self._transports: dict[TransportType, AbstractController] = {}
         self._tasks = AsyncExitStack()
+
+    @property
+    def transport_type(self) -> TransportType:
+        # return {TransportType.IP, TransportType.COAP, TransportType.BLE} # TODO: make this prop a set?
+        raise NotImplementedError('Relay Controller does not have a transport type, it is a combination of all transports')
 
     @override
     async def start(self):

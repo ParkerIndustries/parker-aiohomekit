@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from zeroconf import DNSCache, SignalRegistrationInterface
 
-from aiohomekit import Controller
-from aiohomekit.controller.ip import IpPairing
-from aiohomekit.model import Accessory
+from aiohomekit.controller.relay import Controller
+from aiohomekit.controller.zeroconf.ip import IpPairing
+from aiohomekit.model.accessories import Accessory
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 

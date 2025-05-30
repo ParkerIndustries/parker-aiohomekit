@@ -4,7 +4,8 @@ from typing import Callable, AsyncIterable, Self, final
 
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from aiohomekit.model.typed_dicts import TransportType, PairingData, HKDeviceID
+from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
+from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.utils import async_create_task

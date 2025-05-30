@@ -9,7 +9,7 @@ from aiohomekit.controller.coap.structs import (
     Pdu09Service,
     Pdu09ServiceContainer,
 )
-from aiohomekit.model import Accessory
+from aiohomekit.model.accessories import Accessory
 
 database_nanoleaf_bulb = bytes.fromhex(
     """

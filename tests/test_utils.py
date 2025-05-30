@@ -16,7 +16,7 @@
 
 import pytest
 
-from aiohomekit.model import Accessory
+from aiohomekit.model.accessories import Accessory
 from aiohomekit.model.characteristics import (
     CharacteristicsTypes,
     InputEventValues,

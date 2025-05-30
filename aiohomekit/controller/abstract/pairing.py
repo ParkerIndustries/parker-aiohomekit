@@ -12,6 +12,7 @@ from aiohomekit.model.characteristics.characteristic_types import Characteristic
 from aiohomekit.model.services.service_types import ServicesTypes
 from aiohomekit.model.typed_dicts import PairingData, Response, AccessoryPairings, HKDeviceID
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
+from aiohomekit.utils import async_create_task
 
 
 logger = logging.getLogger(__name__)

@@ -49,7 +49,7 @@ from aiohomekit.exceptions import (
     FormatError,
 )
 from aiohomekit.http import HttpStatusCodes
-from aiohomekit.model import Accessories
+from aiohomekit.model.accessories import Accessories
 from aiohomekit.protocol import TLV
 from aiohomekit.protocol.statuscodes import HapStatusCode
 

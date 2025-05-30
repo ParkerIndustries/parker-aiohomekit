@@ -2,7 +2,8 @@ from __future__ import annotations
 
 # from collections.abc import Coroutine
 from typing import Any, Awaitable
-from uuid import UUID, uuid5
+from uuid import UUID
+import sys
 import enum
 import logging
 import asyncio

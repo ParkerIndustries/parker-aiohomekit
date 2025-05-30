@@ -1,6 +1,6 @@
 from unittest import mock
 
-from aiohomekit.model import Accessories, Accessory
+from aiohomekit.model.accessories import Accessories, Accessory
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 from aiohomekit.protocol.statuscodes import HapStatusCode

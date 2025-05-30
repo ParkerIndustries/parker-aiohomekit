@@ -45,6 +45,7 @@ from aiohomekit.exceptions import (
 )
 from aiohomekit.protocol.tlv import TLV
 from aiohomekit.protocol import get_session_keys
+from aiohomekit.protocol.statuscodes import HapStatusCode
 from aiohomekit.pdu import (
     OpCode,
     PDUStatus,
@@ -52,7 +53,7 @@ from aiohomekit.pdu import (
     encode_pdu,
 )
 
-from aiohomekit.model.typed_dicts import Response, PairingData
+from aiohomekit.model.typed_dicts import Response, PairingData, HKDeviceID
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.accessories import Accessory, Accessories, AccessoriesState
 from aiohomekit.model.characteristics import (
@@ -65,9 +66,10 @@ from aiohomekit.model.characteristics import (
 )
 from aiohomekit.model.services import ServicesTypes, Service
 from aiohomekit.utils import async_create_task
+from aiohomekit.uuid import normalize_uuid
+from aiohomekit.meshcop import Meshcop
 from ..abstract import AbstractPairing
 
-from aiohomekit.pdu import OpCode
 from .bleak import AIOHomeKitBleakClient
 from .client import (
     PDUStatusError,

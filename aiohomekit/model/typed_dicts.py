@@ -3,10 +3,11 @@ Typing hints for the serialization format used by the JSON part of the HomeKit A
 """
 
 from __future__ import annotations
-from typing import TypedDict, Union, Any, Literal
-from enum import Enum
-from .characteristics import CharacteristicKey
-from .transport_type import TransportType
+from typing import TypedDict, Union, Any, Literal, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .characteristics import CharacteristicKey
+    from .transport_type import TransportType
 
 
 Characteristic = TypedDict( # Using functional style because "valid-values" is not a valid Python identifier
