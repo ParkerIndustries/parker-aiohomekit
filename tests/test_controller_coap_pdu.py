@@ -1,4 +1,4 @@
-from aiohomekit.controller.coap.pdu import (
+from aiohomekit.controller.zeroconf.coap.pdu import (
     OpCode,
     PDUStatus,
     decode_all_pdus,

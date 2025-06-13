@@ -1,8 +1,8 @@
 import pytest
 
-from aiohomekit.controller.coap.connection import CoAPHomeKitConnection
-from aiohomekit.controller.coap.pdu import PDUStatus
-from aiohomekit.controller.coap.structs import Pdu09Database
+from aiohomekit.controller.zeroconf.coap.connection import CoAPHomeKitConnection
+from aiohomekit.controller.zeroconf.coap.pdu import PDUStatus
+from aiohomekit.controller.zeroconf.coap.structs import Pdu09Database
 
 database_nanoleaf_bulb = bytes.fromhex(
     """

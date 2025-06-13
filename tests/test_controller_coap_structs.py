@@ -1,4 +1,4 @@
-from aiohomekit.controller.coap.structs import Pdu09Database
+from aiohomekit.controller.zeroconf.coap.structs import Pdu09Database
 
 
 def test_decode_wemo_stage():

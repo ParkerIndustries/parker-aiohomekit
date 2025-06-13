@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from aiohomekit.controller.zeroconf import IpPairing
+from aiohomekit.controller.zeroconf.ip import IpPairing
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.protocol.statuscodes import HapStatusCode

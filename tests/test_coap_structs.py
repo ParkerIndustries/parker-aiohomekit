@@ -1,6 +1,6 @@
 import struct
 
-from aiohomekit.controller.coap.structs import (
+from aiohomekit.controller.zeroconf.coap.structs import (
     Pdu09Accessory,
     Pdu09AccessoryContainer,
     Pdu09Characteristic,

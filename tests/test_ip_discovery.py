@@ -1,5 +1,5 @@
 from aiohomekit import Controller
-from aiohomekit.controller.ip import IpDiscovery, IpPairing
+from aiohomekit.controller.zeroconf.ip import IpDiscovery, IpPairing
 from aiohomekit.model.categories import Category
 from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 

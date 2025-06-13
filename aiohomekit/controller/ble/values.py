@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import struct
 
-from aiohomekit.model import Characteristic, CharacteristicFormats
+from aiohomekit.model.characteristics import Characteristic, CharacteristicFormats
 
 INT_TYPES = {
     CharacteristicFormats.uint8,

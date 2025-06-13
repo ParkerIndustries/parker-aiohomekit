@@ -23,7 +23,7 @@ import logging
 import random
 import struct
 import time
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast, override
 from uuid import UUID
 from functools import wraps
 
