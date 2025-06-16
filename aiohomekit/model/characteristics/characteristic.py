@@ -20,7 +20,7 @@ import base64
 import binascii
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal, Iterator
+from typing import TYPE_CHECKING, Any, Literal, Iterator, Iterable
 
 from aiohomekit.exceptions import CharacteristicPermissionError, FormatError
 from aiohomekit.protocol.statuscodes import HapStatusCode
@@ -171,11 +171,15 @@ class Characteristic:
     ) -> Any | None:
         if key in kwargs:
             return kwargs[key]
-        if self.type not in characteristics:
+        if self.type_str not in characteristics:
             return default
-        if key not in characteristics[str(self.type).upper()]:
+        if key not in characteristics[self.type_str]:
             return default
-        return characteristics[str(self.type).upper()][key]
+        return characteristics[self.type_str][key]
+
+    @property
+    def type_str(self) -> str:
+        return str(self.type).upper()
 
     @property
     def status(self) -> HapStatusCode:
@@ -319,7 +323,7 @@ class Characteristic:
 
     def as_dict(self):
         d = {
-            "type": self.type,
+            "type": str(self.type).upper(),
             "iid": self.iid,
             "perms": self.perms,
             "format": self.format,
@@ -444,18 +448,20 @@ class Characteristics:
         self._iid_to_characteristic[char.iid] = char
 
     def filter(
-        self, char_types: Iterable[str] | None = None
+        self, char_types: Iterable[UUID] | None = None
     ) -> Iterator[Characteristic]:
         matches = iter(self)
 
         if char_types:
-            char_types = {normalize_uuid(c) for c in char_types}
             matches = filter(lambda char: char.type in char_types, matches)
 
         return matches
 
-    def first(self, char_types: Iterable[str] | None = None) -> Characteristic:
+    def first(self, char_types: Iterable[UUID] | None = None) -> Characteristic:
         return next(self.filter(char_types=char_types))
 
     def __iter__(self) -> Iterator[Characteristic]:
         return iter(self._characteristics)
+
+    def __getitem__(self, index: int) -> Characteristic:
+        return self._characteristics[index]

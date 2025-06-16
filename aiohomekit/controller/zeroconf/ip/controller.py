@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiohomekit.model.transport_type import TransportType, IpTransportType
+from aiohomekit.model.transport_type import TransportType, HAPZeroconfType
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 from zeroconf.asyncio import AsyncZeroconf
@@ -24,5 +24,5 @@ class IpController(ZeroconfController[IpDiscovery, IpPairing]):
         return TransportType.IP
 
     @property
-    def _hap_type(self) -> IpTransportType:
-        return IpTransportType.TCP
+    def _hap_type(self) -> str:
+        return HAPZeroconfType.TCP.value

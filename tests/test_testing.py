@@ -13,8 +13,9 @@ async def test_pairing():
     device = controller.add_device(accessories)
 
     discovery = await controller.find(device.description.id)
-    finish_pairing = await discovery.start_pairing("alias")
-    pairing = await finish_pairing("111-22-333")
+    finish_pairing = await discovery.start_pairing()
+    pairing_data = await finish_pairing("111-22-333")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     chars_and_services = await pairing.fetch_accessories_and_characteristics()
     assert isinstance(chars_and_services, list)
@@ -26,10 +27,11 @@ async def test_get_and_set():
     device = controller.add_device(accessories)
 
     discovery = await controller.find(device.description.id)
-    finish_pairing = await discovery.start_pairing("alias")
-    pairing = await finish_pairing("111-22-333")
+    finish_pairing = await discovery.start_pairing()
+    pairing_data = await finish_pairing("111-22-333")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
-    pairing.dispatcher_connect(accessories.process_changes)
+    pairing.add_observer_for_characteristics(accessories.process_changes)
 
     chars = await pairing.get_characteristics([(1, 10)])
     assert chars == {(1, 10): {"value": 0}}
@@ -51,8 +53,9 @@ async def test_get_failure():
     device = controller.add_device(accessories)
 
     discovery = await controller.find(device.description.id)
-    finish_pairing = await discovery.start_pairing("alias")
-    pairing = await finish_pairing("111-22-333")
+    finish_pairing = await discovery.start_pairing()
+    pairing_data = await finish_pairing("111-22-333")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     chars = await pairing.get_characteristics([(1, 10)])
     assert chars == {(1, 10): {"status": -70402}}
@@ -68,8 +71,9 @@ async def test_put_failure():
     device = controller.add_device(accessories)
 
     discovery = await controller.find(device.description.id)
-    finish_pairing = await discovery.start_pairing("alias")
-    pairing = await finish_pairing("111-22-333")
+    finish_pairing = await discovery.start_pairing()
+    pairing_data = await finish_pairing("111-22-333")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     chars = await pairing.put_characteristics([(1, 10, 1)])
     assert chars == {(1, 10): {"status": -70402}}
@@ -78,10 +82,11 @@ async def test_put_failure():
 async def test_update_named_service_events():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
     controller = FakeController()
-    pairing = await controller.add_paired_device(accessories, "alias")
+    pairing_data = await controller.add_paired_device(accessories, "alias")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
-    await pairing.subscribe([(1, 8)])
-    pairing.dispatcher_connect(accessories.process_changes)
+    await pairing.subscribe_characteristics([(1, 8)])
+    pairing.add_observer_for_characteristics(accessories.process_changes)
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -104,11 +109,12 @@ async def test_update_named_service_events_manual_accessory(id_factory):
     accessories.add_accessory(accessory)
 
     controller = FakeController()
-    pairing = await controller.add_paired_device(accessories, "alias")
+    pairing_data = await controller.add_paired_device(accessories, "alias")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     callback = mock.Mock()
-    await pairing.subscribe([(accessory.aid, on_char.iid)])
-    pairing.dispatcher_connect(callback)
+    await pairing.subscribe_characteristics([(accessory.aid, on_char.iid)])
+    pairing.add_observer_for_characteristics(callback)
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -135,11 +141,12 @@ async def test_update_named_service_events_manual_accessory_auto_requires(id_fac
     accessories.add_accessory(accessory)
 
     controller = FakeController()
-    pairing = await controller.add_paired_device(accessories, "alias")
+    pairing_data = await controller.add_paired_device(accessories, "alias")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     callback = mock.Mock()
-    await pairing.subscribe([(accessory.aid, on_char.iid)])
-    pairing.dispatcher_connect(callback)
+    await pairing.subscribe_characteristics([(accessory.aid, on_char.iid)])
+    pairing.add_observer_for_characteristics(callback)
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -152,11 +159,12 @@ async def test_update_named_service_events_manual_accessory_auto_requires(id_fac
 async def test_update_aid_iid_events():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
     controller = FakeController()
-    pairing = await controller.add_paired_device(accessories, "alias")
+    pairing_data = await controller.add_paired_device(accessories, "alias")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     callback = mock.Mock()
-    await pairing.subscribe([(1, 8)])
-    pairing.dispatcher_connect(callback)
+    await pairing.subscribe_characteristics([(1, 8)])
+    pairing.add_observer_for_characteristics(callback)
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_aid_iid([(1, 8, True)])
@@ -167,10 +175,11 @@ async def test_update_aid_iid_events():
 async def test_events_are_filtered():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
     controller = FakeController()
-    pairing = await controller.add_paired_device(accessories, "alias")
+    pairing_data = await controller.add_paired_device(accessories, "alias")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
-    await pairing.subscribe([(1, 10)])
-    pairing.dispatcher_connect(accessories.process_changes)
+    await pairing.subscribe_characteristics([(1, 10)])
+    pairing.add_observer_for_characteristics(accessories.process_changes)
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -181,6 +190,8 @@ async def test_events_are_filtered():
 async def test_camera():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
     controller = FakeController()
-    pairing = await controller.add_paired_device(accessories, "alias")
+    pairing_data = await controller.add_paired_device(accessories, "alias")
+    pairing = controller.pairings[pairing_data['AccessoryPairingID']]
+
     result = await pairing.image(1, 640, 480)
     assert len(result) > 0

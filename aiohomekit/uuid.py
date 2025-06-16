@@ -37,12 +37,16 @@ def shorten_uuid(value: str) -> str:
 
 
 @lru_cache(maxsize=1024)
-def normalize_uuid(value: str) -> str:
+def normalize_uuid(value: str) -> UUID:
     """
     Returns a normalized UUID.
 
     This includes postfixing -0000-1000-8000-0026BB765291 and ensuring the case.
     """
+
+    if isinstance(value, UUID):
+        return value
+
     value = value.upper()
 
     if len(value) <= 8:
@@ -55,6 +59,6 @@ def normalize_uuid(value: str) -> str:
     # Handle cases like 34AB8811AC7F4340BAC3FD6A85F9943B
     # Reject the rest
     try:
-        return str(UUID(value.zfill(32))).upper()
+        return UUID(value.zfill(32))
     except ValueError:
         raise ValueError(f"{value} doesn't look like a valid UUID or short UUID")

@@ -3,6 +3,7 @@ from uuid import UUID
 from aiohomekit.model import typed_dicts
 from aiohomekit.model.characteristics import Characteristics, CharacteristicsTypes, NEEDS_POLLINGS_CHARS
 from aiohomekit.model.services import Service, Services, ServicesTypes
+from aiohomekit.uuid import normalize_uuid
 
 
 class Accessory:
@@ -65,7 +66,7 @@ class Accessory:
                 assert "iid" in char_data, f"Characteristic iid is missing in {char_data}"
 
                 char = service.add_char(
-                    UUID(char_data["type"]), iid=char_data["iid"], **kwargs
+                    normalize_uuid(char_data["type"]), iid=char_data["iid"], **kwargs
                 )
                 if value := char_data.get("value"):
                     char.set_value(value)

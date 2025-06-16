@@ -34,8 +34,6 @@ from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.model.status_flags import StatusFlags
 
 
-HAP_TYPE_TCP = "_hap._tcp.local."
-HAP_TYPE_UDP = "_hap._udp.local."
 CLASS_IN = 1
 TYPE_PTR = 12
 

@@ -1,28 +1,29 @@
 import asyncio
 from datetime import timedelta
-from typing import Any
 from unittest import mock
+from uuid import UUID
 
 import pytest
 
 from aiohomekit.controller.zeroconf.ip import IpPairing
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import Response
 from aiohomekit.protocol.statuscodes import HapStatusCode
 
 
 async def test_list_accessories(pairing: IpPairing):
-    accessories = await pairing.fetch_accessories_and_characteristics()
-    assert accessories[0]["aid"] == 1
-    assert accessories[0]["services"][0]["iid"] == 1
+    accessories_state = await pairing.fetch_accessories_and_characteristics()
+    assert accessories_state.accessories[0].aid == 1
+    assert accessories_state.accessories[0].services[0].iid == 1
 
-    char = accessories[0]["services"][0]["characteristics"][0]
-
-    assert char["description"] == "Identify"
-    assert char["iid"] == 2
-    assert char["format"] == "bool"
-    assert char["perms"] == ["pw"]
-    assert char["type"] == "00000014-0000-1000-8000-0026BB765291"
+    char = accessories_state.accessories[0].services[0].characteristics[0]
+    from pprint import pprint ; pprint(char.as_dict())
+    assert char.iid == 2
+    assert char.format == "bool"
+    assert char.perms == ["pw"]
+    assert char.description == "Identify"
+    assert char.type == UUID("00000014-0000-1000-8000-0026BB765291")
 
 
 async def test_get_characteristics(pairing: IpPairing):
@@ -89,7 +90,7 @@ async def test_reconnect_soon_after_device_is_offline_for_a_bit(pairing: IpPairi
     assert pairing.is_available
 
     with mock.patch(
-        "aiohomekit.controller.ip.connection.HomeKitConnection._connect_once",
+        "aiohomekit.controller.zeroconf.ip.connection.HomeKitConnection._connect_once",
         side_effect=asyncio.TimeoutError,
     ):
         pairing.connection.transport.close()
@@ -126,7 +127,7 @@ async def test_reconnect_soon_on_device_reboot(pairing: IpPairing):
     assert pairing.is_available
 
     with mock.patch(
-        "aiohomekit.controller.ip.connection.HomeKitConnection._connect_once",
+        "aiohomekit.controller.zeroconf.ip.connection.HomeKitConnection._connect_once",
         side_effect=asyncio.TimeoutError,
     ):
         pairing.connection.protocol.connection_lost(OSError("Connection reset by peer"))
@@ -189,7 +190,7 @@ async def test_put_characteristics_callbacks(pairing: IpPairing):
     ):
         events.append(new_values_dict)
 
-    pairing.dispatcher_connect(process_new_events)
+    pairing.add_observer_for_characteristics(process_new_events)
     assert events == []
 
     characteristics = await pairing.put_characteristics([(1, 9, True)])
@@ -210,11 +211,11 @@ async def test_put_characteristics_callbacks(pairing: IpPairing):
 
 
 async def test_subscribe(pairing: IpPairing):
-    assert pairing.subscriptions == set()
+    assert pairing._observed_characteristics == set()
 
-    await pairing.subscribe([(1, 9)])
+    await pairing.subscribe_characteristics([(1, 9)])
 
-    assert pairing.subscriptions == {(1, 9)}
+    assert pairing._observed_characteristics == {(1, 9)}
 
     characteristics = await pairing.get_characteristics([(1, 9)])
 
@@ -222,34 +223,34 @@ async def test_subscribe(pairing: IpPairing):
 
 
 async def test_unsubscribe(pairing: IpPairing):
-    await pairing.subscribe([(1, 9)])
+    await pairing.subscribe_characteristics([(1, 9)])
 
-    assert pairing.subscriptions == {(1, 9)}
-
-    characteristics = await pairing.get_characteristics([(1, 9)])
-
-    assert characteristics == {(1, 9): {"value": False}}
-
-    await pairing.unsubscribe([(1, 9)])
-
-    assert pairing.subscriptions == set()
+    assert pairing._observed_characteristics == {(1, 9)}
 
     characteristics = await pairing.get_characteristics([(1, 9)])
 
     assert characteristics == {(1, 9): {"value": False}}
 
+    await pairing.unsubscribe_characteristics([(1, 9)])
 
-async def test_dispatcher_connect(pairing: IpPairing):
-    assert pairing.listeners == set()
+    assert pairing._observed_characteristics == set()
 
-    def callback(x):
+    characteristics = await pairing.get_characteristics([(1, 9)])
+
+    assert characteristics == {(1, 9): {"value": False}}
+
+
+async def test_add_observer_for_characteristics(pairing: IpPairing):
+    assert pairing._characteristic_observers == set()
+
+    def callback(id, value):
         pass
 
-    cancel = pairing.dispatcher_connect(callback)
-    assert pairing.listeners == {callback}
+    cancel = pairing.add_observer_for_characteristics(callback)
+    assert pairing._characteristic_observers == {callback}
 
     cancel()
-    assert pairing.listeners == set()
+    assert pairing._characteristic_observers == set()
 
 
 async def test_receiving_events(pairings):
@@ -275,10 +276,10 @@ async def test_receiving_events(pairings):
         ev.set()
 
     # Set where to send events
-    right.dispatcher_connect(handler)
+    right.add_observer_for_characteristics(handler)
 
     # Set what events to get
-    await right.subscribe([(1, 9)])
+    await right.subscribe_characteristics([(1, 9)])
 
     # Trigger an event by writing a change on the other connection
     await left.put_characteristics([(1, 9, True)])
@@ -293,7 +294,7 @@ async def test_subscribe_invalid_iid(pairing: IpPairing):
     """
     Test that can get an error when subscribing to an invalid iid.
     """
-    result = await pairing.subscribe([(1, 999999)])
+    result = await pairing.subscribe_characteristics([(1, 999999)])
     assert result == {
         (1, 999999): {
             "description": "Resource does not exist.",

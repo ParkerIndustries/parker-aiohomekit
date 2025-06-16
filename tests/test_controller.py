@@ -7,16 +7,19 @@ from aiohomekit.controller.ble.controller import BleController
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.exceptions import AccessoryDisconnectedError
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 
 
 async def test_remove_pairing(controller_and_paired_accessory):
-    pairing = controller_and_paired_accessory.aliases["alias"]
+    pairing_id = next(iter(controller_and_paired_accessory.pairings.keys()))  # TODO: check
+    pairing = controller_and_paired_accessory.pairings[pairing_id]
 
     # Verify that there is a pairing connected and working
     await pairing.get_characteristics([(1, 9)])
 
     # Remove pairing from controller
-    await controller_and_paired_accessory.remove_pairing("alias")
+    await controller_and_paired_accessory.remove_pairing(pairing_id)
 
     # Verify now gives an appropriate error
     with pytest.raises(AccessoryDisconnectedError):
@@ -34,12 +37,14 @@ async def test_passing_in_bleak_to_controller():
         patch.object(controller_module, "IP_TRANSPORT_SUPPORTED", False),
     ):
         controller = Controller(
+            char_cache=CharacteristicsStorageMemory(),
+            pairing_data_storage=PairingDataStorageMemory(),
             bleak_scanner_instance=AsyncMock(register_detection_callback=MagicMock())
         )
         await controller.start()
 
-    assert len(controller.transports) == 1
-    assert isinstance(controller.transports[TransportType.BLE], BleController)
+    assert len(controller._transports) == 1, controller._transports
+    assert isinstance(controller._transports[TransportType.BLE], BleController)
 
 
 async def test_passing_in_async_zeroconf(mock_asynczeroconf):
@@ -52,8 +57,8 @@ async def test_passing_in_async_zeroconf(mock_asynczeroconf):
         patch.object(controller_module, "COAP_TRANSPORT_SUPPORTED", False),
         patch.object(controller_module, "IP_TRANSPORT_SUPPORTED", False),
     ):
-        controller = Controller(async_zeroconf_instance=mock_asynczeroconf)
+        controller = Controller(CharacteristicsStorageMemory(), PairingDataStorageMemory(), zeroconf_instance=mock_asynczeroconf)
         await controller.start()
 
-    assert len(controller.transports) == 1
-    assert isinstance(controller.transports[TransportType.IP], IpController)
+    assert len(controller._transports) == 1, controller._transports
+    assert isinstance(controller._transports[TransportType.IP], IpController)

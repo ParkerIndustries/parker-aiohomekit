@@ -7,7 +7,7 @@ import struct
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from aiohomekit.controller.abstract import AbstractDiscovery
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.categories import Category
 from aiohomekit.model.status_flags import StatusFlags
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class HomeKitAdvertisement(AbstractDiscovery):
+class HomeKitAdvertisement(AbstractDiscoveryInfo):
     setup_hash: bytes
     address: str
     state_num: int

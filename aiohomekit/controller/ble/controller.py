@@ -83,14 +83,14 @@ class BleController(AbstractController):
     async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool:
         """Check if a device is reachable on the network."""
         return bool(
-            (discovery := self.discoveries.get(device_id))
+            (discovery := self._discoveries.get(device_id))
             and self._scanner
             and discovery.device.address in self._scanner.discovered_devices_and_advertisement_data
         )
 
     @override
     async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> BleDiscovery:
-        if discovery := self.discoveries.get(device_id):
+        if discovery := self._discoveries.get(device_id):
             logger.debug("Discovery for %s already found", device_id)
             return discovery
 
@@ -122,7 +122,7 @@ class BleController(AbstractController):
 
     @override
     async def discover(self, timeout_sec: float = 10) -> AsyncIterable[BleDiscovery]:
-        for device in self.discoveries.values():
+        for device in self._discoveries.values():
             yield device
 
     def load_pairing(
@@ -134,7 +134,7 @@ class BleController(AbstractController):
         device: BLEDevice | None = None
         description: HomeKitAdvertisement | None = None
 
-        # if discovery := self.discoveries.get(id):
+        # if discovery := self._discoveries.get(id):
         #     device = discovery.device
         #     description = discovery.description
 
@@ -173,7 +173,7 @@ class BleController(AbstractController):
         except ValueError:
             return
 
-        if old_discovery := self.discoveries.get(data.id):
+        if old_discovery := self._discoveries.get(data.id):
             if (old_name := old_discovery.description.name) and (
                 not (name := data.name)
                 or (
@@ -199,7 +199,7 @@ class BleController(AbstractController):
             pairing._async_ble_update(device, advertisement_data)
 
         if futures := self._ble_futures.get(data.id):
-            discovery = BleDiscovery(self, device, data, advertisement_data)
+            discovery = BleDiscovery(device, data, advertisement_data)
             logger.debug("BLE device for %s found, fulfilling futures", data.id)
             for future in futures:
                 future.set_result(discovery)
@@ -211,4 +211,4 @@ class BleController(AbstractController):
             old_discovery._async_process_advertisement(device, data, advertisement_data)
             return
 
-        self.discoveries[data.id] = BleDiscovery(self, device, data, advertisement_data)
+        self._discoveries[data.id] = BleDiscovery(device, data, advertisement_data)

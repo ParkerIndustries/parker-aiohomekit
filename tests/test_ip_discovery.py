@@ -8,7 +8,6 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
     controller, port = controller_and_unpaired_accessory
 
     discovery = IpDiscovery(
-        controller,
         ZeroconfDiscoveryInfo(
             name="Test",
             id="00:01:02:03:04:05",
@@ -24,9 +23,10 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
             addresses=["127.0.0.1"],
             port=port,
         ),
+        lambda _: None,
     )
 
-    finish_pairing = await discovery.start_pairing("alias")
+    finish_pairing = await discovery.start_pairing()
     pairing = await finish_pairing("031-45-154")
 
     assert isinstance(pairing, IpPairing)
@@ -40,7 +40,6 @@ async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int
     controller, port = controller_and_unpaired_accessory
 
     discovery = IpDiscovery(
-        controller,
         ZeroconfDiscoveryInfo(
             name="Test",
             id="00:01:02:03:04:05",
@@ -56,6 +55,7 @@ async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int
             addresses=["127.0.0.1"],
             port=port,
         ),
+        lambda _: None,
     )
 
     identified = await discovery.identify()

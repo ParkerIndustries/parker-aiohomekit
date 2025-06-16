@@ -65,7 +65,7 @@ class IpPairing(ZeroconfPairing):
     """
 
     def __init__(
-        self, controller: AbstractController, pairing_data: PairingData
+        self, pairing_data: PairingData
     ):
         """
         Initialize a Pairing by using the data either loaded from file or obtained after calling
@@ -73,11 +73,9 @@ class IpPairing(ZeroconfPairing):
 
         :param pairing_data:
         """
-        self.pairing_data = pairing_data
+        super().__init__(pairing_data)
         self.connection = SecureHomeKitConnection(self, self.pairing_data)
         self.supports_subscribe = True
-
-        super().__init__(pairing_data)
 
     @property
     def is_connected(self) -> bool:
@@ -104,6 +102,9 @@ class IpPairing(ZeroconfPairing):
         connection = self.connection
         host = connection.connected_host or connection.hosts
         return f"[{host}:{connection.port}] (id={self.id})"
+
+    def _process_disconnected_events(self):
+        ...
 
     def event_received(self, event):
         self._callback_characteristic_changed(_format_characteristics_response(event))
@@ -182,7 +183,7 @@ class IpPairing(ZeroconfPairing):
                     characteristic["type"] = UUID(characteristic["type"])
 
         self._accessories_state = AccessoriesState(
-            Accessories.from_list(accessories), self.config_num or 0
+            Accessories.from_list(accessories), self.config_num if self._accessories_state else 0 # TODO: check
         )
 
         return self._accessories_state

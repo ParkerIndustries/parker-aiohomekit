@@ -40,8 +40,8 @@ from .exceptions import HomeKitException
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PAIRING_FILE = "/Users/markparker/MarkParker5/integrations/broken/homekit/pairings.json"
-DEFAULT_CHARACTERISTICS_FILE = "/Users/markparker/MarkParker5/integrations/broken/homekit/charmap.json"
+DEFAULT_PAIRING_FILE = "pairings.json"
+DEFAULT_CHARACTERISTICS_FILE = "charmap.json"
 
 @contextlib.asynccontextmanager
 async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:

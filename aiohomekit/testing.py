@@ -20,8 +20,10 @@ from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
+from typing import Iterable
 
 from aiohomekit import exceptions
+from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.controller.abstract import (
@@ -32,7 +34,7 @@ from aiohomekit.controller.abstract import (
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.accessories import Accessories, AccessoriesState
-from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData, Response
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.categories import Category
 from aiohomekit.model.characteristics import Characteristic, CharacteristicsTypes
@@ -73,21 +75,23 @@ class FakeDiscovery(AbstractDiscovery):
 
         self.pairing_code = "111-22-333"
 
+    def setup(self): ...
+
     @property
     def status_flags(self) -> StatusFlags:
         if self.description.id not in self.controller.pairings:
             return StatusFlags.UNPAIRED
         return StatusFlags(0)
 
-    async def start_pairing(self, id: HKDeviceID) -> FinishPairing:
+    async def start_pairing(self) -> FinishPairing:
         if self.description.id in self.controller.pairings:
             raise exceptions.AlreadyPairedError(f"{self.description.id} already paired")
 
-        async def finish_pairing(pairing_code: str) -> FakePairing:
+        async def finish_pairing(pairing_code: str) -> PairingData:
             if pairing_code != self.pairing_code:
                 raise exceptions.AuthenticationError("M4")
 
-            discovery = self.controller.discoveries[self.description.id]
+            discovery = self.controller._discoveries[self.description.id]
             discovery.description = FakeDescription(status_flags=0)
 
             pairing_data = {}
@@ -96,10 +100,9 @@ class FakeDiscovery(AbstractDiscovery):
             pairing_data["AccessoryPairingID"] = discovery.description.id
             pairing_data["Connection"] = "Fake"
 
-            obj = FakePairing(self.controller, pairing_data, self.accessories)
-            self.controller.pairings[discovery.description.id] = obj
+            self.controller.pairings[discovery.description.id] = FakePairing(pairing_data, self.accessories)
 
-            return obj
+            return pairing_data
 
         return finish_pairing
 
@@ -168,15 +171,15 @@ class PairingTester:
     def set_aid_iid_status(self, aid_iid_statuses: list[tuple[int, int, int]]):
         """Set status for an aid iid pair."""
         event = {
-            (aid, iid): {"status": status} for aid, iid, status in aid_iid_statuses
+            CharacteristicKey(aid, iid): {"status": status} for aid, iid, status in aid_iid_statuses
         }
 
         if not event:
             return
 
-        for listener in self.pairing._characteristic_listeners:
+        for listener in self.pairing._characteristic_observers:
             try:
-                listener(event)
+                listener(self.pairing.id, event)
             except Exception:
                 _LOGGER.exception("Unhandled error when processing event")
 
@@ -194,9 +197,9 @@ class PairingTester:
         if not event:
             return
 
-        for listener in self.pairing._characteristic_listeners:
+        for listener in self.pairing._characteristic_observers:
             try:
-                listener(event)
+                listener(self.pairing.id, event)
             except Exception:
                 _LOGGER.exception("Unhandled error when processing event")
 
@@ -211,12 +214,14 @@ class FakePairing(AbstractPairing):
 
     def __init__(
         self,
-        controller: AbstractController,
         pairing_data: PairingData,
-        accessories: Accessories,
+        accessories: Accessories | None = None,
     ):
         """Create a fake pairing from an accessory model."""
-        super().__init__(controller, pairing_data)
+        super().__init__(pairing_data)
+
+        if accessories is None:
+            accessories = Accessories()
 
         self._initial_accessories_state = AccessoriesState(accessories, 0)
 
@@ -257,17 +262,19 @@ class FakePairing(AbstractPairing):
         if not self._accessories_state:
             self._accessories_state = self._initial_accessories_state
 
-    async def identify(self):
+    async def identify(self) -> bool:
         """Identify the accessory."""
         self._ensure_connected()
+        return True
 
     async def list_pairings(self):
         """List pairing."""
         return []
 
-    async def remove_pairing(self, pairing_id):
+    async def remove_pairing(self, pairing_id: HKDeviceID | None = None) -> bool:
         """Remove a pairing."""
         self._ensure_connected()
+        return True
 
     async def populate_accessories_state(
         self, force_update: bool = False, attempts: int | None = None
@@ -290,12 +297,12 @@ class FakePairing(AbstractPairing):
     async def _process_disconnected_events(self):
         """Process any events that happened while we were disconnected."""
 
-    async def _fetch_accessories_and_characteristics(self):
+    async def _do_fetch_accessories_and_characteristics(self):
         """Fake implementation of _fetch_accessories_and_characteristics."""
         self._ensure_connected()
-        return self.accessories
+        return self.accessories_state
 
-    async def get_characteristics(self, characteristics):
+    async def get_characteristics(self, characteristics, include_meta: bool = False, include_perms: bool = False, include_type: bool = False, include_events: bool = False):
         """Fake implementation of get_characteristics."""
         self._ensure_connected()
 
@@ -333,13 +340,22 @@ class FakePairing(AbstractPairing):
         # This ultimately needs refactoring so that we can have multiple test transports loaded
         # rather than patching this one to be COAP.
         self.pairing_data["Connection"] = "CoAP"
-        self.controller.transport_type = TransportType.COAP
+        # self.controller.transport_type = TransportType.COAP # TODO: check
 
     async def image(self, accessory: int, width: int, height: int) -> bytes:
         self._ensure_connected()
 
         return base64.b64decode(FAKE_CAMERA_IMAGE)
 
+    async def subscribe_characteristics(
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> Response:
+        ...
+
+    async def unsubscribe_characteristics(
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> Response:
+        ...
 
 class FakeController(AbstractController):
     """
@@ -350,31 +366,29 @@ class FakeController(AbstractController):
     """
 
     started: bool
-    discoveries: dict[str, FakeDiscovery]
-    pairings: dict[str, FakePairing]
-    aliases: dict[str, FakePairing]
+    # discoveries: dict[str, FakeDiscovery]
+    # pairings: dict[str, FakePairing]
+    # aliases: dict[str, FakePairing]
 
     transport_type = TransportType.IP
 
     def __init__(
-        self, async_zeroconf_instance=None, char_cache=None, bleak_scanner_instance=None
+        self, zeroconf_instance=None, char_cache=None, bleak_scanner_instance=None
     ):
         super().__init__(FakeDiscovery, FakePairing, char_cache or CharacteristicsStorageMemory(), PairingDataStorageMemory())
 
     def add_device(self, accessories):
         device_id = "00:00:00:00:00:00"
-        discovery = self.discoveries[device_id] = FakeDiscovery(
+        discovery = self._discoveries[device_id] = FakeDiscovery(
             self,
             device_id,
             accessories=accessories,
         )
         return discovery
 
-    async def add_paired_device(self, accessories: Accessories, id: HKDeviceID = None):
+    async def add_paired_device(self, accessories: Accessories, id: HKDeviceID):
         discovery = self.add_device(accessories)
-        finish_pairing = await discovery.start_pairing(
-            alias or discovery.description.id
-        )
+        finish_pairing = await discovery.start_pairing()
         return await finish_pairing(discovery.pairing_code)
 
     async def start(self):
@@ -384,29 +398,28 @@ class FakeController(AbstractController):
         self.started = False
 
     async def discover(
-        self, max_seconds: int = 10
+        self, timeout_sec: float = 10
     ) -> AsyncIterable[AbstractDiscovery]:
-        for discovery in self.discoveries.values():
+        for discovery in self._discoveries.values():
             yield discovery
 
-    async def find(self, device_id, timeout=10) -> AbstractDiscovery:
+    async def find(self, device_id, timeout_sec: float = 10) -> AbstractDiscovery:
         try:
-            return self.discoveries[device_id]
+            return self._discoveries[device_id]
         except KeyError:
             raise AccessoryNotFoundError(device_id)
 
-    async def reachable(self, device_id: str, timeout=10) -> bool:
+    async def is_reachable(self, device_id: str, timeout_sec: float = 10) -> bool:
         return True
 
-    async def remove_pairing(self, id: HKDeviceID):
-        pairing = self.aliases[alias]
-        del self.pairings[self.aliases[alias].id]
-        del self.aliases[alias]
-        self._char_cache.delete_map(pairing.id)
+    async def remove_pairing(self, pairing_id: HKDeviceID):
+        del self.pairings[pairing_id]
+        await self.char_cache_storage.delete(pairing_id)
 
-    def load_pairing(self, id: HKDeviceID, pairing_data):
+    def load_pairing(self, pairing_data):
         # This assumes a test has already preseed self.pairings with a fake via
         # add_paired_device
-        pairing = self.aliases[alias]
+        pairing_id = pairing_data["AccessoryPairingID"]
+        pairing = self.pairings[pairing_id]
         pairing.pairing_data = pairing_data
         return pairing

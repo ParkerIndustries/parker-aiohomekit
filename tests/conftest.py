@@ -5,6 +5,7 @@ import os
 import socket
 import tempfile
 import threading
+import pathlib
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,6 +17,8 @@ from aiohomekit.controller.zeroconf.ip import IpPairing
 from aiohomekit.model.accessories import Accessory
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageFile, PairingDataStorageMemory
 
 from tests.accessoryserver import AccessoryServer
 
@@ -68,8 +71,8 @@ class AsyncServiceBrowserStub:
 def mock_asynczeroconf():
     """Mock zeroconf."""
 
-    with patch("aiohomekit.zeroconf.AsyncServiceBrowser", AsyncServiceBrowserStub):
-        with patch("aiohomekit.zeroconf.AsyncZeroconf") as mock_zc:
+    with patch("zeroconf.asyncio.AsyncServiceBrowser", AsyncServiceBrowserStub):
+        with patch("zeroconf.asyncio.AsyncZeroconf") as mock_zc:
             zc = mock_zc.return_value
             zc.register_service = AsyncMock()
             zc.async_close = AsyncMock()
@@ -119,12 +122,14 @@ async def controller_and_unpaired_accessory(
 
     await wait_for_server_online(available_port)
 
-    controller = Controller(async_zeroconf_instance=mock_asynczeroconf)
+    controller = Controller(
+        char_cache=CharacteristicsStorageMemory(),
+        pairing_data_storage=PairingDataStorageMemory()
+    )
 
-    with mock.patch.object(controller, "load_data", lambda x: None):
-        with mock.patch("aiohomekit.__main__.Controller") as c:
-            c.return_value = controller
-            yield controller, available_port
+    with mock.patch("aiohomekit.__main__.Controller") as c:
+        c.return_value = controller
+        yield controller, available_port
 
     os.unlink(config_file.name)
 
@@ -200,17 +205,16 @@ async def controller_and_paired_accessory(
     controller_file.close()
 
     controller = Controller(
-        async_zeroconf_instance=mock_asynczeroconf,
+        char_cache=CharacteristicsStorageMemory(),
+        pairing_data_storage=PairingDataStorageFile(pathlib.Path(controller_file.name))
     )
 
     async with controller:
-        controller.load_data(controller_file.name)
         config_file.close()
 
-        with mock.patch.object(controller, "load_data", lambda x: None):
-            with mock.patch("aiohomekit.__main__.Controller") as c:
-                c.return_value = controller
-                yield controller
+        with mock.patch("aiohomekit.__main__.Controller") as c:
+            c.return_value = controller
+            yield controller
 
     os.unlink(config_file.name)
     os.unlink(controller_file.name)
@@ -225,7 +229,7 @@ async def controller_and_paired_accessory(
 
 @pytest.fixture
 async def pairing(controller_and_paired_accessory):
-    pairing = controller_and_paired_accessory.aliases["alias"]
+    pairing = next(iter(controller_and_paired_accessory.pairings.values()))  # TODO: check
     yield pairing
     try:
         await pairing.close()
@@ -236,9 +240,9 @@ async def pairing(controller_and_paired_accessory):
 @pytest.fixture
 async def pairings(request, controller_and_paired_accessory, event_loop):
     """Returns a pairing of pairngs."""
-    left = controller_and_paired_accessory.aliases["alias"]
+    left = next(iter(controller_and_paired_accessory.pairings.values()))  # TODO: check
 
-    right = IpPairing(left.controller, left.pairing_data)
+    right = IpPairing(left.pairing_data)
 
     yield (left, right)
 

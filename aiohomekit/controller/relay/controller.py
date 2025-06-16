@@ -67,7 +67,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             pairing_data_storage
         )
 
-        self._zeroconf_instance = zeroconf_instance or AsyncZeroconf()
+        self._zeroconf_instance = zeroconf_instance
         self._bleak_scanner_instance = bleak_scanner_instance
         self._transports: dict[TransportType, AbstractController] = {}
         self._tasks = AsyncExitStack()
@@ -80,6 +80,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     @override
     async def start(self):
         if IP_TRANSPORT_SUPPORTED or self._zeroconf_instance:
+            self._zeroconf_instance = self._zeroconf_instance or AsyncZeroconf()
             from ..zeroconf.ip.controller import (
                 IpController,  # pylint: disable=import-outside-toplevel
             )
@@ -93,6 +94,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             )
 
         if COAP_TRANSPORT_SUPPORTED:
+            self._zeroconf_instance = self._zeroconf_instance or AsyncZeroconf()
             from ..zeroconf.coap.controller import (
                 CoAPController,  # pylint: disable=import-outside-toplevel
             )
@@ -101,7 +103,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                 CoAPController(
                     self.char_cache_storage,
                     self.pairing_data_storage,
-                    self._zeroconf_instance,
+                    self._zeroconf_instance ,
                 )
             )
 
@@ -143,7 +145,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         '''Returns all discoveries from all transports'''
         discoveries = {}
         for transport in self._transports.values():
-            discoveries.update(transport.discoveries)
+            discoveries.update(transport._discoveries)
         return discoveries
 
     @_discoveries.setter

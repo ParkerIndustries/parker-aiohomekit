@@ -63,17 +63,20 @@ class DictStorageFile[ID, StorageLayoutItem](DictStorageMemory): # TODO: Codable
         if not location.exists():
             # create the file if it does not exist
             location.parent.mkdir(parents=True, exist_ok=True)
+            location.touch()
 
         with open(location, encoding="utf-8") as fp:
             try:
                 self._storage_data = hkjson.loads(fp.read())
                 # print('CLI | Loaded characteristics: ', self.storage_data)
             except hkjson.JSON_DECODE_EXCEPTIONS as e:
+                print(e)
                 self._do_save() # write a correct empty schema to replace the corrupted cache
                 logger.debug(
                     f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
                 )
             except (UnexpectedToken, TypeError, KeyError) as e:
+                print(e)
                 self._do_save() # write a correct schema to replace the corrupted cache
                 logger.debug(
                     f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"

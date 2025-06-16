@@ -19,7 +19,6 @@ from aiohomekit.exceptions import AccessoryNotFoundError, TransportNotSupportedE
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 from aiohomekit.utils import async_create_task
-from aiohomekit.model.transport_type import IpTransportType
 from aiohomekit.model.typed_dicts import HKDeviceID
 from .protocol import ZeroconfDiscoveryInfo, _TIMEOUT_MS, logger, TYPE_PTR, CLASS_IN
 
@@ -40,7 +39,7 @@ class ZeroconfController[
 
     @property
     @abstractmethod
-    def _hap_type(self) -> IpTransportType: ...
+    def _hap_type(self) -> str: ...
 
     def __init__(
         self,
@@ -62,11 +61,14 @@ class ZeroconfController[
         await super().start()
         zc = self._async_zeroconf_instance.zeroconf
 
-        self._browser = self._find_broswer_for_hap_type(
-            self._async_zeroconf_instance, self._hap_type
-        )
+        if browser := self._find_broswer_for_hap_type(self._hap_type):
+            self._browser = browser
+            self._browser.service_state_changed.register_handler(self._zeroconf_did_discover_service)
+        else:
+            self._browser = AsyncServiceBrowser(
+                self._async_zeroconf_instance.zeroconf, [self._hap_type,], handlers=[self._zeroconf_did_discover_service]
+            )
 
-        self._browser.service_state_changed.register_handler(self._zeroconf_did_discover_service)
         await self._load_zeroconf_from_cache(zc)
 
     @override
@@ -149,7 +151,7 @@ class ZeroconfController[
 
     def _async_get_ptr_records(self, zc: Zeroconf) -> list[DNSRecord]:
         """Return all PTR records for the HAP type."""
-        return zc.cache.all_by_details(self._hap_type, TYPE_PTR, CLASS_IN)
+        return zc.cache.get_all_by_details(self._hap_type, TYPE_PTR, CLASS_IN)
 
     def _zeroconf_did_discover_service(
         self,
@@ -241,12 +243,10 @@ class ZeroconfController[
 
     # Helpers
 
-    def _find_broswer_for_hap_type(self, azc: AsyncZeroconf, hap_type: str) -> AsyncServiceBrowser:
-        for browser in azc.zeroconf.listeners:
+    def _find_broswer_for_hap_type(self, hap_type: str) -> AsyncServiceBrowser | None:
+        for browser in self._async_zeroconf_instance.zeroconf.listeners:
             if not isinstance(browser, AsyncServiceBrowser):
                 continue
             if hap_type not in browser.types:
                 continue
             return browser
-
-        raise TransportNotSupportedError(f"There is no zeroconf browser for {hap_type}")

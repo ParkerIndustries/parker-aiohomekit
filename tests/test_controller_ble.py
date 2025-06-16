@@ -88,25 +88,25 @@ def test_discovery_with_none_name(
         },
     )
     ble_controller._device_detected(ble_device, adv)
-    assert "80:e7:14:6a:37:34" in ble_controller.discoveries
+    assert "80:e7:14:6a:37:34" in ble_controller._discoveries
     ble_controller._device_detected(ble_device_with_short_name, adv)
-    assert "80:e7:14:6a:37:34" in ble_controller.discoveries
+    assert "80:e7:14:6a:37:34" in ble_controller._discoveries
     assert (
-        ble_controller.discoveries["80:e7:14:6a:37:34"].name
+        ble_controller._discoveries["80:e7:14:6a:37:34"].name
         == "Nam (00:00:00:00:00:00)"
     )
     ble_controller._device_detected(ble_device, adv)
     assert (
-        ble_controller.discoveries["80:e7:14:6a:37:34"].name
+        ble_controller._discoveries["80:e7:14:6a:37:34"].name
         == "Nam (00:00:00:00:00:00)"
     )
     ble_controller._device_detected(ble_device_with_name, adv)
     assert (
-        ble_controller.discoveries["80:e7:14:6a:37:34"].name
+        ble_controller._discoveries["80:e7:14:6a:37:34"].name
         == "Name in Full (00:00:00:00:00:00)"
     )
     ble_controller._device_detected(ble_device_with_short_name, adv)
     assert (
-        ble_controller.discoveries["80:e7:14:6a:37:34"].name
+        ble_controller._discoveries["80:e7:14:6a:37:34"].name
         == "Name in Full (00:00:00:00:00:00)"
     )

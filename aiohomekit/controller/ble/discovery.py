@@ -32,6 +32,7 @@ from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.utils import check_pin_format, pair_with_auth
 from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
+from typing import override
 
 from .bleak import AIOHomeKitBleakClient
 from .client import (
@@ -74,6 +75,10 @@ class BleDiscovery(AbstractDiscovery):
     @property
     def rssi(self) -> int | None:
         return self.ble_advertisement.rssi if self.ble_advertisement else None
+
+    @override
+    def setup(self):
+        ...
 
     async def _ensure_connected(self):
         logger.debug(

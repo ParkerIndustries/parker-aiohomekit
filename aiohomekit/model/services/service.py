@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 class Service:
     """Represents a service on an accessory."""
 
-    type: str
+    type: UUID
     iid: int
     linked: list[Service]
 
@@ -49,13 +49,13 @@ class Service:
     def __init__(
         self,
         accessory: Accessory,
-        service_type: str,
+        service_type: UUID,
         name: str | None = None,
         add_required: bool = False,
         iid: int | None = None,
     ):
         """Initialise a service."""
-        self.type = normalize_uuid(service_type)
+        self.type = service_type
 
         self.accessory = accessory
         self.iid = iid or accessory.get_next_id()
@@ -68,9 +68,13 @@ class Service:
             char.set_value(name)
 
         if add_required:
-            for required in services[self.type]["required"]:
+            for required in services[str(self.type).upper()]["required"]:
                 if required not in self.characteristics_by_type:
                     self.add_char(required)
+
+    @property
+    def type_str(self) -> str:
+        return str(self.type).upper()
 
     def has(self, char_type: UUID) -> bool:
         """Return True if the service has a characteristic."""
@@ -132,7 +136,7 @@ class Service:
 
         d: typed_dicts.Service = {
             "iid": self.iid,
-            "type": self.type,
+            "type": self.type_str,
             "characteristics": characteristics_list,
             "linked": [],
         }
@@ -157,6 +161,9 @@ class Services:
     def __iter__(self) -> Iterator[Service]:
         """Iterate over all services."""
         return iter(self._services)
+
+    def __getitem__(self, index: int) -> Service:
+        return self._services[index]
 
     def iid(self, iid: int) -> Service:
         """Return the service with the given iid, raising KeyError if it does not exist."""

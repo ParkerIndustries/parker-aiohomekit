@@ -1,8 +1,7 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable
+from typing import Callable, Iterable
 import logging
 
 from aiohomekit.model.accessories import Accessories, AccessoriesState
@@ -30,7 +29,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self.id = pairing_data["AccessoryPairingID"]
         self.pairing_data = pairing_data
 
-        self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list()
+        self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list() # TODO: why not sets?
         self._pairing_data_observers: list[Callable[[HKDeviceID, PairingData], None]] = list()
         self._config_observers:        list[Callable[[HKDeviceID, int], None]] = list()
         self._characteristic_observers: list[Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]] = list()
@@ -108,7 +107,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
-    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
+    async def remove_pairing(self, pairing_id: HKDeviceID | None = None) -> bool:
         """Remove an accessory pairing to some controller (not necessarily this one).
         returns: True if the pairing was removed, False if not.
         """

@@ -99,8 +99,8 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
 
         response = await self.connection.post_json("/identify", {})
 
-        # if not response:
-        #     return True
+        if not response:
+            return True # empty response means success (no error)
 
         code = to_status_code(response["code"])
 

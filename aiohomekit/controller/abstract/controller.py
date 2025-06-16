@@ -43,6 +43,8 @@ class AbstractController[
         self.char_cache_storage = char_cache_storage
         self.pairing_data_storage = pairing_data_storage
         self._pairing_cleanups: dict[HKDeviceID, list[Callable[[], None]]] = {}
+        self._pairings = {}
+        self._discoveries = {}
 
     # Abstract
 

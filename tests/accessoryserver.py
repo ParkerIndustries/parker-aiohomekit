@@ -843,7 +843,7 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
         result_bytes = json.dumps(result).encode()
         self.send_response(HttpStatusCodes.MULTI_STATUS)
         self.send_header("Content-Type", "application/hap+json")
-        self.send_header("Content-Length", len(result_bytes))
+        self.send_header("Content-Length", str(len(result_bytes)))
         self.end_headers()
         self.wfile.write(result_bytes)
 
@@ -854,7 +854,7 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
             ).encode()
             self.send_response(HttpStatusCodes.BAD_REQUEST)
             self.send_header("Content-Type", "application/hap+json")
-            self.send_header("Content-Length", len(result_bytes))
+            self.send_header("Content-Length", str(len(result_bytes)))
             self.end_headers()
             self.wfile.write(result_bytes)
         else:
@@ -866,7 +866,7 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def _get_accessories(self):
-        result_bytes = self.server.accessories.as_dict().encode()
+        result_bytes = json.dumps(self.server.accessories.as_dict()).encode()
         self.send_response(HttpStatusCodes.OK)
         self.send_header("Content-Type", "application/hap+json")
         self.send_header("Content-Length", len(result_bytes))
