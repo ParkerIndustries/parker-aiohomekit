@@ -16,6 +16,7 @@
 
 import base64
 
+from uuid import UUID
 from aiohomekit.model.accessories import Accessories
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.characteristics.const import (
@@ -102,7 +103,7 @@ def test_get_by_name():
         service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
         characteristics={CharacteristicsTypes.NAME: name},
     )
-
+    assert service is not None
     assert service[CharacteristicsTypes.NAME].value == name
 
 
@@ -133,6 +134,7 @@ def test_get_by_iid():
     accessory = bridge.aid(6623462389072572)
 
     char = accessory.characteristics.iid(588410716196)
+    assert char is not None
     assert char.value == name
 
     service = accessory.services.first(
@@ -182,8 +184,31 @@ def test_get_by_linked():
         service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
         characteristics={CharacteristicsTypes.NAME: name},
     )
+    assert switch is not None
 
+    # TODO: remove
+
+    linked = list(
+        ServicesTypes(s.type_str) for s in switch.linked
+    )
+
+    linked_filter = list(
+        ServicesTypes(s.type_str) for s in a.services.filter(parent_service=switch)
+    )
+
+    all = list(
+        ServicesTypes(s.type_str) for s in a.services
+    )
+
+    print('ALL LINKED:',
+        len(all), all,
+        len(linked), linked,
+        len(linked_filter), linked_filter,
+    )
     service_label = a.services.first(parent_service=switch)
+    assert service_label is not None
+    assert service_label.type_str == ServicesTypes.SERVICE_LABEL, (ServicesTypes(service_label.type_str), ServicesTypes.SERVICE_LABEL)
+    # print(list(CharacteristicsTypes(str(c.type).upper()) for c in service_label.characteristics._characteristics)) # TODO: remove
     assert service_label[CharacteristicsTypes.SERVICE_LABEL_NAMESPACE].value == 1
 
     switch = a.services.first(
@@ -192,16 +217,16 @@ def test_get_by_linked():
         child_service=service_label,
     )
 
-    assert switch[CharacteristicsTypes.NAME].value == "Hue dimmer switch button 3"
+    assert switch and switch[CharacteristicsTypes.NAME].value == "Hue dimmer switch button 3"
 
 
 def test_order_by():
     a = Accessories.from_file("tests/fixtures/hue_bridge.json").aid(6623462389072572)
 
-    buttons = a.services.filter(
+    buttons = list(a.services.filter(
         service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
-        order_by=(CharacteristicsTypes.SERVICE_LABEL_INDEX, CharacteristicsTypes.NAME),
-    )
+        order_by=[CharacteristicsTypes.SERVICE_LABEL_INDEX, CharacteristicsTypes.NAME],
+    ))
 
     assert buttons[0].value(CharacteristicsTypes.SERVICE_LABEL_INDEX) == 1
     assert buttons[1].value(CharacteristicsTypes.SERVICE_LABEL_INDEX) == 2
@@ -213,6 +238,7 @@ def test_process_changes():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
 
     on_char = accessories.aid(1).characteristics.iid(8)
+    assert on_char is not None
     assert on_char.value is False
 
     changed = accessories.process_changes({(1, 8): {"value": True}})
@@ -228,6 +254,7 @@ def test_process_changes_error():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
 
     on_char = accessories.aid(1).characteristics.iid(8)
+    assert on_char is not None
     assert on_char.value is False
     assert on_char.status == HapStatusCode.SUCCESS
 
@@ -249,10 +276,11 @@ def test_process_changes_availability():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
 
     on_char = accessories.aid(1).characteristics.iid(8)
+    assert on_char is not None
 
     assert on_char.available is True
-    assert on_char.service.available is True
-    assert on_char.service.accessory.available is True
+    assert on_char.parent_service.available is True
+    assert on_char.parent_service.accessory.available is True
 
     changed = accessories.process_changes(
         {(1, 8): {"status": HapStatusCode.UNABLE_TO_COMMUNICATE.value}}
@@ -260,19 +288,20 @@ def test_process_changes_availability():
     assert changed == {(1, 8)}
 
     assert on_char.available is False
-    assert on_char.service.available is False
-    assert on_char.service.accessory.available is False
+    assert on_char.parent_service.available is False
+    assert on_char.parent_service.accessory.available is False
 
     changed = accessories.process_changes({(1, 8): {"value": True}})
     assert changed == {(1, 8)}
     assert on_char.available is True
-    assert on_char.service.available is True
-    assert on_char.service.accessory.available is True
+    assert on_char.parent_service.available is True
+    assert on_char.parent_service.accessory.available is True
 
 
 def test_valid_vals_preserved():
     a = Accessories.from_file("tests/fixtures/aqara_gateway.json").aid(1)
     char = a.characteristics.iid(66307)
+    assert char is not None
     assert char.valid_values == [1, 3, 4]
 
 
@@ -294,6 +323,7 @@ def test_build_update():
 def test_build_update_minStep_clamping_lennox():
     a = Accessories.from_file("tests/fixtures/lennox_e30.json").aid(1)
     service = a.services.iid(100)
+    assert service is not None
 
     assertions = [
         (27.23, 27.0),
@@ -327,7 +357,7 @@ def test_build_update_minStep_clamping_ecobee():
 def test_build_update_minStep_clamping_synthetic():
     a = Accessories.from_file("tests/fixtures/synthetic_float_minstep.json")
 
-    assertions = [
+    assertions = [ # TODO: parametrize
         # minStep 1
         (1, 27.2, 27.5),
         (1, 27.6, 27.5),
@@ -487,6 +517,7 @@ def test_set_value():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
 
     on_char = accessories.aid(1).characteristics.iid(8)
+    assert on_char is not None
     assert on_char.value is False
 
     on_char.value = True
@@ -497,12 +528,14 @@ def test_set_value():
 def test_enum_decode():
     accessories = Accessories.from_file("tests/fixtures/nanoleaf_bulb.json")
     status = accessories.aid(1).characteristics.iid(117)
+    assert status is not None
     assert status.value == ThreadStatus.ROUTER
 
 
 def test_enum_encode():
     accessories = Accessories.from_file("tests/fixtures/nanoleaf_bulb.json")
     status = accessories.aid(1).characteristics.iid(117)
+    assert status is not None
     status.value = ThreadStatus.DISABLED
     assert status.as_dict()["value"] == 1
 

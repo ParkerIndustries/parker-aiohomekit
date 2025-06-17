@@ -1,5 +1,4 @@
 from typing import Self
-from uuid import UUID
 from aiohomekit.model import typed_dicts
 from aiohomekit.model.characteristics import Characteristics, CharacteristicsTypes, NEEDS_POLLINGS_CHARS
 from aiohomekit.model.services import Service, Services, ServicesTypes
@@ -12,10 +11,17 @@ class Accessory:
     def __init__(self, aid: int):
         """Initialize a new accessory."""
         self.aid = aid
-        self._next_id = 0
         self.services = Services()
-        self.characteristics = Characteristics()
         self._accessory_information: Service | None = None
+        self._next_id = 0
+
+    @property
+    def characteristics(self) -> Characteristics:
+        all_characteristics = Characteristics()
+        for service in self.services:
+            for characteristic in service.characteristics:
+                all_characteristics.append(characteristic)
+        return all_characteristics
 
     @classmethod
     def create_with_info(

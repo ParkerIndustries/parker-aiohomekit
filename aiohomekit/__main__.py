@@ -148,9 +148,9 @@ async def discover(args):
 
 async def pair(args):
     async with get_controller(args) as controller:
-        if args.alias in controller.pairings:
-            print(f'"{args.alias}" is a already known alias')
-            return False
+        # if args.pairing in controller.pairings:
+        #     print(f'"{args.pairing}" is a already known alias')
+        #     return False
 
         discovery = await controller.find(args.device)
 
@@ -170,7 +170,7 @@ async def pair(args):
 
         # controller.save_data(args.file)
 
-        print(f'Pairing for "{args.alias}" was established.')
+        print('Pairing was established.')
     return True
 
 
@@ -179,7 +179,7 @@ async def get_accessories(args: Namespace) -> bool:
 
 
         try:
-            pairing = controller.pairings[args.alias]
+            pairing = controller.pairings[args.pairing]
             data = await pairing.fetch_accessories_and_characteristics()
             # controller.save_data(args.file)
         except Exception:
@@ -211,7 +211,7 @@ async def get_characteristics(args: Namespace) -> bool:
     async with get_controller(args) as controller:
 
 
-        pairing = controller.pairings[args.alias]
+        pairing = controller.pairings[args.pairing]
 
         # convert the command line parameters to the required form
         characteristics = [
@@ -243,7 +243,7 @@ async def put_characteristics(args: Namespace) -> bool:
 
 
         try:
-            pairing = controller.pairings[args.alias]
+            pairing = controller.pairings[args.pairing]
 
             # FIXME use Service.build_update
 
@@ -280,7 +280,7 @@ async def identify(args: Namespace) -> bool:
     async with get_controller(args) as controller:
 
         try:
-            pairing = controller.pairings[args.alias]
+            pairing = controller.pairings[args.pairing]
             await pairing.identify()
         except Exception:
             logging.exception("Unhandled error whilst identifying device")
@@ -291,11 +291,11 @@ async def identify(args: Namespace) -> bool:
 
 async def list_pairings(args: Namespace) -> bool:
     async with get_controller(args) as controller:
-        if args.alias not in controller.pairings:
-            print(f'"{args.alias}" is no known alias')
+        if args.pairing not in controller.pairings:
+            print(f'"{args.pairing}" is no known pairing id')
             exit(-1)
 
-        pairing = controller.pairings[args.alias]
+        pairing = controller.pairings[args.pairing]
         try:
             pairings = await pairing.list_pairings()
         except Exception as e:
@@ -319,10 +319,10 @@ async def remove_pairing(args):
     async with get_controller(args) as controller:
 
 
-        pairing = controller.pairings[args.alias]
+        pairing = controller.pairings[args.pairing]
         await pairing.remove_pairing(args.controllerPairingId)
         # controller.save_data(args.file)
-        print(f'Pairing for "{args.alias}" was removed.')
+        print(f'Pairing for "{args.pairing}" was removed.')
         return True
 
 
@@ -330,9 +330,9 @@ async def unpair(args):
     async with get_controller(args) as controller:
 
 
-        await controller.remove_pairing(args.alias)
+        await controller.remove_pairing(args.pairing)
         # controller.save_data(args.file)
-        print(f"Device {args.alias} was completely unpaired.")
+        print(f"Device {args.pairing} was completely unpaired.")
         return True
 
 
@@ -340,7 +340,7 @@ async def get_events(args):
     async with get_controller(args) as controller:
 
 
-        pairing = controller.pairings[args.alias]
+        pairing = controller.pairings[args.pairing]
 
         # convert the command line parameters to the required form
         characteristics = [
@@ -388,12 +388,11 @@ async def get_events(args):
 
         return True
 
-
 def setup_parser_for_pairing(parser: ArgumentParser):
-    parser.add_argument(
-        "-a", action="store", required=True, dest="alias", help="alias for the pairing"
-    )
-
+    ...
+    # parser.add_argument(
+    #     "-a", action="store", required=True, dest="alias", help="alias for the pairing"
+    # )
 
 async def main(argv: list[str] | None = None):
     argv = argv or sys.argv[1:]

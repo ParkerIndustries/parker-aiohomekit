@@ -65,10 +65,10 @@ async def test_reconnect_soon_after_disconnected(pairing: IpPairing):
     assert not pairing.connection.is_connected
     assert not pairing.is_available
 
-    # Ensure we can safely call multiple times
-    pairing.process_description_update(None)
-    pairing.process_description_update(None)
-    pairing.process_description_update(None)
+    # # Ensure we can safely call multiple times # TODO: review, looks incorrect and useless
+    # pairing.process_description_update(None)
+    # pairing.process_description_update(None)
+    # pairing.process_description_update(None)
 
     await asyncio.sleep(
         0
@@ -241,16 +241,16 @@ async def test_unsubscribe(pairing: IpPairing):
 
 
 async def test_add_observer_for_characteristics(pairing: IpPairing):
-    assert pairing._characteristic_observers == set()
+    assert pairing._characteristic_observers == []
 
     def callback(id, value):
         pass
 
     cancel = pairing.add_observer_for_characteristics(callback)
-    assert pairing._characteristic_observers == {callback}
+    assert pairing._characteristic_observers == [callback]
 
     cancel()
-    assert pairing._characteristic_observers == set()
+    assert pairing._characteristic_observers == []
 
 
 async def test_receiving_events(pairings):

@@ -29,7 +29,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self.id = pairing_data["AccessoryPairingID"]
         self.pairing_data = pairing_data
 
-        self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list() # TODO: why not sets?
+        # for callbacks, lists are used instead of sets to preserve the order of calls,
+        # for example, to call internal observers before external ones
+        self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list()
         self._pairing_data_observers: list[Callable[[HKDeviceID, PairingData], None]] = list()
         self._config_observers:        list[Callable[[HKDeviceID, int], None]] = list()
         self._characteristic_observers: list[Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]] = list()
@@ -192,6 +194,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self, description: DiscoveryInfo
     ):
         '''Called from outside on each discovery'''
+        assert description # TODO: remove
 
         if self._shutdown:
             return
@@ -206,7 +209,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         repopulate_accessories = False
 
-        if description.config_num > self.accessories_state.config_num:
+        if description.config_num > (self._accessories_state.config_num if self._accessories_state else 0):
             logger.debug(
                 "%s: Config number has changed from %s to %s; char cache invalid",
                 self.name,

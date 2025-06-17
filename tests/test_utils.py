@@ -16,6 +16,7 @@
 
 import pytest
 
+from uuid import UUID
 from aiohomekit.model.accessories import Accessory
 from aiohomekit.model.characteristics import (
     CharacteristicsTypes,
@@ -34,20 +35,20 @@ from aiohomekit.uuid import normalize_uuid, shorten_uuid
 
 
 def test_normalize_short_uuid():
-    assert normalize_uuid("121") == "00000121-0000-1000-8000-0026BB765291"
+    assert normalize_uuid("121") == UUID("00000121-0000-1000-8000-0026BB765291")
 
 
 def test_normalize_uuid():
     assert (
         normalize_uuid("00000121-0000-1000-8000-0026BB765291")
-        == "00000121-0000-1000-8000-0026BB765291"
+        == UUID("00000121-0000-1000-8000-0026BB765291")
     )
 
 
 def test_normalize_uuid_coap_short():
     assert (
         normalize_uuid("45E5011ECB4000A80FF2603DE")
-        == "00000004-5E50-11EC-B400-0A80FF2603DE"
+        == UUID("00000004-5E50-11EC-B400-0A80FF2603DE")
     )
 
 

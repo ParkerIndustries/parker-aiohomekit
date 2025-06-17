@@ -17,7 +17,7 @@
 from enum import Enum
 
 
-class CharacteristicsTypes(str, Enum):
+class CharacteristicsTypes(str, Enum): # TODO: uuid propery
     """
     All known characteristic types.
 

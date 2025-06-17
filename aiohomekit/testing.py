@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 import logging
 from typing import Iterable
+from uuid import uuid4
 
 from aiohomekit import exceptions
 from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey
@@ -127,11 +128,14 @@ class PairingTester:
         for accessory in accessories:
             for service in accessory.services:
                 service_map = {}
+                # id = uuid4().hex
+                self.services[id] = service_map # fallback for services without names
                 for char in service.characteristics:
                     self.characteristics[(accessory.aid, char.iid)] = char
                     service_map[char.type] = char
-                    if char.type == CharacteristicsTypes.NAME:
+                    if char.type_str == CharacteristicsTypes.NAME:
                         self.services[char.get_value()] = service_map
+                        # del self.services[id]
 
     def set_events_enabled(self, value):
         self.events_enabled = value
@@ -185,6 +189,7 @@ class PairingTester:
 
     def _send_events(self, characteristics):
         if not self.events_enabled:
+            print("FakePairing: events are disabled, not sending events")
             return
 
         event = {}
@@ -310,6 +315,7 @@ class FakePairing(AbstractPairing):
         for aid, cid in characteristics:
             accessory = self.accessories.aid(aid)
             char = accessory.characteristics.iid(cid)
+            assert char is not None
             if char.status != HapStatusCode.SUCCESS:
                 results[(aid, cid)] = {"status": char.status.value}
                 continue
@@ -326,6 +332,7 @@ class FakePairing(AbstractPairing):
         for aid, cid, value in characteristics:
             accessory = self.accessories.aid(aid)
             char = accessory.characteristics.iid(cid)
+            assert char is not None
             if char.status != HapStatusCode.SUCCESS:
                 results[(aid, cid)] = {"status": char.status.value}
                 continue

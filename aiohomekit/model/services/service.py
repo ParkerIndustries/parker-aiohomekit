@@ -55,7 +55,7 @@ class Service:
         iid: int | None = None,
     ):
         """Initialise a service."""
-        self.type = service_type
+        self.type = normalize_uuid(service_type)
 
         self.accessory = accessory
         self.iid = iid or accessory.get_next_id()
@@ -68,7 +68,7 @@ class Service:
             char.set_value(name)
 
         if add_required:
-            for required in services[str(self.type).upper()]["required"]:
+            for required in services[self.type_str]["required"]:
                 if required not in self.characteristics_by_type:
                     self.add_char(required)
 
@@ -83,17 +83,16 @@ class Service:
     def value(self, char_type: UUID | str, default_value: Any | None = None) -> Any:
         """Return the value of a characteristic."""
 
-        if isinstance(char_type, str):
-            char_type = UUID(char_type)
+        char_type = normalize_uuid(char_type)
 
         if not self.has(char_type):
             return default_value
 
         return self.characteristics_by_type[char_type].value
 
-    def __getitem__(self, key: UUID) -> Characteristic:
+    def __getitem__(self, key: str | UUID) -> Characteristic:
         """Get a characteristic by type."""
-        return self.characteristics_by_type[key]
+        return self.characteristics_by_type[normalize_uuid(key)]
 
     def add_char(self, char_type: UUID | str, **kwargs: Any) -> Characteristic:
         """Add a characteristic to the service."""
@@ -156,7 +155,7 @@ class Services:
         """Initialize a new list of services."""
         self._services: list[Service] = []
         self._iid_to_service: dict[int, Service] = {}
-        self._type_to_service: dict[str, Service] = {}
+        self._type_to_service: dict[UUID, Service] = {}
 
     def __iter__(self) -> Iterator[Service]:
         """Iterate over all services."""
@@ -183,8 +182,8 @@ class Services:
     def filter(
         self,
         *,
-        service_type: str | None  = None,
-        characteristics: dict[str, str] | None  = None,
+        service_type: UUID | str | None  = None,
+        characteristics: dict[str | UUID, str] | None  = None,
         parent_service: Service | None  = None,
         child_service: Service | None  = None,
         order_by: list[str] | None = None,
@@ -193,17 +192,16 @@ class Services:
         matches = iter(self._services)
 
         if service_type:
-            service_type = normalize_uuid(service_type)
-            matches = filter(lambda service: service.type == service_type, matches)
+            matches = filter(lambda service: service.type == normalize_uuid(service_type), matches)
 
         if characteristics:
             for characteristic, value in characteristics.items():
                 matches = filter(
-                    lambda service: service.value(UUID(characteristic)) == value, matches
+                    lambda service: service.value(normalize_uuid(characteristic)) == value, matches
                 )
 
         if parent_service:
-            matches = filter(lambda service: service in parent_service.linked, matches)
+            matches = filter(lambda service: service in parent_service.linked, matches) # TODO: check, consider return iter(parent_service.linked)
 
         if child_service:
             matches = filter(lambda service: child_service in service.linked, matches)
@@ -221,8 +219,8 @@ class Services:
     def first(
         self,
         *,
-        service_type: str | None = None,
-        characteristics: dict[str, str] | None  = None,
+        service_type: UUID | str | None = None,
+        characteristics: dict[str | UUID, str] | None  = None,
         parent_service: Service | None  = None,
         child_service: Service | None  = None,
     ) -> Service | None:
@@ -251,5 +249,4 @@ class Services:
         """Add a service to the list of services."""
         self._services.append(service)
         self._iid_to_service[service.iid] = service
-        if service.type not in self._type_to_service:
-            self._type_to_service[service.type] = service
+        self._type_to_service[service.type] = service

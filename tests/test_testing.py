@@ -31,7 +31,7 @@ async def test_get_and_set():
     pairing_data = await finish_pairing("111-22-333")
     pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
-    pairing.add_observer_for_characteristics(accessories.process_changes)
+    pairing.add_observer_for_characteristics(lambda id, changes: accessories.process_changes(changes))
 
     chars = await pairing.get_characteristics([(1, 10)])
     assert chars == {(1, 10): {"value": 0}}
@@ -45,8 +45,8 @@ async def test_get_and_set():
 
 async def test_get_failure():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
-
     char = accessories.aid(1).characteristics.iid(10)
+    assert char is not None
     char.status = HapStatusCode.UNABLE_TO_COMMUNICATE
 
     controller = FakeController()
@@ -65,6 +65,7 @@ async def test_put_failure():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
 
     char = accessories.aid(1).characteristics.iid(10)
+    assert char is not None
     char.status = HapStatusCode.UNABLE_TO_COMMUNICATE
 
     controller = FakeController()
@@ -81,12 +82,14 @@ async def test_put_failure():
 
 async def test_update_named_service_events():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
+    from pprint import pprint ; pprint(accessories.as_dict())
     controller = FakeController()
     pairing_data = await controller.add_paired_device(accessories, "alias")
     pairing = controller.pairings[pairing_data['AccessoryPairingID']]
+    await pairing.fetch_accessories_and_characteristics()
 
     await pairing.subscribe_characteristics([(1, 8)])
-    pairing.add_observer_for_characteristics(accessories.process_changes)
+    pairing.add_observer_for_characteristics(lambda id, changes: accessories.process_changes(changes))
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -179,7 +182,7 @@ async def test_events_are_filtered():
     pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     await pairing.subscribe_characteristics([(1, 10)])
-    pairing.add_observer_for_characteristics(accessories.process_changes)
+    pairing.add_observer_for_characteristics(lambda id, changes: accessories.process_changes(changes))
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})

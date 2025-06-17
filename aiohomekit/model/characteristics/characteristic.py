@@ -108,7 +108,7 @@ class Characteristic:
 
     def __init__(self, service: Service, characteristic_type: UUID, **kwargs):
         self.parent_service = service
-        self.type = characteristic_type
+        self.type = normalize_uuid(characteristic_type)
         self.iid = self._get_configuration(
             kwargs, "iid", service.accessory.get_next_id()
         ) or 0
@@ -219,7 +219,7 @@ class Characteristic:
 
         If the characteristic is an enum, returns the enum value
         """
-        if not (extra_data := characteristics.get(str(self.type).upper())):
+        if not (extra_data := characteristics.get(self.type_str)):
             return self._value
 
         if self.format == CharacteristicFormats.tlv8:
@@ -323,7 +323,7 @@ class Characteristic:
 
     def as_dict(self):
         d = {
-            "type": str(self.type).upper(),
+            "type": self.type_str,
             "iid": self.iid,
             "perms": self.perms,
             "format": self.format,

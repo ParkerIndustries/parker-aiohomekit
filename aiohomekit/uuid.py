@@ -21,23 +21,27 @@ BASE_UUID = "-0000-1000-8000-0026BB765291"
 
 
 @lru_cache(maxsize=1024)
-def shorten_uuid(value: str) -> str:
+def shorten_uuid(value: str | UUID) -> str:
     """
     Returns the shortned version of a UUID.
 
     This only applies to official HK services and characteristics.
     """
+
+    if isinstance(value, UUID):
+        value = str(value)
+
     value = value.upper()
 
     if value.endswith(BASE_UUID):
         value = value.split("-", 1)[0]
         return value.lstrip("0")
 
-    return normalize_uuid(value)
+    return str(normalize_uuid(value)).upper()
 
 
 @lru_cache(maxsize=1024)
-def normalize_uuid(value: str) -> UUID:
+def normalize_uuid(value: str | UUID) -> UUID:
     """
     Returns a normalized UUID.
 
@@ -51,10 +55,10 @@ def normalize_uuid(value: str) -> UUID:
 
     if len(value) <= 8:
         prefix = "0" * (8 - len(value))
-        return f"{prefix}{value}{BASE_UUID}"
+        return UUID(f"{prefix}{value}{BASE_UUID}")
 
     if len(value) == 36:
-        return value
+        return UUID(value)
 
     # Handle cases like 34AB8811AC7F4340BAC3FD6A85F9943B
     # Reject the rest

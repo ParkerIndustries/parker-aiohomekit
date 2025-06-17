@@ -14,8 +14,9 @@
 # limitations under the License.
 #
 
+from enum import Enum
 
-class ServicesTypes:
+class ServicesTypes(str, Enum): # TODO: resolve plural in names
     """
     All known service types.
 
