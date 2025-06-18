@@ -143,25 +143,27 @@ class Characteristic:
             return
 
         if "value" in kwargs:
-            self._value = kwargs["value"]
+            self.value = kwargs["value"]
             return
 
+        # if no value, try to set default based on constraints
+
         if self.valid_values:
-            self._value = self.valid_values[0]
+            self.value = self.valid_values[0]
             return
 
         if self.format:
-            self._value = DEFAULT_FOR_TYPE.get(self.format, None)
+            self.value = DEFAULT_FOR_TYPE.get(self.format, None)
 
         if self.minValue:
-            if not self._value:
-                self._value = self.minValue
-            self._value = max(self._value, self.minValue)
+            if self.value is None:
+                self.value = self.minValue
+            self.value = max(self.value, self.minValue) # ensure value is within range
 
         if self.maxValue:
-            if not self._value:
-                self._value = self.maxValue
-            self._value = min(self._value, self.maxValue)
+            if self.value is None:
+                self.value = self.maxValue
+            self.value = min(self.value, self.maxValue) # ensure value is within range
 
     def _get_configuration(
         self,
@@ -219,6 +221,10 @@ class Characteristic:
 
         If the characteristic is an enum, returns the enum value
         """
+
+        if self._value is None:
+            return None
+
         if not (extra_data := characteristics.get(self.type_str)):
             return self._value
 

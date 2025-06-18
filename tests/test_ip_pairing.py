@@ -186,7 +186,7 @@ async def test_put_characteristics_callbacks(pairing: IpPairing):
     events = []
 
     def process_new_events(
-        new_values_dict: Response
+        id, new_values_dict: Response
     ):
         events.append(new_values_dict)
 
@@ -269,7 +269,7 @@ async def test_receiving_events(pairings):
     event_value = None
     ev = asyncio.Event()
 
-    def handler(data):
+    def handler(id, data):
         print(data)
         nonlocal event_value
         event_value = data

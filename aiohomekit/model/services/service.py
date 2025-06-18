@@ -27,8 +27,9 @@ from aiohomekit.model.characteristics import (
     CharacteristicKeyValue,
     check_convert_value
 )
-from aiohomekit.model.services.data import services
 from aiohomekit.uuid import normalize_uuid
+from .data import services
+from .service_types import ServicesTypes
 
 if TYPE_CHECKING:
     from aiohomekit.model.accessories import Accessory
@@ -250,3 +251,17 @@ class Services:
         self._services.append(service)
         self._iid_to_service[service.iid] = service
         self._type_to_service[service.type] = service
+
+    def pprint(self):
+        from pprint import pprint ; pprint(
+            list(
+                (
+         			ServicesTypes(s.type_str) if s.type_str in ServicesTypes else s.type_str,
+         			list((
+                        c.iid,
+        				CharacteristicsTypes(c.type_str) if c.type_str in CharacteristicsTypes else c.type_str,
+        				c.value
+                    ) for c in s.characteristics)
+          		) for s in self
+      		)
+        )

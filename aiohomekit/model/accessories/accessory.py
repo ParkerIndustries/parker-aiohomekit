@@ -61,21 +61,19 @@ class Accessory:
             )
             for char_data in service_data["characteristics"]:
                 kwargs = dict()
-                keys = {"perms", "format", "description", "min_value", "max_value", "valid_values", "unit", "min_step", "max_len", "handle", "broadcast_events", "disconnected_events"}
+                keys = {"perms", "format", "description", "min_value", "max_value", "valid_values", "unit", "min_step", "max_len", "handle", "broadcast_events", "disconnected_events", "value"}
 
                 for key in keys:
-                    camel_key = ''.join(word.title() for word in key.split('_'))
-                    if value := char_data.get(camel_key):
-                        kwargs[key] = value
+                    camel_key = key.split('_')[0] + ''.join(word.title() for word in key.split('_')[1:])
+                    if camel_key in char_data:
+                        kwargs[key] = char_data[camel_key]
 
                 assert "type" in char_data, f"Characteristic type is missing in {char_data}"
                 assert "iid" in char_data, f"Characteristic iid is missing in {char_data}"
 
-                char = service.add_char(
+                service.add_char(
                     normalize_uuid(char_data["type"]), iid=char_data["iid"], **kwargs
                 )
-                if value := char_data.get("value"):
-                    char.set_value(value)
 
         for service_data in data["services"]:
             for linked_service in service_data.get("linked", []):

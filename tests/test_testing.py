@@ -1,6 +1,6 @@
 from unittest import mock
 
-from aiohomekit.model.accessories import Accessories, Accessory
+from aiohomekit.model.accessories import Accessories, Accessory, AccessoriesState
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 from aiohomekit.protocol.statuscodes import HapStatusCode
@@ -18,11 +18,12 @@ async def test_pairing():
     pairing = controller.pairings[pairing_data['AccessoryPairingID']]
 
     chars_and_services = await pairing.fetch_accessories_and_characteristics()
-    assert isinstance(chars_and_services, list)
+    assert isinstance(chars_and_services, AccessoriesState)
 
 
 async def test_get_and_set():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
+
     controller = FakeController()
     device = controller.add_device(accessories)
 
@@ -82,7 +83,6 @@ async def test_put_failure():
 
 async def test_update_named_service_events():
     accessories = Accessories.from_file("tests/fixtures/koogeek_ls1.json")
-    from pprint import pprint ; pprint(accessories.as_dict())
     controller = FakeController()
     pairing_data = await controller.add_paired_device(accessories, "alias")
     pairing = controller.pairings[pairing_data['AccessoryPairingID']]
@@ -123,7 +123,7 @@ async def test_update_named_service_events_manual_accessory(id_factory):
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
 
     assert callback.call_args_list == [
-        mock.call({(accessory.aid, on_char.iid): {"value": 1}})
+        mock.call(pairing.id, {(accessory.aid, on_char.iid): {"value": 1}})
     ]
 
 
@@ -155,7 +155,7 @@ async def test_update_named_service_events_manual_accessory_auto_requires(id_fac
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
 
     assert callback.call_args_list == [
-        mock.call({(accessory.aid, on_char.iid): {"value": 1}})
+        mock.call(pairing.id, {(accessory.aid, on_char.iid): {"value": 1}})
     ]
 
 
@@ -172,7 +172,7 @@ async def test_update_aid_iid_events():
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_aid_iid([(1, 8, True)])
 
-    assert callback.call_args_list == [mock.call({(1, 8): {"value": 1}})]
+    assert callback.call_args_list == [mock.call(pairing.id, {(1, 8): {"value": 1}})]
 
 
 async def test_events_are_filtered():

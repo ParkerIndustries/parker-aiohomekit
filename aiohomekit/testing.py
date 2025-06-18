@@ -129,7 +129,7 @@ class PairingTester:
             for service in accessory.services:
                 service_map = {}
                 # id = uuid4().hex
-                self.services[id] = service_map # fallback for services without names
+                # self.services[id] = service_map # fallback for services without names
                 for char in service.characteristics:
                     self.characteristics[(accessory.aid, char.iid)] = char
                     service_map[char.type] = char
