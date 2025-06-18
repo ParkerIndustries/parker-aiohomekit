@@ -14,10 +14,14 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 from enum import Enum
+from uuid import UUID
+from typing import Self
+from aiohomekit.uuid import normalize_uuid
 
 
-class CharacteristicsTypes(str, Enum): # TODO: uuid propery
+class CharacteristicsTypes(str, Enum): # TODO: make both UUID and str comparable
     """
     All known characteristic types.
 
@@ -27,6 +31,22 @@ class CharacteristicsTypes(str, Enum): # TODO: uuid propery
     * Some are "self documenting" (the name appears in the API endpoints)
     * Some are documented in open source
     """
+
+    def uuid(self) -> UUID: # TODO: use
+        return UUID(self.value)
+
+    @classmethod
+    def get(cls, value: UUID | str) -> Self | UUID:
+        uuid = normalize_uuid(value)
+        str_value = str(uuid).upper()
+        if str_value in cls:
+            return cls(value)
+        return uuid
+
+    # def __eq__(self, other: CharacteristicsTypes | UUID | str) -> bool:
+    #     if not isinstance(other, (CharacteristicsTypes, UUID, str)):
+    #         return NotImplemented
+    #     return self.uuid == normalize_uuid(other)
 
     ACCESSORY_IDENTIFIER = "00000057-0000-1000-8000-0026BB765291"
     ACCESSORY_PROPERTIES = "000000A6-0000-1000-8000-0026BB765291"

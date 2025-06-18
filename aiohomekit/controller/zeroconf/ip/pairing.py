@@ -418,7 +418,7 @@ class IpPairing(ZeroconfPairing):
         await self.fetch_accessories_and_characteristics()
 
         # we are looking for a characteristic of the identify type
-        identify_type = UUID(CharacteristicsTypes.IDENTIFY)
+        identify_type = CharacteristicsTypes.IDENTIFY.uuid
 
         # search all accessories, all services and all characteristics
         logger.debug("Searching for identify characteristic in %s", self.accessories_state.accessories)
@@ -467,7 +467,7 @@ class IpPairing(ZeroconfPairing):
         return True
 
     @override
-    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
+    async def remove_pairing(self, controller_id: str | None = None) -> bool:
         """
         :param pairingId: the pairing id of the controller (ios device) to be removed
         :raises AuthenticationError: if the controller isn't authenticated to the accessory.
@@ -476,13 +476,12 @@ class IpPairing(ZeroconfPairing):
         """
         await self._ensure_connected()
 
-        if pairingId is None:
-            pairingId = self.pairing_data["iOSDeviceId"]
+        controller_id = controller_id or self.pairing_data["iOSDeviceId"]
 
         request_tlv = [
             (TLV.kTLVType_State, TLV.M1),
             (TLV.kTLVType_Method, TLV.RemovePairing),
-            (TLV.kTLVType_Identifier, str(pairingId).encode("utf-8")),
+            (TLV.kTLVType_Identifier, str(controller_id).encode("utf-8")),
         ]
 
         data = dict(await self.connection.post_tlv("/pairings", request_tlv)) # TODO: all endpoints to enum
@@ -495,7 +494,7 @@ class IpPairing(ZeroconfPairing):
                 raise AuthenticationError("Remove pairing failed: insufficient access")
             raise UnknownError("Remove pairing failed: unknown error")
 
-        await self._shutdown_if_primary_pairing_removed(pairingId)
+        await self._shutdown_if_primary_pairing_removed(controller_id)
         return True
 
     async def image(self, accessory: int, width: int, height: int) -> bytearray | None:

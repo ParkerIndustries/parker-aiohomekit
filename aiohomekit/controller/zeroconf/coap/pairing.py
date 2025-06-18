@@ -224,10 +224,10 @@ class CoAPPairing(ZeroconfPairing):
             "controllerType": x[2] & 0x01 and "admin" or "regular"
         }) for x in pairing_tuples]
 
-    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
+    async def remove_pairing(self, controller_id: str | None = None) -> bool:
         await self._ensure_connected()
-        pairingId = pairingId or self.pairing_data["AccessoryPairingID"]
-        if await self.connection.remove_pairing(pairingId):
-            await self._shutdown_if_primary_pairing_removed(pairingId)
+        controller_id = controller_id or self.pairing_data["iOSDeviceId"]
+        if await self.connection.remove_pairing(controller_id):
+            await self._shutdown_if_primary_pairing_removed(controller_id)
             return True
         return False

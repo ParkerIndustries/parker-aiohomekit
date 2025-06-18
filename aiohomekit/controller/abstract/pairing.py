@@ -109,7 +109,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
-    async def remove_pairing(self, pairing_id: HKDeviceID | None = None) -> bool:
+    async def remove_pairing(self, controller_id: str | None = None) -> bool:
         """Remove an accessory pairing to some controller (not necessarily this one).
         returns: True if the pairing was removed, False if not.
         """
@@ -340,8 +340,8 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._accessories_state.config_num = config_num
         self._callback_config_changed(self.config_num)
 
-    async def _shutdown_if_primary_pairing_removed(self, pairingId: HKDeviceID):
-        if pairingId == self.pairing_data["iOSDeviceId"]:
+    async def _shutdown_if_primary_pairing_removed(self, controller_id: str):
+        if controller_id == self.pairing_data["iOSDeviceId"]:
             await self.shutdown()
 
     def update_pairing_data(self, pairing_data: PairingData):

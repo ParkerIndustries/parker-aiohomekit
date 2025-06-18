@@ -28,6 +28,7 @@ from aiohomekit.protocol.tlv import TLV, TlvParseException
 from aiohomekit.tlv8 import tlv_array
 from aiohomekit.uuid import normalize_uuid
 
+from .characteristic_types import CharacteristicsTypes
 from .characteristic_formats import CharacteristicFormats
 from .data import characteristics
 from .permissions import CharacteristicPermissions
@@ -360,6 +361,15 @@ class Characteristic:
             d["broadcast_events"] = self.broadcast_events
         return d
 
+    def pprint(self, hidden: bool = False, width: int = 30):
+        view = (
+            self.iid,
+			CharacteristicsTypes.get(self.type),
+			self.value
+        )
+        if not hidden:
+            from pprint import pprint ; pprint(view, width=width)
+        return view
 
 def check_convert_value(val: str, char: Characteristic) -> Literal[0, 1] | int | float | TLV | bytes | str:
     """
@@ -454,7 +464,7 @@ class Characteristics:
         self._iid_to_characteristic[char.iid] = char
 
     def filter(
-        self, char_types: Iterable[UUID] | None = None
+        self, char_types: Iterable[UUID | str] | None = None
     ) -> Iterator[Characteristic]:
         matches = iter(self)
 
@@ -464,7 +474,7 @@ class Characteristics:
 
         return matches
 
-    def first(self, char_types: Iterable[UUID] | None = None) -> Characteristic:
+    def first(self, char_types: Iterable[UUID | str] | None = None) -> Characteristic:
         return next(self.filter(char_types=char_types))
 
     def __iter__(self) -> Iterator[Characteristic]:

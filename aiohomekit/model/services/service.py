@@ -77,9 +77,9 @@ class Service:
     def type_str(self) -> str:
         return str(self.type).upper()
 
-    def has(self, char_type: UUID) -> bool:
+    def has(self, char_type: UUID | str) -> bool:
         """Return True if the service has a characteristic."""
-        return char_type in self.characteristics_by_type
+        return normalize_uuid(char_type) in self.characteristics_by_type
 
     def value(self, char_type: UUID | str, default_value: Any | None = None) -> Any:
         """Return the value of a characteristic."""
@@ -148,6 +148,12 @@ class Service:
     def available(self) -> bool:
         """Return True if all characteristics are available."""
         return all(c.available for c in self.characteristics)
+
+    def pprint(self, hidden: bool = False, width: int = 30): # TODO: use in repr
+        view = list(c.pprint(hidden=True, width=width) for c in self.characteristics)
+        if not hidden:
+            from pprint import pprint ; pprint(view, width=width)
+        return view
 
 class Services:
     """Represents a list of HomeKit services."""
@@ -252,16 +258,13 @@ class Services:
         self._iid_to_service[service.iid] = service
         self._type_to_service[service.type] = service
 
-    def pprint(self):
-        from pprint import pprint ; pprint(
-            list(
-                (
-         			ServicesTypes(s.type_str) if s.type_str in ServicesTypes else s.type_str,
-         			list((
-                        c.iid,
-        				CharacteristicsTypes(c.type_str) if c.type_str in CharacteristicsTypes else c.type_str,
-        				c.value
-                    ) for c in s.characteristics)
-          		) for s in self
-      		)
-        )
+    def pprint(self, hidden: bool = False, width: int = 30):
+        view = list(
+            (
+     			ServicesTypes(s.type_str) if s.type_str in ServicesTypes else s.type_str,
+     			s.pprint(hidden=True, width=width)
+      		) for s in self
+  		)
+        if not hidden:
+            from pprint import pprint ; pprint(view, width=width)
+        return view

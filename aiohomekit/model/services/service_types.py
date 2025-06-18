@@ -14,7 +14,11 @@
 # limitations under the License.
 #
 
+from __future__ import annotations
 from enum import Enum
+from uuid import UUID
+from typing import Self
+from aiohomekit.uuid import normalize_uuid
 
 class ServicesTypes(str, Enum): # TODO: resolve plural in names
     """
@@ -26,6 +30,17 @@ class ServicesTypes(str, Enum): # TODO: resolve plural in names
     * Some are "self documenting" (the name appears in the API endpoints)
     * Some are documented in open source
     """
+
+    def uuid(self) -> UUID: # TODO: use
+        return UUID(self.value)
+
+    @classmethod
+    def get(cls, value: UUID | str) -> Self | UUID:
+        uuid = normalize_uuid(value)
+        str_value = str(uuid).upper()
+        if str_value in cls:
+            return cls(value)
+        return uuid
 
     ACCESSORY_INFORMATION = "0000003E-0000-1000-8000-0026BB765291"
     ACCESSORY_METRICS = "00000270-0000-1000-8000-0026BB765291"

@@ -97,10 +97,9 @@ class AbstractController[
 
         pairing = self.pairings.pop(pairing_id)
 
-        for cleanup in self._pairing_cleanups[pairing_id]:
-            cleanup()
+        self._cleanup_pairing(pairing_id)
 
-        await pairing.remove_pairing(pairing_id)
+        await pairing.remove_pairing()
         await self.char_cache_storage.delete(pairing_id)
         await self.pairing_data_storage.delete(pairing_id)
 
@@ -163,10 +162,12 @@ class AbstractController[
         return self.Discovery(discovery_info, self._on_pairing)
 
     def _stop_observing(self):
-        for unsubscribes in self._pairing_cleanups.values():
-            for unsubscribe in unsubscribes:
-                unsubscribe()
-        self._pairing_cleanups.clear()
+        for pairing_id in self._pairing_cleanups.copy().keys():
+            self._cleanup_pairing(pairing_id)
+
+    def _cleanup_pairing(self, pairing_id: HKDeviceID):
+        for cleanup in self._pairing_cleanups.pop(pairing_id):
+            cleanup()
 
     # Context Manager
 

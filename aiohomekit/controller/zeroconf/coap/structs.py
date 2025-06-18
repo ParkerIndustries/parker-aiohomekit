@@ -21,6 +21,7 @@ from typing import Any, Optional, Union
 
 from aiohomekit.protocol.tlv import HAP_TLV
 from aiohomekit.tlv8 import TLVStruct, tlv_entry, u16, u128
+from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
 
 
 @dataclass
@@ -297,7 +298,7 @@ class Pdu09Service(TLVStruct):
 
     def find_characteristic_by_type(self, characteristic_type):
         for characteristic in self.characteristics:
-            if characteristic.type == characteristic_type:
+            if characteristic.type == CharacteristicsTypes.get(characteristic_type):
                 return characteristic
         return None
 

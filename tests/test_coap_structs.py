@@ -249,11 +249,8 @@ def test_coap_pdu09_decode_1():
 def test_coap_pdu09_decode_2():
     info = Pdu09Database.decode(database_schlage_encode_plus)
     accessory = Accessory.create_from_dict(info.to_dict()[0])
-    import json
 
-    print(accessory.as_dict())
-    print(json.dumps(accessory.as_dict()))
-    assert accessory.as_dict() == {
+    target_dict = {
         "aid": 1,
         "services": [
             {
@@ -1036,3 +1033,6 @@ def test_coap_pdu09_decode_2():
             },
         ],
     }
+
+    assert accessory.as_dict() == target_dict
+    # assert accessory.as_dict().items() >= target_dict.items()

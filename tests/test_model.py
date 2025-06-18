@@ -16,7 +16,6 @@
 
 import base64
 
-from uuid import UUID
 from aiohomekit.model.accessories import Accessories
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.characteristics.const import (
@@ -54,6 +53,7 @@ def test_hue_bridge():
     assert a.firmware_revision == "45.1.17846"
 
     service = a.services.first(service_type=ServicesTypes.ACCESSORY_INFORMATION)
+    assert service is not None
 
     char = next(iter(service.characteristics))
     assert char.iid == 37
@@ -142,6 +142,7 @@ def test_get_by_iid():
         service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
         characteristics={CharacteristicsTypes.NAME: name},
     )
+    assert service is not None
     assert service.get_char_by_iid(588410716196) is char
     assert accessory.services.iid_or_none(service.iid) is service
     assert accessory.services.iid_or_none(9999) is None
@@ -155,9 +156,8 @@ def test_get_by_vendor_characteristic_types():
     service = a.services.first(
         service_type=ServicesTypes.HUMIDIFIER_DEHUMIDIFIER,
     )
-
-    found = service.has(CharacteristicsTypes.VENDOR_VOCOLINC_HUMIDIFIER_SPRAY_LEVEL)
-    assert found is True
+    assert service
+    assert service.has(CharacteristicsTypes.VENDOR_VOCOLINC_HUMIDIFIER_SPRAY_LEVEL)
 
     char = service.characteristics.first(
         char_types=[CharacteristicsTypes.VENDOR_VOCOLINC_HUMIDIFIER_SPRAY_LEVEL]
@@ -172,9 +172,8 @@ def test_get_by_service_type_is_normalized():
     service = a.services.first(
         service_type=ServicesTypes.HUMIDIFIER_DEHUMIDIFIER.lower(),
     )
-
-    found = service.has(CharacteristicsTypes.VENDOR_VOCOLINC_HUMIDIFIER_SPRAY_LEVEL)
-    assert found is True
+    assert service
+    assert service.has(CharacteristicsTypes.VENDOR_VOCOLINC_HUMIDIFIER_SPRAY_LEVEL)
 
 
 def test_get_by_linked():
@@ -187,29 +186,9 @@ def test_get_by_linked():
     )
     assert switch is not None
 
-    # TODO: remove
-
-    linked = list(
-        ServicesTypes(s.type_str) for s in switch.linked
-    )
-
-    linked_filter = list(
-        ServicesTypes(s.type_str) for s in a.services.filter(parent_service=switch)
-    )
-
-    all = list(
-        ServicesTypes(s.type_str) for s in a.services
-    )
-
-    print('ALL LINKED:',
-        len(all), all,
-        len(linked), linked,
-        len(linked_filter), linked_filter,
-    )
     service_label = a.services.first(parent_service=switch)
     assert service_label is not None
-    assert service_label.type_str == ServicesTypes.SERVICE_LABEL, (ServicesTypes(service_label.type_str), ServicesTypes.SERVICE_LABEL)
-    # print(list(CharacteristicsTypes(str(c.type).upper()) for c in service_label.characteristics._characteristics)) # TODO: remove
+    assert service_label.type_str == ServicesTypes.SERVICE_LABEL, (ServicesTypes.get(service_label.type), ServicesTypes.SERVICE_LABEL)
     assert service_label[CharacteristicsTypes.SERVICE_LABEL_NAMESPACE].value == 1
 
     switch = a.services.first(

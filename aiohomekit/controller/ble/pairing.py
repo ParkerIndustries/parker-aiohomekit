@@ -1739,14 +1739,14 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error(attempts=10)
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def remove_pairing(self, pairingId: HKDeviceID | None = None) -> bool:
-        pairingId = pairingId or self.pairing_data["iOSDeviceId"]
+    async def remove_pairing(self, controller_id: str | None = None) -> bool:
+        controller_id = controller_id or self.pairing_data["iOSDeviceId"]
 
         request_tlv = TLV.encode_list(
             [
                 (TLV.kTLVType_State, TLV.M1),
                 (TLV.kTLVType_Method, TLV.RemovePairing),
-                (TLV.kTLVType_Identifier, pairingId.encode("utf-8")),
+                (TLV.kTLVType_Identifier, controller_id.encode("utf-8")),
             ]
         )
 
@@ -1782,7 +1782,7 @@ class BlePairing(AbstractPairing):
                 )
             raise UnknownError(f"{self.name}: Remove pairing failed: unknown error")
 
-        await self._shutdown_if_primary_pairing_removed(pairingId)
+        await self._shutdown_if_primary_pairing_removed(controller_id)
         return True
 
     async def image(self, accessory: int, width: int, height: int):

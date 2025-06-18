@@ -65,8 +65,11 @@ class Accessory:
 
                 for key in keys:
                     camel_key = key.split('_')[0] + ''.join(word.title() for word in key.split('_')[1:])
+                    kebab_key = key.replace('_', '-')
                     if camel_key in char_data:
                         kwargs[key] = char_data[camel_key]
+                    elif kebab_key in char_data:
+                        kwargs[key] = char_data[kebab_key]
 
                 assert "type" in char_data, f"Characteristic type is missing in {char_data}"
                 assert "iid" in char_data, f"Characteristic iid is missing in {char_data}"
@@ -144,7 +147,7 @@ class Accessory:
         """
         for s in self.services:
             for c in s.characteristics:
-                if c.type in NEEDS_POLLINGS_CHARS:
+                if c.type_str in NEEDS_POLLINGS_CHARS:
                     return True
         return False
 
