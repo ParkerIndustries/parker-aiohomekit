@@ -57,7 +57,7 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
     @classmethod
     def from_service_info(cls, service: AsyncServiceInfo) -> Self:
         if not (addresses := service.ip_addresses_by_version(IPVersion.All)):
-            raise ValueError("Invalid HomeKit Zeroconf record: Missing address")
+            raise ValueError("Invalid HomeKit Zeroconf record: Missing address") # <- here
 
         address: str | None = None
         #
@@ -83,7 +83,7 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
         if "id" not in props:
             raise ValueError("Invalid HomeKit Zeroconf record: Missing device ID")
 
-        return cls( # NOTE: looks important
+        return cls(
             id=props["id"].lower(),
             name=service.name.removesuffix(f".{service.type}"),
             model=props.get("md", ""),

@@ -92,7 +92,7 @@ def test_linked_services():
 
     service = a.services.first(service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH)
     assert len(service.linked) > 0
-    assert service.linked[0].type == "000000CC-0000-1000-8000-0026BB765291"
+    assert service.linked[0].type_str == "000000CC-0000-1000-8000-0026BB765291"
 
 
 def test_get_by_name():
@@ -116,6 +116,7 @@ def test_get_by_characteristic_types():
         service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
         characteristics={CharacteristicsTypes.NAME: name},
     )
+    assert service is not None
 
     char = service.characteristics.first(char_types=[CharacteristicsTypes.NAME])
 

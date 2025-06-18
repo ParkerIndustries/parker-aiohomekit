@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import override, Coroutine, Any
+from typing import override, Coroutine, Any, cast
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import AsyncIterable
 from enum import Enum, auto
 
 from zeroconf import Zeroconf, ServiceStateChange, current_time_millis, BadTypeInNameException
-from zeroconf._dns import DNSRecord
+from zeroconf._dns import DNSPointer
 from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser, AsyncServiceInfo
 
 from aiohomekit.controller.abstract import (
@@ -15,7 +15,7 @@ from aiohomekit.controller.abstract import (
     AbstractDiscovery,
     AbstractPairing,
 )
-from aiohomekit.exceptions import AccessoryNotFoundError, TransportNotSupportedError
+from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 from aiohomekit.utils import async_create_task
@@ -82,6 +82,7 @@ class ZeroconfController[
 
     @override
     async def find(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> Discovery | None:
+        device_id = device_id.lower()
 
         if discovery := self._discoveries.get(device_id):
             return discovery
@@ -89,7 +90,7 @@ class ZeroconfController[
         waiters = self._waiters.setdefault(device_id, [])
         waiter = self._loop.create_future()
         waiters.append(waiter)
-        cancel_timeout = self._loop.call_later(timeout_sec, self._on_timeout, waiter)
+        cancel_timeout = self._loop.call_later(timeout_sec, self._on_timeout, waiter) # NOTE: asyncio.wait_for might be a better choice here
 
         try:
             if discovery := await waiter:
@@ -130,12 +131,14 @@ class ZeroconfController[
 
     # Private methods
 
-    async def _load_zeroconf_from_cache(self, zc: Zeroconf):
+    async def _load_zeroconf_from_cache(self, zc: Zeroconf | None = None):
+        zc = zc or self._async_zeroconf_instance.zeroconf
         tasks: list[Coroutine[Any, Any, None]] = []
         now = current_time_millis()
-        for record in self._async_get_ptr_records(zc):
+        for record in self._get_ptr_records(zc):
             try:
-                info = AsyncServiceInfo(self._hap_type, record.name)
+                info = AsyncServiceInfo(self._hap_type, record.alias) # record.name was used before, restore in case of issues
+                # In ptr, `name` is the same as `type` (e.g. _hap._tcp.local.), and `alias` is the fully qualified name (e.g. foo._hap._tcp.local.)
             except BadTypeInNameException as ex:
                 logger.debug(
                     "Ignoring record with bad type in name: %s: %s", record.name, ex
@@ -149,9 +152,9 @@ class ZeroconfController[
         if tasks:
             await asyncio.gather(*tasks)
 
-    def _async_get_ptr_records(self, zc: Zeroconf) -> list[DNSRecord]:
+    def _get_ptr_records(self, zc: Zeroconf) -> list[DNSPointer]:
         """Return all PTR records for the HAP type."""
-        return zc.cache.get_all_by_details(self._hap_type, TYPE_PTR, CLASS_IN)
+        return cast(list[DNSPointer], zc.cache.get_all_by_details(self._hap_type, TYPE_PTR, CLASS_IN))
 
     def _zeroconf_did_discover_service(
         self,
@@ -201,7 +204,7 @@ class ZeroconfController[
     async def _handle_discovery_service(self, info: AsyncServiceInfo):
         """Handle a device that became visible via zeroconf."""
         # AsyncServiceInfo already tries 3x
-        await info.request(self._async_zeroconf_instance.zeroconf, _TIMEOUT_MS)
+        await info.async_request(self._async_zeroconf_instance.zeroconf, _TIMEOUT_MS)
         self._handle_loaded_discovery_info(info)
 
     def _handle_loaded_discovery_info(self, info: AsyncServiceInfo):

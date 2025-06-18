@@ -453,6 +453,7 @@ class Characteristics:
         matches = iter(self)
 
         if char_types:
+            char_types = [normalize_uuid(type) for type in char_types]
             matches = filter(lambda char: char.type in char_types, matches)
 
         return matches

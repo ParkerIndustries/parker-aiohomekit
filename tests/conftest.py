@@ -8,9 +8,12 @@ import threading
 import pathlib
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Optional, Iterable
+import contextlib
 
 import pytest
-from zeroconf import DNSCache, SignalRegistrationInterface
+from zeroconf import DNSQuestionType, Zeroconf, DNSCache, SignalRegistrationInterface
+from zeroconf.asyncio import AsyncServiceInfo, AsyncZeroconf
 
 from aiohomekit.controller.relay import Controller
 from aiohomekit.controller.zeroconf.ip import IpPairing
@@ -21,6 +24,11 @@ from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMem
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageFile, PairingDataStorageMemory
 
 from tests.accessoryserver import AccessoryServer
+
+HAP_TYPE_TCP = "_hap._tcp.local."
+HAP_TYPE_UDP = "_hap._udp.local."
+TYPE_PTR = 12
+CLASS_IN = 1
 
 
 def _get_test_socket() -> socket.socket:
@@ -66,13 +74,63 @@ class AsyncServiceBrowserStub:
         self._handlers = []
         self.service_state_changed = SignalRegistrationInterface(self._handlers)
 
+class MockedAsyncServiceInfo(AsyncServiceInfo):
+
+    async def async_request(
+        self,
+        zc: "Zeroconf",
+        timeout: float,
+        question_type: Optional[DNSQuestionType] = None,
+        addr: Optional[str] = None,
+        port: Optional[int] = None
+    ) -> bool:
+        success = self.load_from_cache(zc)
+        assert success, f"Failed to load service info from cache {self.type=}, {self.name=}"
+        return success
+
+def _get_mock_service_info():
+    desc = {
+        b"c#": b"1",
+        b"id": b"00:00:01:00:00:02",
+        b"md": b"unittest",
+        b"s#": b"1",
+        b"ci": b"5",
+        b"sf": b"0",
+    }
+    return MockedAsyncServiceInfo(
+        HAP_TYPE_TCP,
+        f"foo.{HAP_TYPE_TCP}",
+        addresses=[socket.inet_aton("127.0.0.1")],
+        port=1234,
+        properties=desc,
+        weight=0,
+        priority=0,
+    )
+
+
+@contextlib.contextmanager
+def _install_mock_service_info(
+    mock_asynczeroconf: AsyncZeroconf, info: MockedAsyncServiceInfo
+) -> Iterable:
+    zeroconf: Zeroconf = mock_asynczeroconf.zeroconf
+
+    zeroconf.cache.async_add_records(
+        [*info.dns_addresses(), info.dns_pointer(), info.dns_service(), info.dns_text()]
+    )
+
+    assert (
+        zeroconf.cache.get_all_by_details(HAP_TYPE_TCP, TYPE_PTR, CLASS_IN) is not None
+    )
+
+    yield
 
 @pytest.fixture
 def mock_asynczeroconf():
     """Mock zeroconf."""
 
-    with patch("zeroconf.asyncio.AsyncServiceBrowser", AsyncServiceBrowserStub):
-        with patch("zeroconf.asyncio.AsyncZeroconf") as mock_zc:
+    with patch("zeroconf.asyncio.AsyncServiceBrowser", AsyncServiceBrowserStub), \
+        patch("zeroconf.asyncio.AsyncZeroconf") as mock_zc, \
+        patch("aiohomekit.controller.zeroconf.controller.AsyncServiceInfo", MockedAsyncServiceInfo): # patch where it’s used, not where it’s from, because the class is already imported in the module
             zc = mock_zc.return_value
             zc.register_service = AsyncMock()
             zc.async_close = AsyncMock()
@@ -81,12 +139,15 @@ def mock_asynczeroconf():
             zeroconf.async_wait_for_start = AsyncMock()
             zeroconf.listeners = [AsyncServiceBrowserStub()]
             zc.zeroconf = zeroconf
+            # with _install_mock_service_info(
+            #     zc, _get_mock_service_info()
+            # ):
             yield zc
 
 
 @pytest.fixture
 async def controller_and_unpaired_accessory(
-    request, mock_asynczeroconf, event_loop, id_factory
+    request, mock_asynczeroconf, id_factory
 ):
     available_port = next_available_port()
 
@@ -117,7 +178,7 @@ async def controller_and_unpaired_accessory(
     lightBulbService.add_char(CharacteristicsTypes.ON, value=False)
     httpd.add_accessory(accessory)
 
-    t = threading.Thread(target=httpd.serve_forever)
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
 
     await wait_for_server_online(available_port)
@@ -143,7 +204,7 @@ async def controller_and_unpaired_accessory(
 
 @pytest.fixture
 async def controller_and_paired_accessory(
-    request, event_loop, mock_asynczeroconf, id_factory
+    request, mock_asynczeroconf, id_factory
 ):
     available_port = next_available_port()
 
@@ -180,7 +241,7 @@ async def controller_and_paired_accessory(
     lightBulbService.add_char(CharacteristicsTypes.ON, value=False)
     httpd.add_accessory(accessory)
 
-    t = threading.Thread(target=httpd.serve_forever)
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
 
     await wait_for_server_online(available_port)
@@ -238,7 +299,7 @@ async def pairing(controller_and_paired_accessory):
 
 
 @pytest.fixture
-async def pairings(request, controller_and_paired_accessory, event_loop):
+async def pairings(request, controller_and_paired_accessory):
     """Returns a pairing of pairngs."""
     left = next(iter(controller_and_paired_accessory.pairings.values()))  # TODO: check
 
