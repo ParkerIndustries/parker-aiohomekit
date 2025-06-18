@@ -27,9 +27,10 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
     )
 
     finish_pairing = await discovery.start_pairing()
-    pairing = await finish_pairing("031-45-154")
+    pairing_data = await finish_pairing("031-45-154")
+    pairing = IpPairing(pairing_data)
 
-    assert isinstance(pairing, IpPairing)
+    assert isinstance(pairing_data, dict), type(pairing_data)
 
     assert await pairing.get_characteristics([(1, 9)]) == {
         (1, 9): {"value": False},

@@ -15,7 +15,7 @@
 #
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import struct
 from typing import Any, Optional, Union
 
@@ -27,8 +27,8 @@ from aiohomekit.model.characteristics.characteristic_types import Characteristic
 @dataclass
 class Pdu09Characteristic(TLVStruct):
     # raw value
-    _value: bytes = field(init=False, default=None)
-
+    # _value: bytes = field(init=False, default=None) # old
+    _value: bytes = tlv_entry(HAP_TLV.kTLVHAPParamValue)
     type: u128 = tlv_entry(HAP_TLV.kTLVHAPParamCharacteristicType)
     instance_id: u16 = tlv_entry(HAP_TLV.kTLVHAPParamCharacteristicInstanceId)
     # permission bits
@@ -146,7 +146,7 @@ class Pdu09Characteristic(TLVStruct):
 
     @property
     def value(self):
-        if not self._value:
+        if self._value is None:
             return None
         return self._unpack_value(self._value)
 
@@ -298,23 +298,19 @@ class Pdu09Service(TLVStruct):
 
     def find_characteristic_by_type(self, characteristic_type):
         for characteristic in self.characteristics:
-            if characteristic.type == CharacteristicsTypes.get(characteristic_type):
+            if characteristic.type == characteristic_type: # CharacteristicsTypes.get(characteristic_type):
                 return characteristic
         return None
 
     def to_dict(self):
-        res = {
+        return {
             "type": f"{self.type:X}",
             "iid": self.instance_id,
             "characteristics": [
                 characteristic.to_dict() for characteristic in self.characteristics
             ],
+            "linked": self.linked_services or [],
         }
-
-        if self.linked_services:
-            res["linked"] = self.linked_services
-
-        return res
 
 
 @dataclass

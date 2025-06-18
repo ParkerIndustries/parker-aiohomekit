@@ -41,7 +41,7 @@ def shorten_uuid(value: str | UUID) -> str:
 
 
 @lru_cache(maxsize=1024)
-def normalize_uuid(value: str | UUID) -> UUID:
+def normalize_uuid(value: int | str | UUID) -> UUID:
     """
     Returns a normalized UUID.
 
@@ -51,7 +51,11 @@ def normalize_uuid(value: str | UUID) -> UUID:
     if isinstance(value, UUID):
         return value
 
-    value = value.upper()
+    if isinstance(value, int):
+        value = str(value)
+
+    if isinstance(value, str):
+        value = value.upper()
 
     if len(value) <= 8:
         prefix = "0" * (8 - len(value))

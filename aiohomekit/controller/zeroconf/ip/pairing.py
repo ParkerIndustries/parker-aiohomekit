@@ -429,8 +429,12 @@ class IpPairing(ZeroconfPairing):
                     iid = characteristic.iid
                     if characteristic.type == identify_type:
                         # found the identify characteristic, so let's put a value there
-                        if not await self.put_characteristics([CharacteristicKeyValue(aid, iid, True)]):
+                        response = await self.put_characteristics([CharacteristicKeyValue(aid, iid, True)])
+                        if not response: # no errors
                             return True
+                        logger.info("Failed to set identify characteristic %s", response)
+        else:
+            raise RuntimeError("No identify characteristic found")
         return False
 
     async def add_pairing(

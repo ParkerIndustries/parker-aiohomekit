@@ -46,7 +46,8 @@ def test_decode_wemo_stage():
         )
     )
 
-    assert db.to_dict() == [
+
+    target_dict = [
         {
             "aid": 1,
             "services": [
@@ -320,6 +321,12 @@ def test_decode_wemo_stage():
         }
     ]
 
+    for accessory in target_dict:
+        for service in accessory['services']:
+            service["linked"] = service.get("linked", [])
+
+    assert db.to_dict() == target_dict
+
 
 def test_decode_eve_energy():
     db = Pdu09Database.decode(
@@ -359,10 +366,7 @@ def test_decode_eve_energy():
         )
     )
 
-    print(db)
-    print(db.to_dict())
-
-    assert db.to_dict() == [
+    target_dict = [
         {
             "aid": 1,
             "services": [
@@ -637,3 +641,9 @@ def test_decode_eve_energy():
             ],
         }
     ]
+
+    for accessory in target_dict:
+        for service in accessory['services']:
+            service["linked"] = service.get("linked", [])
+
+    assert db.to_dict() == target_dict

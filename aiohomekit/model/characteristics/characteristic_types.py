@@ -32,6 +32,7 @@ class CharacteristicsTypes(str, Enum): # TODO: make both UUID and str comparable
     * Some are documented in open source
     """
 
+    @property
     def uuid(self) -> UUID: # TODO: use
         return UUID(self.value)
 
