@@ -36,9 +36,10 @@ _TIMEOUT_MS = 3000
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass(slots=True)
 class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
-    '''HomeKit Zeroconf discovery information.'''
+    """HomeKit Zeroconf discovery information."""
 
     zc_type: str
     model: str
@@ -52,7 +53,9 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
     @classmethod
     def from_service_info(cls, service: AsyncServiceInfo) -> Self:
         if not (addresses := service.ip_addresses_by_version(IPVersion.All)):
-            raise ValueError("Invalid HomeKit Zeroconf record: Missing address") # <- here
+            raise ValueError(
+                "Invalid HomeKit Zeroconf record: Missing address"
+            )  # <- here
 
         address: str | None = None
         #
@@ -93,6 +96,7 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
             addresses=valid_addresses,
             port=service.port or 0,
         )
+
 
 class EmptyZeroconfServiceListener(ServiceListener):
 

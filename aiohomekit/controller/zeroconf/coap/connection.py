@@ -672,12 +672,12 @@ class CoAPHomeKitConnection:
         m2_state = list(filter(lambda x: x[0] == TLV.kTLVType_State, m2))
         if len(m2_state) != 1 or m2_state[0][1] != TLV.M2:
             logger.debug("Unexpected state in list pairings M2")
-            return # TODO: raise
+            return  # TODO: raise
 
         m2_error = list(filter(lambda x: x[0] == TLV.kTLVType_Error, m2))
         if len(m2_error) != 0:
             logger.debug(f"Error from accessory during list pairings: {m2_error[0][1]}")
-            return # TODO: raise
+            return  # TODO: raise
 
         id_list = [
             pairing_tuple[1]

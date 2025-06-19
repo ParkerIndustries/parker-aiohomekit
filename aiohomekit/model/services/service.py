@@ -150,11 +150,14 @@ class Service:
         """Return True if all characteristics are available."""
         return all(c.available for c in self.characteristics)
 
-    def pprint(self, hidden: bool = False, width: int = 30): # TODO: use in repr
+    def pprint(self, hidden: bool = False, width: int = 30):  # TODO: use in repr
         view = list(c.pprint(hidden=True, width=width) for c in self.characteristics)
         if not hidden:
-            from pprint import pprint ; pprint(view, width=width)
+            from pprint import pprint
+
+            pprint(view, width=width)
         return view
+
 
 class Services:
     """Represents a list of HomeKit services."""
@@ -190,37 +193,45 @@ class Services:
     def filter(
         self,
         *,
-        service_type: UUID | str | None  = None,
-        characteristics: dict[str | UUID, str] | None  = None,
-        parent_service: Service | None  = None,
-        child_service: Service | None  = None,
+        service_type: UUID | str | None = None,
+        characteristics: dict[str | UUID, str] | None = None,
+        parent_service: Service | None = None,
+        child_service: Service | None = None,
         order_by: list[str] | None = None,
     ) -> Iterator[Service]:
         """Filter services by type and characteristics."""
         matches = iter(self._services)
 
         if service_type:
-            matches = filter(lambda service: service.type == normalize_uuid(service_type), matches)
+            matches = filter(
+                lambda service: service.type == normalize_uuid(service_type), matches
+            )
 
         if characteristics:
             for characteristic, value in characteristics.items():
                 matches = filter(
-                    lambda service: service.value(normalize_uuid(characteristic)) == value, matches
+                    lambda service: service.value(normalize_uuid(characteristic))
+                    == value,
+                    matches,
                 )
 
         if parent_service:
-            matches = filter(lambda service: service in parent_service.linked, matches) # TODO: check, consider return iter(parent_service.linked)
+            matches = filter(
+                lambda service: service in parent_service.linked, matches
+            )  # TODO: check, consider return iter(parent_service.linked)
 
         if child_service:
             matches = filter(lambda service: child_service in service.linked, matches)
 
         if order_by:
-            matches = iter(sorted(
-                matches,
-                key=lambda service: tuple(
-                    service.value(UUID(char_type)) for char_type in order_by
-                ),
-            ))
+            matches = iter(
+                sorted(
+                    matches,
+                    key=lambda service: tuple(
+                        service.value(UUID(char_type)) for char_type in order_by
+                    ),
+                )
+            )
 
         return matches
 
@@ -228,9 +239,9 @@ class Services:
         self,
         *,
         service_type: UUID | str | None = None,
-        characteristics: dict[str | UUID, str] | None  = None,
-        parent_service: Service | None  = None,
-        child_service: Service | None  = None,
+        characteristics: dict[str | UUID, str] | None = None,
+        parent_service: Service | None = None,
+        child_service: Service | None = None,
     ) -> Service | None:
         """Get the first service."""
         if (
@@ -262,10 +273,17 @@ class Services:
     def pprint(self, hidden: bool = False, width: int = 30):
         view = list(
             (
-     			ServicesTypes(s.type_str) if s.type_str in ServicesTypes else s.type_str,
-     			s.pprint(hidden=True, width=width)
-      		) for s in self
-  		)
+                (
+                    ServicesTypes(s.type_str)
+                    if s.type_str in ServicesTypes
+                    else s.type_str
+                ),
+                s.pprint(hidden=True, width=width),
+            )
+            for s in self
+        )
         if not hidden:
-            from pprint import pprint ; pprint(view, width=width)
+            from pprint import pprint
+
+            pprint(view, width=width)
         return view

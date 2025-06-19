@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 #     async def delete(self) -> None: ...
 
+
 class DictStorageProtocol[ID, StorageLayoutItem](Protocol):
 
     async def get_all(self) -> dict[ID, StorageLayoutItem]: ...
@@ -28,7 +29,9 @@ class DictStorageProtocol[ID, StorageLayoutItem](Protocol):
 
     async def delete(self, id: ID) -> None: ...
 
+
 # MARK: - Generic Implementations
+
 
 class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
 
@@ -52,8 +55,11 @@ class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
         if id in self._storage_data:
             self._storage_data.pop(id)
 
-class DictStorageFile[ID, StorageLayoutItem](DictStorageMemory): # TODO: Codable protocol
-    '''ID and StorageLayoutItem must be JSON serializable and supported by aiohomekit.hkjson'''
+
+class DictStorageFile[ID, StorageLayoutItem](
+    DictStorageMemory
+):  # TODO: Codable protocol
+    """ID and StorageLayoutItem must be JSON serializable and supported by aiohomekit.hkjson"""
 
     def __init__(self, location: pathlib.Path):
         """Create a new entity map store."""
@@ -72,13 +78,13 @@ class DictStorageFile[ID, StorageLayoutItem](DictStorageMemory): # TODO: Codable
                 # print('CLI | Loaded characteristics: ', self.storage_data)
             except hkjson.JSON_DECODE_EXCEPTIONS as e:
                 print(e)
-                self._do_save() # write a correct empty schema to replace the corrupted cache
+                self._do_save()  # write a correct empty schema to replace the corrupted cache
                 logger.debug(
                     f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
                 )
             except (UnexpectedToken, TypeError, KeyError) as e:
                 print(e)
-                self._do_save() # write a correct schema to replace the corrupted cache
+                self._do_save()  # write a correct schema to replace the corrupted cache
                 logger.debug(
                     f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
                 )

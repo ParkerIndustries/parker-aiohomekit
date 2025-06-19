@@ -46,12 +46,12 @@ logger = logging.getLogger(__name__)
 
 
 class CoAPPairing(ZeroconfPairing):
-    def __init__(
-        self, pairing_data: PairingData
-    ):
+    def __init__(self, pairing_data: PairingData):
         super().__init__(pairing_data)
         self.connection = CoAPHomeKitConnection(
-            self, pairing_data["AccessoryIP"], pairing_data["AccessoryPort"] # TODO: generic DiscoveryInfo for zeroconf?
+            self,
+            pairing_data["AccessoryIP"],
+            pairing_data["AccessoryPort"],  # TODO: generic DiscoveryInfo for zeroconf?
         )
         self.connection_future = None
         self.connection_lock = asyncio.Condition()
@@ -124,7 +124,10 @@ class CoAPPairing(ZeroconfPairing):
             if len(self._observed_characteristics):
                 logger.debug(
                     "(Re-)subscribing to %d characteristics: %r"
-                    % (len(self._observed_characteristics), self._observed_characteristics)
+                    % (
+                        len(self._observed_characteristics),
+                        self._observed_characteristics,
+                    )
                 )
                 await self.connection.subscribe_to(list(self._observed_characteristics))
             self._callback_availability_changed(True)
@@ -175,7 +178,7 @@ class CoAPPairing(ZeroconfPairing):
         include_meta: bool = False,
         include_perms: bool = False,
         include_type: bool = False,
-        include_events: bool = False
+        include_events: bool = False,
     ) -> Response:
         await self._ensure_connected()
         return await self.connection.read_characteristics(characteristics)
@@ -226,12 +229,17 @@ class CoAPPairing(ZeroconfPairing):
     async def list_pairings(self) -> list[AccessoryPairings]:
         await self._ensure_connected()
         pairing_tuples = await self.connection.list_pairings()
-        return [AccessoryPairings({
-            "pairingId": x[0].decode(),
-            "publicKey": x[1].hex(),
-            "permissions": x[2],
-            "controllerType": x[2] & 0x01 and "admin" or "regular"
-        }) for x in pairing_tuples]
+        return [
+            AccessoryPairings(
+                {
+                    "pairingId": x[0].decode(),
+                    "publicKey": x[1].hex(),
+                    "permissions": x[2],
+                    "controllerType": x[2] & 0x01 and "admin" or "regular",
+                }
+            )
+            for x in pairing_tuples
+        ]
 
     async def remove_pairing(self, controller_id: str | None = None) -> bool:
         await self._ensure_connected()

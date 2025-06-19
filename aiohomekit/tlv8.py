@@ -44,7 +44,9 @@ def get_origin(tp):
     get_origin(int) == None
     get_origin(Sequence[int]) == collections.abc.Sequence
     """
-    if isinstance(tp, _GenericAlias): # TODO: check what's this. Can't find _GenericAlias
+    if isinstance(
+        tp, _GenericAlias
+    ):  # TODO: check what's this. Can't find _GenericAlias
         return tp.__origin__ if tp.__origin__ is not ClassVar else None
     if tp is Generic:
         return Generic

@@ -33,12 +33,9 @@ class IpTransport(str, Enum):
     TCP = auto()
     UDP = auto()
 
-class ZeroconfController[
-    Discovery: AbstractDiscovery,
-    Pairing: AbstractPairing
-](
-    AbstractController[ZeroconfDiscoveryInfo, Discovery, Pairing],
-    ABC
+
+class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing](
+    AbstractController[ZeroconfDiscoveryInfo, Discovery, Pairing], ABC
 ):
     """
     Base class for HAP protocols that rely on Zeroconf discovery.
@@ -70,10 +67,16 @@ class ZeroconfController[
 
         if browser := self._find_broswer_for_hap_type(self._hap_type):
             self._browser = browser
-            self._browser.service_state_changed.register_handler(self._zeroconf_did_discover_service)
+            self._browser.service_state_changed.register_handler(
+                self._zeroconf_did_discover_service
+            )
         else:
             self._browser = AsyncServiceBrowser(
-                self._async_zeroconf_instance.zeroconf, [self._hap_type,], handlers=[self._zeroconf_did_discover_service]
+                self._async_zeroconf_instance.zeroconf,
+                [
+                    self._hap_type,
+                ],
+                handlers=[self._zeroconf_did_discover_service],
             )
 
         await self._load_zeroconf_from_cache(zc)
@@ -82,13 +85,17 @@ class ZeroconfController[
     async def stop(self):
         await super().stop()
         self._running = False
-        self._browser.service_state_changed.unregister_handler(self._zeroconf_did_discover_service)
+        self._browser.service_state_changed.unregister_handler(
+            self._zeroconf_did_discover_service
+        )
         while self._resolve_later_queue:
             _, cancel = self._resolve_later_queue.popitem()
             cancel.cancel()
 
     @override
-    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> Discovery | None:
+    async def find(
+        self, device_id: HKDeviceID, timeout_sec: float = 10.0
+    ) -> Discovery | None:
         device_id = device_id.lower()
 
         if discovery := self._discoveries.get(device_id):
@@ -97,7 +104,9 @@ class ZeroconfController[
         waiters = self._waiters.setdefault(device_id, [])
         waiter = self._loop.create_future()
         waiters.append(waiter)
-        cancel_timeout = self._loop.call_later(timeout_sec, self._on_timeout, waiter) # NOTE: asyncio.wait_for might be a better choice here
+        cancel_timeout = self._loop.call_later(
+            timeout_sec, self._on_timeout, waiter
+        )  # NOTE: asyncio.wait_for might be a better choice here
 
         try:
             if discovery := await waiter:
@@ -110,7 +119,9 @@ class ZeroconfController[
             cancel_timeout.cancel()
 
     @override
-    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> bool:
+    async def is_reachable(
+        self, device_id: HKDeviceID, timeout_sec: float = 10.0
+    ) -> bool:
         """Check if a device is reachable.
 
         This method will return True if the device is reachable, False if it is not.
@@ -144,7 +155,9 @@ class ZeroconfController[
         now = current_time_millis()
         for record in self._get_ptr_records(zc):
             try:
-                info = AsyncServiceInfo(self._hap_type, record.alias) # record.name was used before, restore in case of issues
+                info = AsyncServiceInfo(
+                    self._hap_type, record.alias
+                )  # record.name was used before, restore in case of issues
                 # In ptr, `name` is the same as `type` (e.g. _hap._tcp.local.), and `alias` is the fully qualified name (e.g. foo._hap._tcp.local.)
             except BadTypeInNameException as ex:
                 logger.debug(
@@ -161,7 +174,10 @@ class ZeroconfController[
 
     def _get_ptr_records(self, zc: Zeroconf) -> list[DNSPointer]:
         """Return all PTR records for the HAP type."""
-        return cast(list[DNSPointer], zc.cache.get_all_by_details(self._hap_type, TYPE_PTR, CLASS_IN))
+        return cast(
+            list[DNSPointer],
+            zc.cache.get_all_by_details(self._hap_type, TYPE_PTR, CLASS_IN),
+        )
 
     def _zeroconf_did_discover_service(
         self,
@@ -229,7 +245,9 @@ class ZeroconfController[
                 description
             )
 
-        discovery = self._discoveries[description.id] = self._make_discovery(description)
+        discovery = self._discoveries[description.id] = self._make_discovery(
+            description
+        )
 
         if pairing := self.pairings.get(description.id):
             logger.debug(

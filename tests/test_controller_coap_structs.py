@@ -46,7 +46,6 @@ def test_decode_wemo_stage():
         )
     )
 
-
     target_dict = [
         {
             "aid": 1,
@@ -322,7 +321,7 @@ def test_decode_wemo_stage():
     ]
 
     for accessory in target_dict:
-        for service in accessory['services']:
+        for service in accessory["services"]:
             service["linked"] = service.get("linked", [])
 
     assert db.to_dict() == target_dict
@@ -643,7 +642,7 @@ def test_decode_eve_energy():
     ]
 
     for accessory in target_dict:
-        for service in accessory['services']:
+        for service in accessory["services"]:
             service["linked"] = service.get("linked", [])
 
     assert db.to_dict() == target_dict

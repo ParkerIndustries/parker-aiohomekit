@@ -23,7 +23,7 @@ from uuid import UUID
 from aiohomekit.uuid import normalize_uuid
 
 
-class ServicesTypes(str, Enum): # TODO: resolve plural in names
+class ServicesTypes(str, Enum):  # TODO: resolve plural in names
     """
     All known service types.
 
@@ -34,7 +34,7 @@ class ServicesTypes(str, Enum): # TODO: resolve plural in names
     * Some are documented in open source
     """
 
-    def uuid(self) -> UUID: # TODO: use
+    def uuid(self) -> UUID:  # TODO: use
         return UUID(self.value)
 
     @classmethod

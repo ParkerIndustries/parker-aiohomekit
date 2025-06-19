@@ -50,7 +50,9 @@ class Accessory:
         accessory_info.add_char(CharacteristicsTypes.NAME, value=name)
         accessory_info.add_char(CharacteristicsTypes.MANUFACTURER, value=manufacturer)
         accessory_info.add_char(CharacteristicsTypes.MODEL, value=model)
-        accessory_info.add_char(CharacteristicsTypes.FIRMWARE_REVISION, value=firmware_revision)
+        accessory_info.add_char(
+            CharacteristicsTypes.FIRMWARE_REVISION, value=firmware_revision
+        )
         accessory_info.add_char(CharacteristicsTypes.SERIAL_NUMBER, value=serial_number)
 
         return self
@@ -66,18 +68,38 @@ class Accessory:
             )
             for char_data in service_data["characteristics"]:
                 kwargs = dict()
-                keys = {"perms", "format", "description", "min_value", "max_value", "valid_values", "unit", "min_step", "max_len", "handle", "broadcast_events", "disconnected_events", "value"}
+                keys = {
+                    "perms",
+                    "format",
+                    "description",
+                    "min_value",
+                    "max_value",
+                    "valid_values",
+                    "unit",
+                    "min_step",
+                    "max_len",
+                    "handle",
+                    "broadcast_events",
+                    "disconnected_events",
+                    "value",
+                }
 
                 for key in keys:
-                    camel_key = key.split('_')[0] + ''.join(word.title() for word in key.split('_')[1:])
-                    kebab_key = key.replace('_', '-')
+                    camel_key = key.split("_")[0] + "".join(
+                        word.title() for word in key.split("_")[1:]
+                    )
+                    kebab_key = key.replace("_", "-")
                     if camel_key in char_data:
                         kwargs[key] = char_data[camel_key]
                     elif kebab_key in char_data:
                         kwargs[key] = char_data[kebab_key]
 
-                assert "type" in char_data, f"Characteristic type is missing in {char_data}"
-                assert "iid" in char_data, f"Characteristic iid is missing in {char_data}"
+                assert (
+                    "type" in char_data
+                ), f"Characteristic type is missing in {char_data}"
+                assert (
+                    "iid" in char_data
+                ), f"Characteristic iid is missing in {char_data}"
 
                 service.add_char(
                     normalize_uuid(char_data["type"]), iid=char_data["iid"], **kwargs
@@ -101,7 +123,9 @@ class Accessory:
             self._accessory_information = self.services.first(
                 service_type=ServicesTypes.ACCESSORY_INFORMATION
             )
-        assert self._accessory_information is not None, 'No ACCESSORY_INFORMATION service found'
+        assert (
+            self._accessory_information is not None
+        ), "No ACCESSORY_INFORMATION service found"
         return self._accessory_information
 
     @property

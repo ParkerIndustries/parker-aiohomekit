@@ -188,7 +188,10 @@ def test_get_by_linked():
 
     service_label = a.services.first(parent_service=switch)
     assert service_label is not None
-    assert service_label.type_str == ServicesTypes.SERVICE_LABEL, (ServicesTypes.get(service_label.type), ServicesTypes.SERVICE_LABEL)
+    assert service_label.type_str == ServicesTypes.SERVICE_LABEL, (
+        ServicesTypes.get(service_label.type),
+        ServicesTypes.SERVICE_LABEL,
+    )
     assert service_label[CharacteristicsTypes.SERVICE_LABEL_NAMESPACE].value == 1
 
     switch = a.services.first(
@@ -197,16 +200,24 @@ def test_get_by_linked():
         child_service=service_label,
     )
 
-    assert switch and switch[CharacteristicsTypes.NAME].value == "Hue dimmer switch button 3"
+    assert (
+        switch
+        and switch[CharacteristicsTypes.NAME].value == "Hue dimmer switch button 3"
+    )
 
 
 def test_order_by():
     a = Accessories.from_file("tests/fixtures/hue_bridge.json").aid(6623462389072572)
 
-    buttons = list(a.services.filter(
-        service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
-        order_by=[CharacteristicsTypes.SERVICE_LABEL_INDEX, CharacteristicsTypes.NAME],
-    ))
+    buttons = list(
+        a.services.filter(
+            service_type=ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
+            order_by=[
+                CharacteristicsTypes.SERVICE_LABEL_INDEX,
+                CharacteristicsTypes.NAME,
+            ],
+        )
+    )
 
     assert buttons[0].value(CharacteristicsTypes.SERVICE_LABEL_INDEX) == 1
     assert buttons[1].value(CharacteristicsTypes.SERVICE_LABEL_INDEX) == 2
@@ -337,7 +348,7 @@ def test_build_update_minStep_clamping_ecobee():
 def test_build_update_minStep_clamping_synthetic():
     a = Accessories.from_file("tests/fixtures/synthetic_float_minstep.json")
 
-    assertions = [ # TODO: parametrize
+    assertions = [  # TODO: parametrize
         # minStep 1
         (1, 27.2, 27.5),
         (1, 27.6, 27.5),

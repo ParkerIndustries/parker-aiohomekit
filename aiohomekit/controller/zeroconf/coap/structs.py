@@ -298,7 +298,9 @@ class Pdu09Service(TLVStruct):
 
     def find_characteristic_by_type(self, characteristic_type):
         for characteristic in self.characteristics:
-            if characteristic.type == characteristic_type: # CharacteristicsTypes.get(characteristic_type):
+            if (
+                characteristic.type == characteristic_type
+            ):  # CharacteristicsTypes.get(characteristic_type):
                 return characteristic
         return None
 

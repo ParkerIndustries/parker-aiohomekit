@@ -41,6 +41,7 @@ from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 
 type DiscoveryCallback = GenericDiscoveryCallback[AbstractController, AbstractDiscovery]
 
+
 class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     """
     This class represents a HomeKit controller (normally your iPhone or iPad).
@@ -60,10 +61,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         :param pairing_data_storage: optional storage for pairing data
         """
         super().__init__(
-            AbstractDiscovery,
-            AbstractPairing,
-            char_cache,
-            pairing_data_storage
+            AbstractDiscovery, AbstractPairing, char_cache, pairing_data_storage
         )
 
         self._zeroconf_instance = zeroconf_instance
@@ -74,7 +72,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     @property
     def transport_type(self) -> TransportType:
         # return {TransportType.IP, TransportType.COAP, TransportType.BLE} # TODO: make this prop a set?
-        raise NotImplementedError('Relay Controller does not have a transport type, it is a combination of all transports')
+        raise NotImplementedError(
+            "Relay Controller does not have a transport type, it is a combination of all transports"
+        )
 
     @override
     async def start(self):
@@ -102,7 +102,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                 CoAPController(
                     self.char_cache_storage,
                     self.pairing_data_storage,
-                    self._zeroconf_instance ,
+                    self._zeroconf_instance,
                 )
             )
 
@@ -120,14 +120,16 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             )
 
     async def _register_backend(self, controller: AbstractController):
-        self._transports[controller.transport_type] = await self._tasks.enter_async_context(controller)
+        self._transports[controller.transport_type] = (
+            await self._tasks.enter_async_context(controller)
+        )
 
     # Properties override to avoid duplicate storage
 
     @property
     @override
     def _pairings(self) -> dict[HKDeviceID, AbstractPairing]:
-        '''Returns all pairings from all transports'''
+        """Returns all pairings from all transports"""
         pairings = {}
         for transport in self._transports.values():
             pairings.update(transport.pairings)
@@ -135,13 +137,13 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @_pairings.setter
     @override
-    def _pairings(self, value: dict[HKDeviceID, AbstractPairing]): # type: ignore[override]
-        pass # do nothing, pairings are managed by transports
+    def _pairings(self, value: dict[HKDeviceID, AbstractPairing]):  # type: ignore[override]
+        pass  # do nothing, pairings are managed by transports
 
     @property
     @override
     def _discoveries(self) -> dict[HKDeviceID, AbstractDiscovery]:
-        '''Returns all discoveries from all transports'''
+        """Returns all discoveries from all transports"""
         discoveries = {}
         for transport in self._transports.values():
             discoveries.update(transport._discoveries)
@@ -149,8 +151,8 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @_discoveries.setter
     @override
-    def _discoveries(self, value: dict[HKDeviceID, AbstractDiscovery]): # type: ignore[override]
-        pass # do nothing, discoveries are managed by transports
+    def _discoveries(self, value: dict[HKDeviceID, AbstractDiscovery]):  # type: ignore[override]
+        pass  # do nothing, discoveries are managed by transports
 
     # Methods
 
@@ -159,20 +161,24 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         await self._tasks.aclose()
 
     @override
-    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool:
+    async def is_reachable(
+        self, device_id: HKDeviceID, timeout_sec: float = 10
+    ) -> bool:
         try:
             for transport in self._transports.values():
-                if await transport.is_reachable(device_id, timeout_sec): # parallel?
+                if await transport.is_reachable(device_id, timeout_sec):  # parallel?
                     return True
             return False
         except Exception:
             return False
 
     @override
-    async def discover(self, timeout_sec: float = 10) -> AsyncIterable[AbstractDiscovery]:
+    async def discover(
+        self, timeout_sec: float = 10
+    ) -> AsyncIterable[AbstractDiscovery]:
         # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
-        '''Returns already discovered and cached devices'''
-        for transport in self._transports.values(): # TODO: parallel?
+        """Returns already discovered and cached devices"""
+        for transport in self._transports.values():  # TODO: parallel?
             async for device in transport.discover(timeout_sec):
                 yield device
 
@@ -184,7 +190,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     @override
     def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
         if pairing_data["Connection"] in self._transports:
-            if pairing := self._transports[pairing_data["Connection"]].load_pairing(pairing_data):
+            if pairing := self._transports[pairing_data["Connection"]].load_pairing(
+                pairing_data
+            ):
                 return pairing
 
     @override
@@ -192,17 +200,19 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         for transport in self._transports.values():
             if pairing_id in transport.pairings:
                 return await transport.remove_pairing(pairing_id)
-        raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found in any transport.')
+        raise AccessoryNotFoundError(
+            f'Pairing "{pairing_id}" is not found in any transport.'
+        )
 
     @override
-    async def find(self, device_id: HKDeviceID, timeout_sec: float = 30.0) -> AbstractDiscovery:
+    async def find(
+        self, device_id: HKDeviceID, timeout_sec: float = 30.0
+    ) -> AbstractDiscovery:
 
         pending = []
 
         for transport in self._transports.values():
-            pending.append(
-                asyncio.create_task(transport.find(device_id, timeout_sec))
-            )
+            pending.append(asyncio.create_task(transport.find(device_id, timeout_sec)))
 
         try:
             while pending:

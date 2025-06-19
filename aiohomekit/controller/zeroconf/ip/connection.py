@@ -59,6 +59,7 @@ logger = logging.getLogger(__name__)
 class ConnectionReady(Exception):
     """Raised when a connection is ready to be retried."""
 
+
 class AccessoryDescription(Protocol):
 
     @property
@@ -67,11 +68,12 @@ class AccessoryDescription(Protocol):
     @property
     def port(self) -> int: ...
 
+
 class ConnectionDelegate(Protocol):
 
     @property
     def description(self) -> Optional[AccessoryDescription]:
-        '''Required information to connect to the accessory.'''
+        """Required information to connect to the accessory."""
         pass
 
     def event_received(self, event: dict[str, Any]):
@@ -81,6 +83,7 @@ class ConnectionDelegate(Protocol):
     async def connection_made(self, is_secure: bool):
         """Called when a connection has been established."""
         pass
+
 
 class InsecureHomeKitProtocol(asyncio.Protocol):
     """An asyncio.Protocol implementation for HomeKit connections."""
@@ -184,9 +187,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
 class SecureHomeKitProtocol(InsecureHomeKitProtocol):
     """An asyncio.Protocol implementation for secure HomeKit connections."""
 
-    def __init__(
-        self, connection: HomeKitConnection, a2c_key: bytes, c2a_key: bytes
-    ):
+    def __init__(self, connection: HomeKitConnection, a2c_key: bytes, c2a_key: bytes):
         super().__init__(connection)
 
         self._incoming_buffer: bytearray = bytearray()
@@ -257,7 +258,11 @@ class SecureHomeKitProtocol(InsecureHomeKitProtocol):
 
 class HomeKitConnection:
     def __init__(
-        self, delegate: ConnectionDelegate, hosts: list[str], port: int, concurrency_limit: int = 1
+        self,
+        delegate: ConnectionDelegate,
+        hosts: list[str],
+        port: int,
+        concurrency_limit: int = 1,
     ):
         self.delegate = delegate
         self.hosts = hosts
@@ -787,6 +792,7 @@ class SecureHomeKitConnection(HomeKitConnection):
 
         if self.delegate:
             await self.delegate.connection_made(True)
+
 
 def _convert_hosts_to_addr_infos(
     hosts: list[str], port: int

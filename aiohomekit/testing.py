@@ -101,7 +101,9 @@ class FakeDiscovery(AbstractDiscovery):
             pairing_data["AccessoryPairingID"] = discovery.description.id
             pairing_data["Connection"] = "Fake"
 
-            self.controller.pairings[discovery.description.id] = FakePairing(pairing_data, self.accessories)
+            self.controller.pairings[discovery.description.id] = FakePairing(
+                pairing_data, self.accessories
+            )
 
             return pairing_data
 
@@ -175,7 +177,8 @@ class PairingTester:
     def set_aid_iid_status(self, aid_iid_statuses: list[tuple[int, int, int]]):
         """Set status for an aid iid pair."""
         event = {
-            CharacteristicKey(aid, iid): {"status": status} for aid, iid, status in aid_iid_statuses
+            CharacteristicKey(aid, iid): {"status": status}
+            for aid, iid, status in aid_iid_statuses
         }
 
         if not event:
@@ -307,7 +310,14 @@ class FakePairing(AbstractPairing):
         self._ensure_connected()
         return self.accessories_state
 
-    async def get_characteristics(self, characteristics, include_meta: bool = False, include_perms: bool = False, include_type: bool = False, include_events: bool = False):
+    async def get_characteristics(
+        self,
+        characteristics,
+        include_meta: bool = False,
+        include_perms: bool = False,
+        include_type: bool = False,
+        include_events: bool = False,
+    ):
         """Fake implementation of get_characteristics."""
         self._ensure_connected()
 
@@ -356,13 +366,12 @@ class FakePairing(AbstractPairing):
 
     async def subscribe_characteristics(
         self, characteristics: Iterable[CharacteristicKey]
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     async def unsubscribe_characteristics(
         self, characteristics: Iterable[CharacteristicKey]
-    ) -> Response:
-        ...
+    ) -> Response: ...
+
 
 class FakeController(AbstractController):
     """
@@ -382,7 +391,12 @@ class FakeController(AbstractController):
     def __init__(
         self, zeroconf_instance=None, char_cache=None, bleak_scanner_instance=None
     ):
-        super().__init__(FakeDiscovery, FakePairing, char_cache or CharacteristicsStorageMemory(), PairingDataStorageMemory())
+        super().__init__(
+            FakeDiscovery,
+            FakePairing,
+            char_cache or CharacteristicsStorageMemory(),
+            PairingDataStorageMemory(),
+        )
 
     def add_device(self, accessories):
         device_id = "00:00:00:00:00:00"

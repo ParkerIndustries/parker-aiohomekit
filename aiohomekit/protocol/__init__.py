@@ -180,7 +180,9 @@ def validate_mfi(session_key, response_tlv):
 
 def perform_pair_setup_part2(
     pin: str, ios_pairing_id: str, salt: bytearray, server_public_key: bytearray
-) -> Generator[tuple[list[tuple[int, bytearray]], list[int]], None, typed_dicts.PairingCredentials]:
+) -> Generator[
+    tuple[list[tuple[int, bytearray]], list[int]], None, typed_dicts.PairingCredentials
+]:
     """
     Performs a pair setup operation as described in chapter 4.7 page 39 ff.
 

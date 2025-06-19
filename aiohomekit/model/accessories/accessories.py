@@ -62,9 +62,7 @@ class Accessories:
         """Return True if the given aid exists."""
         return aid in self._aid_to_accessory
 
-    def process_changes(
-        self, changes: typed_dicts.Response
-    ) -> set[CharacteristicKey]:
+    def process_changes(self, changes: typed_dicts.Response) -> set[CharacteristicKey]:
         """Process changes from a HomeKit controller.
 
         Returns a set of the changes that were applied.

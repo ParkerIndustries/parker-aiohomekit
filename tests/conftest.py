@@ -77,6 +77,7 @@ class AsyncServiceBrowserStub:
         self._handlers = []
         self.service_state_changed = SignalRegistrationInterface(self._handlers)
 
+
 class MockedAsyncServiceInfo(AsyncServiceInfo):
 
     async def async_request(
@@ -85,11 +86,14 @@ class MockedAsyncServiceInfo(AsyncServiceInfo):
         timeout: float,
         question_type: Optional[DNSQuestionType] = None,
         addr: Optional[str] = None,
-        port: Optional[int] = None
+        port: Optional[int] = None,
     ) -> bool:
         success = self.load_from_cache(zc)
-        assert success, f"Failed to load service info from cache {self.type=}, {self.name=}"
+        assert (
+            success
+        ), f"Failed to load service info from cache {self.type=}, {self.name=}"
         return success
+
 
 def _get_mock_service_info():
     desc = {
@@ -127,31 +131,35 @@ def _install_mock_service_info(
 
     yield
 
+
 @pytest.fixture
 def mock_asynczeroconf():
     """Mock zeroconf."""
 
-    with patch("zeroconf.asyncio.AsyncServiceBrowser", AsyncServiceBrowserStub), \
-        patch("zeroconf.asyncio.AsyncZeroconf") as mock_zc, \
-        patch("aiohomekit.controller.zeroconf.controller.AsyncServiceInfo", MockedAsyncServiceInfo): # patch where it’s used, not where it’s from, because the class is already imported in the module
-            zc = mock_zc.return_value
-            zc.register_service = AsyncMock()
-            zc.async_close = AsyncMock()
-            zeroconf = MagicMock(name="zeroconf_mock")
-            zeroconf.cache = DNSCache()
-            zeroconf.async_wait_for_start = AsyncMock()
-            zeroconf.listeners = [AsyncServiceBrowserStub()]
-            zc.zeroconf = zeroconf
-            # with _install_mock_service_info(
-            #     zc, _get_mock_service_info()
-            # ):
-            yield zc
+    with (
+        patch("zeroconf.asyncio.AsyncServiceBrowser", AsyncServiceBrowserStub),
+        patch("zeroconf.asyncio.AsyncZeroconf") as mock_zc,
+        patch(
+            "aiohomekit.controller.zeroconf.controller.AsyncServiceInfo",
+            MockedAsyncServiceInfo,
+        ),
+    ):  # patch where it’s used, not where it’s from, because the class is already imported in the module
+        zc = mock_zc.return_value
+        zc.register_service = AsyncMock()
+        zc.async_close = AsyncMock()
+        zeroconf = MagicMock(name="zeroconf_mock")
+        zeroconf.cache = DNSCache()
+        zeroconf.async_wait_for_start = AsyncMock()
+        zeroconf.listeners = [AsyncServiceBrowserStub()]
+        zc.zeroconf = zeroconf
+        # with _install_mock_service_info(
+        #     zc, _get_mock_service_info()
+        # ):
+        yield zc
 
 
 @pytest.fixture
-async def controller_and_unpaired_accessory(
-    request, mock_asynczeroconf, id_factory
-):
+async def controller_and_unpaired_accessory(request, mock_asynczeroconf, id_factory):
     available_port = next_available_port()
 
     config_file = tempfile.NamedTemporaryFile(delete=False)
@@ -188,7 +196,7 @@ async def controller_and_unpaired_accessory(
 
     controller = Controller(
         char_cache=CharacteristicsStorageMemory(),
-        pairing_data_storage=PairingDataStorageMemory()
+        pairing_data_storage=PairingDataStorageMemory(),
     )
 
     with mock.patch("aiohomekit.__main__.Controller") as c:
@@ -206,9 +214,7 @@ async def controller_and_unpaired_accessory(
 
 
 @pytest.fixture
-async def controller_and_paired_accessory(
-    request, mock_asynczeroconf, id_factory
-):
+async def controller_and_paired_accessory(request, mock_asynczeroconf, id_factory):
     available_port = next_available_port()
 
     config_file = tempfile.NamedTemporaryFile(delete=False)
@@ -270,13 +276,14 @@ async def controller_and_paired_accessory(
 
     controller = Controller(
         char_cache=CharacteristicsStorageMemory(),
-        pairing_data_storage=PairingDataStorageFile(pathlib.Path(controller_file.name))
+        pairing_data_storage=PairingDataStorageFile(pathlib.Path(controller_file.name)),
     )
 
     async with controller:
         config_file.close()
 
         import aiohomekit.__main__ as main_module
+
         main_module.aliases["alias"] = next(iter(controller.pairings.keys()))
 
         with mock.patch("aiohomekit.__main__.Controller") as c:
@@ -296,7 +303,9 @@ async def controller_and_paired_accessory(
 
 @pytest.fixture
 async def pairing(controller_and_paired_accessory):
-    pairing = next(iter(controller_and_paired_accessory.pairings.values()))  # TODO: check
+    pairing = next(
+        iter(controller_and_paired_accessory.pairings.values())
+    )  # TODO: check
     yield pairing
     try:
         await pairing.close()

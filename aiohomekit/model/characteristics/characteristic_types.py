@@ -23,7 +23,7 @@ from uuid import UUID
 from aiohomekit.uuid import normalize_uuid
 
 
-class CharacteristicsTypes(str, Enum): # TODO: make both UUID and str comparable
+class CharacteristicsTypes(str, Enum):  # TODO: make both UUID and str comparable
     """
     All known characteristic types.
 
@@ -35,7 +35,7 @@ class CharacteristicsTypes(str, Enum): # TODO: make both UUID and str comparable
     """
 
     @property
-    def uuid(self) -> UUID: # TODO: use
+    def uuid(self) -> UUID:  # TODO: use
         return UUID(self.value)
 
     @classmethod
@@ -416,6 +416,7 @@ class CharacteristicsTypes(str, Enum): # TODO: make both UUID and str comparable
 
     # r/w, int - 1 for on, 0 for off
     VENDOR_AIRVERSA_SLEEP_MODE = "00000006-5E50-11EC-B400-0A80FF2603DE"
+
 
 NEEDS_POLLINGS_CHARS = {
     CharacteristicsTypes.VENDOR_EVE_ENERGY_WATT,

@@ -146,14 +146,18 @@ class TLV:
     kTLVHAPParamParamReturnResponse = 0x09
 
     @staticmethod
-    def decode_bytes(bs: bytearray | bytes, expected: list[int] | None = None) -> list[list[bytearray]]:
+    def decode_bytes(
+        bs: bytearray | bytes, expected: list[int] | None = None
+    ) -> list[list[bytearray]]:
         return TLV.decode_bytearray(bytearray(bs), expected)
 
     @staticmethod
-    def decode_bytearray(ba: bytearray, expected: list[int] | None = None) -> list[list[bytearray]]:
-        '''
+    def decode_bytearray(
+        ba: bytearray, expected: list[int] | None = None
+    ) -> list[list[bytearray]]:
+        """
         returns: [[key, value],]
-        '''
+        """
         result = []
         # do not influence caller!
         tail = ba.copy()

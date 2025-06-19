@@ -674,7 +674,9 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
                                 cid,
                             ) in self.subscriptions
                         if include_type:
-                            result["characteristics"][-1]["type"] = characteristic.type_str
+                            result["characteristics"][-1][
+                                "type"
+                            ] = characteristic.type_str
                         if perms:
                             result["characteristics"][-1][
                                 "perms"

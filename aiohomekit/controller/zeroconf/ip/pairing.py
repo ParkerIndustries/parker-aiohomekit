@@ -64,9 +64,7 @@ class IpPairing(ZeroconfPairing):
     This represents a paired HomeKit IP accessory.
     """
 
-    def __init__(
-        self, pairing_data: PairingData
-    ):
+    def __init__(self, pairing_data: PairingData):
         """
         Initialize a Pairing by using the data either loaded from file or obtained after calling
         Controller.perform_pairing().
@@ -103,8 +101,7 @@ class IpPairing(ZeroconfPairing):
         host = connection.connected_host or connection.hosts
         return f"[{host}:{connection.port}] (id={self.id})"
 
-    def _process_disconnected_events(self):
-        ...
+    def _process_disconnected_events(self): ...
 
     def event_received(self, event):
         self._callback_characteristic_changed(_format_characteristics_response(event))
@@ -183,7 +180,8 @@ class IpPairing(ZeroconfPairing):
                     characteristic["type"] = UUID(characteristic["type"])
 
         self._accessories_state = AccessoriesState(
-            Accessories.from_list(accessories), self.config_num if self._accessories_state else 0 # TODO: check
+            Accessories.from_list(accessories),
+            self.config_num if self._accessories_state else 0,  # TODO: check
         )
 
         return self._accessories_state
@@ -301,9 +299,12 @@ class IpPairing(ZeroconfPairing):
         for characteristic in characteristics:
             aid, iid, value = characteristic
             char_payload.append({"aid": aid, "iid": iid, "value": value})
-            accessory_chars = self.accessories_state.accessories.aid(aid).characteristics
+            accessory_chars = self.accessories_state.accessories.aid(
+                aid
+            ).characteristics
             char = accessory_chars.iid(iid)
-            if not char: continue
+            if not char:
+                continue
             if CharacteristicPermissions.paired_read in char.perms:
                 listener_update[CharacteristicKey(aid, iid)] = {"value": value}
 
@@ -336,7 +337,9 @@ class IpPairing(ZeroconfPairing):
         """Provision a device with Thread network credentials."""
 
     @override
-    async def subscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
+    async def subscribe_characteristics(
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> Response:
         await super().subscribe_characteristics(set(characteristics))
 
         if not self.supports_subscribe:
@@ -360,7 +363,9 @@ class IpPairing(ZeroconfPairing):
             return {}
 
     @override
-    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
+    async def unsubscribe_characteristics(
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> Response:
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
             await super().unsubscribe_characteristics(characteristics)
@@ -421,7 +426,10 @@ class IpPairing(ZeroconfPairing):
         identify_type = CharacteristicsTypes.IDENTIFY.uuid
 
         # search all accessories, all services and all characteristics
-        logger.debug("Searching for identify characteristic in %s", self.accessories_state.accessories)
+        logger.debug(
+            "Searching for identify characteristic in %s",
+            self.accessories_state.accessories,
+        )
         for accessory in self.accessories_state.accessories:
             aid = accessory.aid
             for service in accessory.services:
@@ -429,10 +437,14 @@ class IpPairing(ZeroconfPairing):
                     iid = characteristic.iid
                     if characteristic.type == identify_type:
                         # found the identify characteristic, so let's put a value there
-                        response = await self.put_characteristics([CharacteristicKeyValue(aid, iid, True)])
-                        if not response: # no errors
+                        response = await self.put_characteristics(
+                            [CharacteristicKeyValue(aid, iid, True)]
+                        )
+                        if not response:  # no errors
                             return True
-                        logger.info("Failed to set identify characteristic %s", response)
+                        logger.info(
+                            "Failed to set identify characteristic %s", response
+                        )
         else:
             raise RuntimeError("No identify characteristic found")
         return False
@@ -488,7 +500,9 @@ class IpPairing(ZeroconfPairing):
             (TLV.kTLVType_Identifier, str(controller_id).encode("utf-8")),
         ]
 
-        data = dict(await self.connection.post_tlv("/pairings", request_tlv)) # TODO: all endpoints to enum
+        data = dict(
+            await self.connection.post_tlv("/pairings", request_tlv)
+        )  # TODO: all endpoints to enum
 
         if data.get(TLV.kTLVType_State, TLV.M2) != TLV.M2:
             raise InvalidError("Unexpected state after removing pairing request")
@@ -508,7 +522,7 @@ class IpPairing(ZeroconfPairing):
             resp = await self.connection.post(
                 "/resource",
                 content_type=HttpContentTypes.JSON,
-                body=hkjson.dump_bytes( # TODO: model
+                body=hkjson.dump_bytes(  # TODO: model
                     {
                         "aid": accessory,
                         "resource-type": "image",
@@ -534,6 +548,7 @@ class IpPairing(ZeroconfPairing):
         super()._endpoint_changed()
         # hasten the process if we are not connected, or are in the process of reconnecting
         self.connection.reconnect_soon()
+
 
 def _format_characteristics_response(data) -> Response:
     tmp = {}

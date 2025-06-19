@@ -31,7 +31,11 @@ class CoAPDiscovery(AbstractDiscovery):
     A discovered CoAP HAP device that is unpaired.
     """
 
-    def __init__(self, description: ZeroconfDiscoveryInfo, pairing_finished_callback: DiscoveryDidFinishPairingCallback):
+    def __init__(
+        self,
+        description: ZeroconfDiscoveryInfo,
+        pairing_finished_callback: DiscoveryDidFinishPairingCallback,
+    ):
         super().__init__(description, pairing_finished_callback)
         self.connection = CoAPHomeKitConnection(
             None, description.address, description.port

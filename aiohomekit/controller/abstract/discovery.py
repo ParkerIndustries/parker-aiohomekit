@@ -10,12 +10,17 @@ from aiohomekit.model.typed_dicts import PairingData
 type FinishPairing = Callable[[str], Awaitable[PairingData]]
 type DiscoveryDidFinishPairingCallback = Callable[[PairingData], None]
 
+
 class AbstractDiscovery[DiscoveryDescription: AbstractDiscoveryInfo](ABC):
 
     description: DiscoveryDescription
     _pairing_finished_callback: DiscoveryDidFinishPairingCallback
 
-    def __init__(self, description: DiscoveryDescription, pairing_finished_callback: DiscoveryDidFinishPairingCallback):
+    def __init__(
+        self,
+        description: DiscoveryDescription,
+        pairing_finished_callback: DiscoveryDidFinishPairingCallback,
+    ):
         self.description = description
         self._pairing_finished_callback = pairing_finished_callback
         self.setup()

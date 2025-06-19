@@ -92,7 +92,9 @@ def encode_pdu(
         yield STRUCT_BB_PACK(0x80, tid) + data[i : i + next_size]
 
 
-def decode_pdu(expected_tid: int, data: bytes | bytearray) -> tuple[PDUStatus, bool, bytes]:
+def decode_pdu(
+    expected_tid: int, data: bytes | bytearray
+) -> tuple[PDUStatus, bool, bytes]:
     control, tid, status = STRUCT_BBB_UNPACK(data[:3])
     status = PDUStatus(status)
 

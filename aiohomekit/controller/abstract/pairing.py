@@ -25,6 +25,7 @@ from aiohomekit.utils import async_create_task
 
 logger = logging.getLogger(__name__)
 
+
 class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     type PairingDataChangeCallback = Callable[[PairingData], None]
@@ -41,12 +42,16 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         # for callbacks, lists are used instead of sets to preserve the order of calls,
         # for example, to call internal observers before external ones
         self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list()
-        self._pairing_data_observers: list[Callable[[HKDeviceID, PairingData], None]] = list()
-        self._config_observers:        list[Callable[[HKDeviceID, int], None]] = list()
-        self._characteristic_observers: list[Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]] = list()
+        self._pairing_data_observers: list[
+            Callable[[HKDeviceID, PairingData], None]
+        ] = list()
+        self._config_observers: list[Callable[[HKDeviceID, int], None]] = list()
+        self._characteristic_observers: list[
+            Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]
+        ] = list()
         self._observed_characteristics: set[CharacteristicKey] = set()
 
-        self._accessories_state: AccessoriesState | None = None # has public read
+        self._accessories_state: AccessoriesState | None = None  # has public read
         self._shutdown = False
 
     # Abstract methods
@@ -104,7 +109,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         """Get characteristics."""
 
     @abstractmethod
-    async def put_characteristics(self, characteristics: Iterable[CharacteristicKeyValue]) -> Response:
+    async def put_characteristics(
+        self, characteristics: Iterable[CharacteristicKeyValue]
+    ) -> Response:
         """Put characteristics."""
 
     @abstractmethod
@@ -114,7 +121,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._observed_characteristics.update(characteristics)
 
     @abstractmethod
-    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
+    async def unsubscribe_characteristics(
+        self, characteristics: Iterable[CharacteristicKey]
+    ) -> Response:
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
@@ -135,10 +144,10 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     @property
     def accessories_state(self) -> AccessoriesState:
-        '''
+        """
         The current state of the accessories.
         raises: AssertionError if the state is not populated, by cache or `fetch_accessories_and_characteristics`
-        '''
+        """
         assert self._accessories_state, "Accessories state is not populated"
         return self._accessories_state
 
@@ -153,7 +162,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     @property
     def name(self) -> str:
-        '''Return the name from discovery description.'''
+        """Return the name from discovery description."""
         if self.description:
             return f"{self.description.name} (id={self.id})"
         return f"(id={self.id})"
@@ -199,11 +208,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self._shutdown = True
         await self.close()
 
-    def process_description_update(
-        self, description: DiscoveryInfo
-    ):
-        '''Called from outside on each discovery'''
-        assert description # TODO: remove
+    def process_description_update(self, description: DiscoveryInfo):
+        """Called from outside on each discovery"""
+        assert description  # TODO: remove
 
         if self._shutdown:
             return
@@ -218,7 +225,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         repopulate_accessories = False
 
-        if description.config_num > (self._accessories_state.config_num if self._accessories_state else 0):
+        if description.config_num > (
+            self._accessories_state.config_num if self._accessories_state else 0
+        ):
             logger.debug(
                 "%s: Config number has changed from %s to %s; char cache invalid",
                 self.name,
@@ -228,8 +237,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
             repopulate_accessories = True
 
         elif (
-            not self.description
-            or description.state_num != self.description.state_num
+            not self.description or description.state_num != self.description.state_num
         ):
             # Only process disconnected events if the config number has
             # not also changed since we will do  a full repopulation

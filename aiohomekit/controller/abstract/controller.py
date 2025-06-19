@@ -17,10 +17,11 @@ logger = logging.getLogger(__name__)
 
 type GenericDiscoveryCallback[S, T] = Callable[[S, T], None]
 
+
 class AbstractController[
-    DiscoveryInfo: AbstractDiscoveryInfo, # TODO: check if this should be inside AbstractDiscovery
+    DiscoveryInfo: AbstractDiscoveryInfo,  # TODO: check if this should be inside AbstractDiscovery
     Discovery: AbstractDiscovery,
-    Pairing: AbstractPairing
+    Pairing: AbstractPairing,
 ](ABC):
 
     type DiscoveryCallback = GenericDiscoveryCallback[Self, Discovery]
@@ -32,11 +33,14 @@ class AbstractController[
     _pairings: dict[HKDeviceID, Pairing]
     _on_discovery_callback: DiscoveryCallback | None = None
 
-    def __init__(self,
-        Discovery: type[Discovery], # anoying workaround for 'typing.TypeVar' object is not callable
+    def __init__(
+        self,
+        Discovery: type[
+            Discovery
+        ],  # anoying workaround for 'typing.TypeVar' object is not callable
         Pairing: type[Pairing],
         char_cache_storage: CharacteristicsStorageProtocol,
-        pairing_data_storage: PairingDataStorageProtocol
+        pairing_data_storage: PairingDataStorageProtocol,
     ):
         self.Discovery = Discovery
         self.Pairing = Pairing
@@ -54,10 +58,14 @@ class AbstractController[
         raise NotImplementedError(self.transport_type)
 
     @abstractmethod
-    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> Discovery | None: ...
+    async def find(
+        self, device_id: HKDeviceID, timeout_sec: float = 10
+    ) -> Discovery | None: ...
 
     @abstractmethod
-    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool: ...
+    async def is_reachable(
+        self, device_id: HKDeviceID, timeout_sec: float = 10
+    ) -> bool: ...
 
     @abstractmethod
     def discover(self, timeout_sec: float = 10) -> AsyncIterable[Discovery]: ...
@@ -66,18 +74,20 @@ class AbstractController[
 
     @final
     @property
-    def pairings(self) -> dict[HKDeviceID, Pairing]: return self._pairings
+    def pairings(self) -> dict[HKDeviceID, Pairing]:
+        return self._pairings
 
     @final
     @property
-    def discoveries(self) -> dict[HKDeviceID, Discovery]: return self._discoveries
+    def discoveries(self) -> dict[HKDeviceID, Discovery]:
+        return self._discoveries
 
     # Implementations
 
     async def identify(self, id: HKDeviceID):
         pairing = self.pairings.get(id)
         if pairing is None:
-            raise AccessoryNotFoundError(f'Pairing with ID {id} not found.')
+            raise AccessoryNotFoundError(f"Pairing with ID {id} not found.")
 
         await pairing.identify()
 
@@ -137,11 +147,11 @@ class AbstractController[
         unsubscribes = []
 
         def _schedule_save_config(id: HKDeviceID, config_num: int):
-            async_create_task(self.char_cache_storage.save(accessory_id, pairing.accessories_state))
+            async_create_task(
+                self.char_cache_storage.save(accessory_id, pairing.accessories_state)
+            )
 
-        unsubscribes.append(
-            pairing.add_observer_for_config(_schedule_save_config)
-        )
+        unsubscribes.append(pairing.add_observer_for_config(_schedule_save_config))
 
         def _schedule_pairing_save(id: HKDeviceID, pairing_data: PairingData):
             async_create_task(self.pairing_data_storage.save(id, pairing_data))
@@ -156,7 +166,11 @@ class AbstractController[
 
     def _on_pairing(self, pairing_data: PairingData):
         self.load_pairing(pairing_data)
-        async_create_task(self.pairing_data_storage.save(pairing_data["AccessoryPairingID"], pairing_data))
+        async_create_task(
+            self.pairing_data_storage.save(
+                pairing_data["AccessoryPairingID"], pairing_data
+            )
+        )
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return self.Discovery(discovery_info, self._on_pairing)

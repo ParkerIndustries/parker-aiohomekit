@@ -35,7 +35,9 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
 
     @override
     def setup(self):
-        self.connection = HomeKitConnection(self, self.description.addresses, self.description.port)
+        self.connection = HomeKitConnection(
+            self, self.description.addresses, self.description.port
+        )
 
     @override
     async def start_pairing(self) -> FinishPairing:
@@ -84,10 +86,9 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
             pairing_data["AccessoryPort"] = self.description.port
             pairing_data["Connection"] = "IP"
 
-
             self._pairing_finished_callback(pairing_data)
 
-            await self.connection.close() # discovery connection is no longer needed, the pairing connection will be used instead
+            await self.connection.close()  # discovery connection is no longer needed, the pairing connection will be used instead
 
             return pairing_data
 
@@ -100,7 +101,7 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
         response = await self.connection.post_json("/identify", {})
 
         if not response:
-            return True # empty response means success (no error)
+            return True  # empty response means success (no error)
 
         code = to_status_code(response["code"])
 
@@ -126,4 +127,4 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
         pass
 
     def event_received(self, event: dict[str, Any]):
-        pass # no events are received during discovery
+        pass  # no events are received during discovery

@@ -49,27 +49,31 @@ DEFAULT_ALIASES_FILE = "aliases.json"
 
 # ALIASES
 
-aliases: dict[str, HKDeviceID] = {} # alias to pairingId
+aliases: dict[str, HKDeviceID] = {}  # alias to pairingId
+
 
 def load_aliases():
     global aliases
     try:
-        with open(DEFAULT_ALIASES_FILE, 'r') as f:
+        with open(DEFAULT_ALIASES_FILE, "r") as f:
             aliases = hkjson.loads(f.read())
     except FileNotFoundError:
         pass
 
+
 def save_aliases():
     global aliases
     try:
-        with open(DEFAULT_ALIASES_FILE, 'w') as f:
+        with open(DEFAULT_ALIASES_FILE, "w") as f:
             f.write(hkjson.dumps(aliases))
     except FileNotFoundError:
         pass
 
+
 load_aliases()
 
 # SHORTCUTS
+
 
 def get_pairing(controller, args):
     if not args.alias and not args.pairing_id:
@@ -81,12 +85,15 @@ def get_pairing(controller, args):
         if args.alias in aliases:
             pairing_id = aliases[args.alias]
         else:
-            raise ValueError(f'"{args.alias}" is no known alias. Known aliases: {aliases}')
+            raise ValueError(
+                f'"{args.alias}" is no known alias. Known aliases: {aliases}'
+            )
 
     if not pairing_id:
         raise ValueError("No known pairing_id provided")
 
     return controller.pairings[pairing_id]
+
 
 def pprint_accessory_state(accessories_state: AccessoriesState):
     for accessory in accessories_state.accessories:
@@ -104,6 +111,7 @@ def pprint_accessory_state(accessories_state: AccessoriesState):
                 desc = characteristic.description
                 print(f"  {aid}.{c_iid}: {value} ({desc}) >{c_type}< [{perms}]")
 
+
 @contextlib.asynccontextmanager
 async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
     # charmap_path = DEFAULT_CHARACTERISTICS_FILE
@@ -113,7 +121,7 @@ async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
     controller = Controller(
         CharacteristicsStorageFile(pathlib.Path(DEFAULT_CHARACTERISTICS_FILE)),
         PairingDataStorageFile(pathlib.Path(DEFAULT_PAIRING_FILE)),
-        zeroconf
+        zeroconf,
     )
 
     async with zeroconf:
@@ -140,7 +148,9 @@ def pin_from_keyboard():
         read_pin = input("Enter device pin (XXX-YY-ZZZ): ")
     return read_pin
 
+
 # HELPERS
+
 
 def setup_logging(level):
     """
@@ -177,9 +187,11 @@ def prepare_string(input_string):
         t=input_string.encode(locale.getpreferredencoding(), errors="replace").decode()
     )
 
+
 #
 # COMMANDS:
 #
+
 
 async def discover(args):
     async with get_controller(args) as controller:
@@ -243,12 +255,13 @@ async def pair(args):
 async def get_accessories(args: Namespace) -> bool:
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         try:
             accessories_state = await pairing.fetch_accessories_and_characteristics()
         except HomeKitException as e:
-            print('HomeKitException', e)
+            print("HomeKitException", e)
             logging.exception("HomeKitException whilst fetching /accessories")
             return False
         except Exception as e:
@@ -268,11 +281,13 @@ async def get_accessories(args: Namespace) -> bool:
 async def get_characteristics(args: Namespace) -> bool:
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         # convert the command line parameters to the required form
         characteristics = [
-            CharacteristicKey(int(c.split(".")[0]), int(c.split(".")[1])) for c in args.characteristics
+            CharacteristicKey(int(c.split(".")[0]), int(c.split(".")[1]))
+            for c in args.characteristics
         ]
 
         # get the data
@@ -298,7 +313,8 @@ async def get_characteristics(args: Namespace) -> bool:
 async def put_characteristics(args: Namespace) -> bool:
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         try:
             characteristics = [
@@ -335,7 +351,8 @@ async def put_characteristics(args: Namespace) -> bool:
 async def identify(args: Namespace) -> bool:
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         try:
             await pairing.identify()
@@ -349,7 +366,8 @@ async def identify(args: Namespace) -> bool:
 async def list_pairings(args: Namespace) -> bool:
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         try:
             pairings = await pairing.list_pairings()
@@ -371,22 +389,26 @@ async def list_pairings(args: Namespace) -> bool:
 
 
 async def remove_pairing(args):
-    '''Unpair the accessory from another controller'''
+    """Unpair the accessory from another controller"""
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         await pairing.remove_pairing(args.controllerPairingId)
 
-        print(f'Pairing between "{args.pairing}" and "{args.controllerPairingId}" was removed.')
+        print(
+            f'Pairing between "{args.pairing}" and "{args.controllerPairingId}" was removed.'
+        )
         return True
 
 
 async def unpair(args):
-    '''Unpair the accessory from us'''
+    """Unpair the accessory from us"""
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         await controller.remove_pairing(args.pairing)
 
@@ -397,11 +419,13 @@ async def unpair(args):
 async def get_events(args):
     async with get_controller(args) as controller:
         pairing = get_pairing(controller, args)
-        if not pairing: return False
+        if not pairing:
+            return False
 
         # convert the command line parameters to the required form
         characteristics = [
-            CharacteristicKey(int(c.split(".")[0]), int(c.split(".")[1])) for c in args.characteristics
+            CharacteristicKey(int(c.split(".")[0]), int(c.split(".")[1]))
+            for c in args.characteristics
         ]
 
         def handler(pairing_id, key_value):
@@ -449,16 +473,22 @@ async def get_events(args):
 
         return True
 
+
 #
 # CLI PARSER SETUP:
 #
+
 
 def setup_parser_for_pairing(parser: ArgumentParser) -> None:
     parser.add_argument(
         "-a", action="store", required=False, dest="alias", help="alias for the pairing"
     )
     parser.add_argument(
-        "-p", action="store", required=False, dest="pairing_id", help="id of the pairing"
+        "-p",
+        action="store",
+        required=False,
+        dest="pairing_id",
+        help="id of the pairing",
     )
 
 
@@ -633,6 +663,7 @@ async def main(argv: list[str] | None = None) -> bool:
         return False
 
     return await args.func(args)
+
 
 def sync_main():
     try:

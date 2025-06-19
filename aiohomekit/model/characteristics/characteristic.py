@@ -110,13 +110,16 @@ class Characteristic:
     def __init__(self, service: Service, characteristic_type: UUID, **kwargs):
         self.parent_service = service
         self.type = normalize_uuid(characteristic_type)
-        self.iid = self._get_configuration(
-            kwargs, "iid", service.accessory.get_next_id()
-        ) or 0
+        self.iid = (
+            self._get_configuration(kwargs, "iid", service.accessory.get_next_id()) or 0
+        )
 
-        self.perms = self._get_configuration(
-            kwargs, "perms", [CharacteristicPermissions.paired_read]
-        ) or []
+        self.perms = (
+            self._get_configuration(
+                kwargs, "perms", [CharacteristicPermissions.paired_read]
+            )
+            or []
+        )
         self.format = self._get_configuration(kwargs, "format", None)
 
         self.ev = None
@@ -159,12 +162,12 @@ class Characteristic:
         if self.minValue:
             if self.value is None:
                 self.value = self.minValue
-            self.value = max(self.value, self.minValue) # ensure value is within range
+            self.value = max(self.value, self.minValue)  # ensure value is within range
 
         if self.maxValue:
             if self.value is None:
                 self.value = self.maxValue
-            self.value = min(self.value, self.maxValue) # ensure value is within range
+            self.value = min(self.value, self.maxValue)  # ensure value is within range
 
     def _get_configuration(
         self,
@@ -362,16 +365,17 @@ class Characteristic:
         return d
 
     def pprint(self, hidden: bool = False, width: int = 30):
-        view = (
-            self.iid,
-			CharacteristicsTypes.get(self.type),
-			self.value
-        )
+        view = (self.iid, CharacteristicsTypes.get(self.type), self.value)
         if not hidden:
-            from pprint import pprint ; pprint(view, width=width)
+            from pprint import pprint
+
+            pprint(view, width=width)
         return view
 
-def check_convert_value(val: str, char: Characteristic) -> Literal[0, 1] | int | float | TLV | bytes | str:
+
+def check_convert_value(
+    val: str, char: Characteristic
+) -> Literal[0, 1] | int | float | TLV | bytes | str:
     """
     Checks if the given value is of the given type or is convertible into the type. If the value is not convertible, a
     HomeKitTypeException is thrown.
@@ -438,11 +442,12 @@ def check_convert_value(val: str, char: Characteristic) -> Literal[0, 1] | int |
     if char.format == CharacteristicFormats.tlv8:
         try:
             tmp_bytes = base64.decodebytes(val.encode())
-            return TLV.decode_bytes(tmp_bytes) # TODO: verify
+            return TLV.decode_bytes(tmp_bytes)  # TODO: verify
         except (binascii.Error, TlvParseException):
             raise FormatError(f'"{val}" is no valid "{char.format}"!')
 
     return val
+
 
 class Characteristics:
     """Represents a collection of characteristics."""

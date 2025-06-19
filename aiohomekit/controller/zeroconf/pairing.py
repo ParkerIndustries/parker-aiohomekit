@@ -6,6 +6,7 @@ from .protocol import ZeroconfDiscoveryInfo
 
 logger = logging.getLogger(__name__)
 
+
 class ZeroconfPairing(AbstractPairing[ZeroconfDiscoveryInfo]):
 
     @override
@@ -39,9 +40,10 @@ class ZeroconfPairing(AbstractPairing[ZeroconfDiscoveryInfo]):
 
     def _endpoint_changed(self):
         """The IP and/or port of the accessory has changed."""
-        if not self.pairing_data or not self.description: return
+        if not self.pairing_data or not self.description:
+            return
 
-        self.pairing_data['AccessoryIP'] = self.description.address
-        self.pairing_data['AccessoryIPs'] = self.description.addresses
+        self.pairing_data["AccessoryIP"] = self.description.address
+        self.pairing_data["AccessoryIPs"] = self.description.addresses
 
         self._callback_pairing_data_changed(self.pairing_data)

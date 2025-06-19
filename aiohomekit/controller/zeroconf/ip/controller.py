@@ -19,7 +19,13 @@ class IpController(ZeroconfController[IpDiscovery, IpPairing]):
         pairing_data_storage: PairingDataStorageProtocol,
         zeroconf_instance: AsyncZeroconf,
     ):
-        super().__init__(IpDiscovery, IpPairing, char_cache_storage, pairing_data_storage, zeroconf_instance)
+        super().__init__(
+            IpDiscovery,
+            IpPairing,
+            char_cache_storage,
+            pairing_data_storage,
+            zeroconf_instance,
+        )
 
     @property
     def transport_type(self) -> TransportType:

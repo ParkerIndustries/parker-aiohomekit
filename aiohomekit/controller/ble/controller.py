@@ -30,6 +30,7 @@ from .discovery import BleDiscovery
 
 logger = logging.getLogger(__name__)
 
+
 class BleController(AbstractController):
 
     def __init__(
@@ -79,16 +80,21 @@ class BleController(AbstractController):
             self._scanner = None
 
     @override
-    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool:
+    async def is_reachable(
+        self, device_id: HKDeviceID, timeout_sec: float = 10
+    ) -> bool:
         """Check if a device is reachable on the network."""
         return bool(
             (discovery := self._discoveries.get(device_id))
             and self._scanner
-            and discovery.device.address in self._scanner.discovered_devices_and_advertisement_data
+            and discovery.device.address
+            in self._scanner.discovered_devices_and_advertisement_data
         )
 
     @override
-    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> BleDiscovery:
+    async def find(
+        self, device_id: HKDeviceID, timeout_sec: float = 10
+    ) -> BleDiscovery:
         if discovery := self._discoveries.get(device_id):
             logger.debug("Discovery for %s already found", device_id)
             return discovery
@@ -124,9 +130,7 @@ class BleController(AbstractController):
         for device in self._discoveries.values():
             yield device
 
-    def load_pairing(
-        self, pairing_data: PairingData
-    ) -> BlePairing | None:
+    def load_pairing(self, pairing_data: PairingData) -> BlePairing | None:
         if pairing_data["Connection"] != "BLE":
             return None
 
@@ -138,7 +142,7 @@ class BleController(AbstractController):
         #     description = discovery.description
 
         pairing = self.pairings[pairing_data["AccessoryPairingID"]] = BlePairing(
-            pairing_data#, device=device, description=description
+            pairing_data  # , device=device, description=description
         )
         return pairing
 
@@ -152,7 +156,7 @@ class BleController(AbstractController):
         elif mfr_data[0] == HOMEKIT_ENCRYPTED_NOTIFICATION_TYPE:
             try:
                 data = HomeKitEncryptedNotification.from_manufacturer_data(
-                    device.name or '', device.address, manufacturer_data
+                    device.name or "", device.address, manufacturer_data
                 )
             except ValueError:
                 return
@@ -167,7 +171,7 @@ class BleController(AbstractController):
 
         try:
             data = HomeKitAdvertisement.from_manufacturer_data(
-                device.name or '', device.address, manufacturer_data
+                device.name or "", device.address, manufacturer_data
             )
         except ValueError:
             return

@@ -18,7 +18,9 @@ async def test_list_accessories(pairing: IpPairing):
     assert accessories_state.accessories[0].services[0].iid == 1
 
     char = accessories_state.accessories[0].services[0].characteristics[0]
-    from pprint import pprint ; pprint(char.as_dict())
+    from pprint import pprint
+
+    pprint(char.as_dict())
     assert char.iid == 2
     assert char.format == "bool"
     assert char.perms == ["pw"]
@@ -185,9 +187,7 @@ async def test_put_characteristics_cancelled(pairing: IpPairing):
 async def test_put_characteristics_callbacks(pairing: IpPairing):
     events = []
 
-    def process_new_events(
-        id, new_values_dict: Response
-    ):
+    def process_new_events(id, new_values_dict: Response):
         events.append(new_values_dict)
 
     pairing.add_observer_for_characteristics(process_new_events)
@@ -285,7 +285,7 @@ async def test_receiving_events(pairings):
     await left.put_characteristics([(1, 9, True)])
 
     # Wait for event to be received for up to 5s
-    await asyncio.wait_for(ev.wait(), 1) # TODO: try 5s
+    await asyncio.wait_for(ev.wait(), 1)  # TODO: try 5s
 
     assert event_value == {(1, 9): {"value": True}}
 

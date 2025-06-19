@@ -191,9 +191,7 @@ def operation_lock(func: WrapFuncType) -> WrapFuncType:
     """Define a wrapper to only allow a single operation at a time."""
 
     @wraps(func)
-    async def _async_operation_lock_wrap(
-        self: BlePairing, *args: Any, **kwargs: Any
-    ):
+    async def _async_operation_lock_wrap(self: BlePairing, *args: Any, **kwargs: Any):
         async with self._operation_lock:
             return await func(self, *args, **kwargs)
 
@@ -204,9 +202,7 @@ def restore_connection_and_resume(func: WrapFuncType) -> WrapFuncType:
     """Define a wrapper restore connection, populate data, and then resume when the operation completes."""
 
     @wraps(func)
-    async def _async_restore_and_resume(
-        self: BlePairing, *args: Any, **kwargs: Any
-    ):
+    async def _async_restore_and_resume(self: BlePairing, *args: Any, **kwargs: Any):
         """Restore connection, populate data, and then resume when the operation completes."""
         if self._shutdown:
             return
@@ -277,7 +273,7 @@ class BlePairing(AbstractPairing):
             )
 
         # Encryption
-        self._derive = None # TODO: type annotation
+        self._derive = None  # TODO: type annotation
         self._session_id = None
         self._encryption_key: EncryptionKey | None = None
         self._decryption_key: DecryptionKey | None = None
@@ -320,11 +316,7 @@ class BlePairing(AbstractPairing):
     @property
     def address(self) -> str:
         """Return the address of the device."""
-        return (
-            self.device.address
-            if self.device
-            else self.pairing_data["AccessoryIP"]
-        )
+        return self.device.address if self.device else self.pairing_data["AccessoryIP"]
 
     @property
     def name(self) -> str:
@@ -368,7 +360,9 @@ class BlePairing(AbstractPairing):
         self.description.state_num = state_num
         self._update_cached_state_num(state_num)
 
-    def _update_cached_state_num(self, state_num: int): # TODO: review state_num vs config_num for this file
+    def _update_cached_state_num(
+        self, state_num: int
+    ):  # TODO: review state_num vs config_num for this file
         """Update the cached state number which is restored between restarts."""
         old_state_num = self.accessories_state.state_num
         self.accessories_state.state_num = state_num
@@ -382,9 +376,7 @@ class BlePairing(AbstractPairing):
         self.device = device
         self.ble_advertisement = ble_advertisement
 
-    def process_description_update(
-        self, description: HomeKitAdvertisement
-    ):
+    def process_description_update(self, description: HomeKitAdvertisement):
         """Update the description of the accessory."""
         now = time.monotonic()
         was_available = self._is_available_at_time(now)
@@ -656,7 +648,8 @@ class BlePairing(AbstractPairing):
         chars_to_update = []
         for _, iid in self._observed_characteristics:
             char = accessory_chars.iid(iid)
-            if not char: continue
+            if not char:
+                continue
             if char.broadcast_events or char.disconnected_events:
                 chars_to_update.append(char)
         if chars_to_update:
@@ -967,7 +960,7 @@ class BlePairing(AbstractPairing):
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
     @restore_connection_and_resume
-    async def fetch_accessories_and_characteristics(self) -> AccessoriesState: # type: ignore[override] pyright can't handle override of async method under decorators
+    async def fetch_accessories_and_characteristics(self) -> AccessoriesState:  # type: ignore[override] pyright can't handle override of async method under decorators
         if not self._accessories_state:
             await self._do_fetch_accessories_and_characteristics()
         return self.accessories_state
@@ -1026,7 +1019,10 @@ class BlePairing(AbstractPairing):
             result = results.get(CharacteristicKey(BLE_AID, char.iid))
             if not result or "value" not in result:
                 logger.debug(
-                    "%s: No value for %s/%s", self.name, char.parent_service.type, char.type
+                    "%s: No value for %s/%s",
+                    self.name,
+                    char.parent_service.type,
+                    char.type,
                 )
                 continue
             char.value = result["value"]
@@ -1201,7 +1197,11 @@ class BlePairing(AbstractPairing):
 
     async def _async_restore_subscriptions(self):
         """Restore subscriptions and setup notifications after after connecting."""
-        if not self._restore_pending or not self._client or not self._client.is_connected:
+        if (
+            not self._restore_pending
+            or not self._client
+            or not self._client.is_connected
+        ):
             return
 
         if not self._observed_characteristics:
@@ -1529,7 +1529,9 @@ class BlePairing(AbstractPairing):
                 # results only set on failure, no status is success
                 if not result:
                     if CharacteristicPermissions.paired_read in char.perms:
-                        self._callback_characteristic_listeners({result_key: {"value": value}})
+                        self._callback_characteristic_listeners(
+                            {result_key: {"value": value}}
+                        )
                 else:
                     results[result_key] = result
 

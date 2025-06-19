@@ -29,7 +29,7 @@ _BACKGROUND_TASKS = set()
 # def async_create_task[T](coroutine: Coroutine[Any, Any, T], *, name=None) -> asyncio.Task[T]:
 def async_create_task[T](coroutine: Awaitable[T], *, name=None) -> asyncio.Task[T]:
     """Wrapper for asyncio.create_task that logs errors."""
-    task = asyncio.create_task(coroutine, name=name) # type: ignore[call-arg] # TODO: resolve type error
+    task = asyncio.create_task(coroutine, name=name)  # type: ignore[call-arg] # TODO: resolve type error
     _BACKGROUND_TASKS.add(task)
     task.add_done_callback(_handle_task_result)
     task.add_done_callback(_BACKGROUND_TASKS.discard)

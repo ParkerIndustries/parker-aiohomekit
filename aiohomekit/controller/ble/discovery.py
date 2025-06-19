@@ -75,8 +75,7 @@ class BleDiscovery(AbstractDiscovery):
         return self.ble_advertisement.rssi if self.ble_advertisement else None
 
     @override
-    def setup(self):
-        ...
+    def setup(self): ...
 
     async def _ensure_connected(self):
         logger.debug(
@@ -154,7 +153,7 @@ class BleDiscovery(AbstractDiscovery):
 
     @retry_bluetooth_connection_error()
     @disconnect_on_missing_services
-    async def start_pairing(self) -> FinishPairing: # type: ignore[override] # pyright fails to recognize override with decorators, probably due to lack of @functools.wraps(func)
+    async def start_pairing(self) -> FinishPairing:  # type: ignore[override] # pyright fails to recognize override with decorators, probably due to lack of @functools.wraps(func)
         assert self._client is not None, "Client must be initialized before pairing"
         id = self.description.id
         salt, pub_key = await self._async_start_pairing(id)
