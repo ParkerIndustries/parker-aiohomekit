@@ -28,11 +28,12 @@ import pathlib
 
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncZeroconf
 
+from aiohomekit import hkjson
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageFile
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageFile
+from aiohomekit.model.accessories import AccessoriesState
 from aiohomekit.model.characteristics import CharacteristicKey, CharacteristicKeyValue
-import aiohomekit.hkjson as hkjson
-
+from aiohomekit.model.typed_dicts import HKDeviceID
 from aiohomekit.controller.relay import Controller
 from aiohomekit.controller.zeroconf.protocol import EmptyZeroconfServiceListener
 from .exceptions import HomeKitException
@@ -40,8 +41,68 @@ from .exceptions import HomeKitException
 
 logger = logging.getLogger(__name__)
 
+# FILES
+
 DEFAULT_PAIRING_FILE = "pairings.json"
 DEFAULT_CHARACTERISTICS_FILE = "charmap.json"
+DEFAULT_ALIASES_FILE = "aliases.json"
+
+# ALIASES
+
+aliases: dict[str, HKDeviceID] = {} # alias to pairingId
+
+def load_aliases():
+    global aliases
+    try:
+        with open(DEFAULT_ALIASES_FILE, 'r') as f:
+            aliases = hkjson.loads(f.read())
+    except FileNotFoundError:
+        pass
+
+def save_aliases():
+    global aliases
+    try:
+        with open(DEFAULT_ALIASES_FILE, 'w') as f:
+            f.write(hkjson.dumps(aliases))
+    except FileNotFoundError:
+        pass
+
+load_aliases()
+
+# SHORTCUTS
+
+def get_pairing(controller, args):
+    if not args.alias and not args.pairing_id:
+        raise ValueError("You must provide either an alias or a pairing ID")
+
+    pairing_id = args.pairing_id
+
+    if not pairing_id:
+        if args.alias in aliases:
+            pairing_id = aliases[args.alias]
+        else:
+            raise ValueError(f'"{args.alias}" is no known alias. Known aliases: {aliases}')
+
+    if not pairing_id:
+        raise ValueError("No known pairing_id provided")
+
+    return controller.pairings[pairing_id]
+
+def pprint_accessory_state(accessories_state: AccessoriesState):
+    for accessory in accessories_state.accessories:
+        aid = accessory.aid
+        for service in accessory.services:
+            s_type = service.type_str
+            s_iid = service.iid
+            print(f"{aid}.{s_iid}: >{s_type}<")
+
+            for characteristic in service.characteristics:
+                c_iid = characteristic.iid
+                value = characteristic.value
+                c_type = characteristic.type_str
+                perms = ",".join(characteristic.perms)
+                desc = characteristic.description
+                print(f"  {aid}.{c_iid}: {value} ({desc}) >{c_type}< [{perms}]")
 
 @contextlib.asynccontextmanager
 async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
@@ -67,11 +128,7 @@ async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
         )
 
         async with controller:
-            # try:
-            #     controller.load_data(args.file)
-            # except Exception:
-            #     logger.exception(f"Error while loading {args.file}")
-            #     raise SystemExit
+
             yield controller
 
         await browser.async_cancel()
@@ -83,8 +140,9 @@ def pin_from_keyboard():
         read_pin = input("Enter device pin (XXX-YY-ZZZ): ")
     return read_pin
 
+# HELPERS
 
-def setup_logging(level: None):
+def setup_logging(level):
     """
     Set up the logging to use a decent format and the log level given as parameter.
     :param level: the log level used for the root logger
@@ -119,6 +177,9 @@ def prepare_string(input_string):
         t=input_string.encode(locale.getpreferredencoding(), errors="replace").decode()
     )
 
+#
+# COMMANDS:
+#
 
 async def discover(args):
     async with get_controller(args) as controller:
@@ -148,9 +209,9 @@ async def discover(args):
 
 async def pair(args):
     async with get_controller(args) as controller:
-        # if args.pairing in controller.pairings:
-        #     print(f'"{args.pairing}" is a already known alias')
-        #     return False
+        if args.alias in aliases:
+            print(f'"{args.alias}" is an already known alias')
+            return False
 
         discovery = await controller.find(args.device)
 
@@ -163,55 +224,51 @@ async def pair(args):
         pin = args.pin if args.pin else pin_from_keyboard()
 
         try:
-            await finish_pairing(pin)
+            pairing_data = await finish_pairing(pin)
         except HomeKitException as e:
             print(str(e))
             return False
 
-        # controller.save_data(args.file)
+        if not pairing_data:
+            print(f'Pairing for "{args.alias}" failed.')
+            return False
 
-        print('Pairing was established.')
+        aliases[args.alias] = pairing_data["AccessoryPairingID"]
+        save_aliases()
+
+        print(f'Pairing for "{args.alias}" was established.')
     return True
 
 
 async def get_accessories(args: Namespace) -> bool:
     async with get_controller(args) as controller:
-
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
         try:
-            pairing = controller.pairings[args.pairing]
-            data = await pairing.fetch_accessories_and_characteristics()
-            # controller.save_data(args.file)
-        except Exception:
-            logging.exception("Error whilst fetching /accessories")
+            accessories_state = await pairing.fetch_accessories_and_characteristics()
+        except HomeKitException as e:
+            print('HomeKitException', e)
+            logging.exception("HomeKitException whilst fetching /accessories")
+            return False
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            logging.exception("Unexpected Exception whilst fetching /accessories")
             return False
 
         # prepare output
         if args.output == "json":
-            print(hkjson.dumps_indented(data))
+            print(hkjson.dumps_indented(accessories_state.as_dict()))
         elif args.output == "compact":
-            for accessory in data.accessories:
-                aid = accessory.aid
-                for service in accessory.services:
-                    s_type = service.type
-                    s_iid = service.iid
-                    print(f"{aid}.{s_iid}: >{s_type}<")
+            pprint_accessory_state(accessories_state)
 
-                    for characteristic in service.characteristics:
-                        c_iid = characteristic.iid
-                        value = characteristic.value
-                        c_type = characteristic.type
-                        perms = ",".join(characteristic.perms)
-                        desc = characteristic.description
-                        print(f"  {aid}.{c_iid}: {value} ({desc}) >{c_type}< [{perms}]")
     return True
 
 
 async def get_characteristics(args: Namespace) -> bool:
     async with get_controller(args) as controller:
-
-
-        pairing = controller.pairings[args.pairing]
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
         # convert the command line parameters to the required form
         characteristics = [
@@ -240,13 +297,10 @@ async def get_characteristics(args: Namespace) -> bool:
 
 async def put_characteristics(args: Namespace) -> bool:
     async with get_controller(args) as controller:
-
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
         try:
-            pairing = controller.pairings[args.pairing]
-
-            # FIXME use Service.build_update
-
             characteristics = [
                 CharacteristicKeyValue(
                     int(c[0].split(".")[0]),  # the first part is the aid, must be int
@@ -259,6 +313,8 @@ async def put_characteristics(args: Namespace) -> bool:
         except Exception:
             logging.exception("Unhandled error whilst writing to device")
             return False
+
+        # print output
 
         for key, response in results.items():
             aid = key[0]
@@ -278,9 +334,10 @@ async def put_characteristics(args: Namespace) -> bool:
 
 async def identify(args: Namespace) -> bool:
     async with get_controller(args) as controller:
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
         try:
-            pairing = controller.pairings[args.pairing]
             await pairing.identify()
         except Exception:
             logging.exception("Unhandled error whilst identifying device")
@@ -291,11 +348,9 @@ async def identify(args: Namespace) -> bool:
 
 async def list_pairings(args: Namespace) -> bool:
     async with get_controller(args) as controller:
-        if args.pairing not in controller.pairings:
-            print(f'"{args.pairing}" is no known pairing id')
-            exit(-1)
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
-        pairing = controller.pairings[args.pairing]
         try:
             pairings = await pairing.list_pairings()
         except Exception as e:
@@ -316,31 +371,33 @@ async def list_pairings(args: Namespace) -> bool:
 
 
 async def remove_pairing(args):
+    '''Unpair the accessory from another controller'''
     async with get_controller(args) as controller:
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
-
-        pairing = controller.pairings[args.pairing]
         await pairing.remove_pairing(args.controllerPairingId)
-        # controller.save_data(args.file)
-        print(f'Pairing for "{args.pairing}" was removed.')
+
+        print(f'Pairing between "{args.pairing}" and "{args.controllerPairingId}" was removed.')
         return True
 
 
 async def unpair(args):
+    '''Unpair the accessory from us'''
     async with get_controller(args) as controller:
-
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
         await controller.remove_pairing(args.pairing)
-        # controller.save_data(args.file)
+
         print(f"Device {args.pairing} was completely unpaired.")
         return True
 
 
 async def get_events(args):
     async with get_controller(args) as controller:
-
-
-        pairing = controller.pairings[args.pairing]
+        pairing = get_pairing(controller, args)
+        if not pairing: return False
 
         # convert the command line parameters to the required form
         characteristics = [
@@ -357,8 +414,10 @@ async def get_events(args):
             print(hkjson.dumps_indented(tmp))
 
         pairing.add_observer_for_characteristics(handler)
-
         results = await pairing.subscribe_characteristics(characteristics)
+
+        # print errors if any
+
         if results:
             for key, value in results.items():
                 aid = key[0]
@@ -373,6 +432,8 @@ async def get_events(args):
                     )
             return False
 
+        # Legacy observer:
+        #
         # while True:
         #     # get the data
         #     try:
@@ -388,13 +449,20 @@ async def get_events(args):
 
         return True
 
-def setup_parser_for_pairing(parser: ArgumentParser):
-    ...
-    # parser.add_argument(
-    #     "-a", action="store", required=True, dest="alias", help="alias for the pairing"
-    # )
+#
+# CLI PARSER SETUP:
+#
 
-async def main(argv: list[str] | None = None):
+def setup_parser_for_pairing(parser: ArgumentParser) -> None:
+    parser.add_argument(
+        "-a", action="store", required=False, dest="alias", help="alias for the pairing"
+    )
+    parser.add_argument(
+        "-p", action="store", required=False, dest="pairing_id", help="id of the pairing"
+    )
+
+
+async def main(argv: list[str] | None = None) -> bool:
     argv = argv or sys.argv[1:]
 
     parser = argparse.ArgumentParser(
@@ -458,7 +526,7 @@ async def main(argv: list[str] | None = None):
         help="HomeKit Device ID (use discover to get it)",
     )
     pair_parser.add_argument(
-        "-p",
+        "--pin",
         action="store",
         required=False,
         dest="pin",
@@ -562,18 +630,17 @@ async def main(argv: list[str] | None = None):
 
     if not hasattr(args, "func"):
         parser.print_help()
-        sys.exit(1)
+        return False
 
-    if not await args.func(args):
-        sys.exit(1)
-
+    return await args.func(args)
 
 def sync_main():
     try:
-        asyncio.run(main())
+        return asyncio.run(main())
     except KeyboardInterrupt:
         pass
 
 
 if __name__ == "__main__":
-    sync_main()
+    if not sync_main():
+        sys.exit(1)

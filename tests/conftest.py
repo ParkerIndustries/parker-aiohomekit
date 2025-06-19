@@ -273,6 +273,9 @@ async def controller_and_paired_accessory(
     async with controller:
         config_file.close()
 
+        import aiohomekit.__main__ as main_module
+        main_module.aliases["alias"] = next(iter(controller.pairings.keys()))
+
         with mock.patch("aiohomekit.__main__.Controller") as c:
             c.return_value = controller
             yield controller
