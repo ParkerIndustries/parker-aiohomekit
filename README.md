@@ -1,18 +1,55 @@
-# aiohomekit
+# aiohomekit by Parker Industries
 
-![CI](https://github.com/Jc2k/aiohomekit/workflows/CI/badge.svg?event=push) [![codecov](https://codecov.io/gh/Jc2k/aiohomekit/branch/master/graph/badge.svg)](https://codecov.io/gh/Jc2k/aiohomekit)
+**This library is still in development. No guarantees are made. Features may be incomplete or buggy, and might change over time.**
 
 This library implements the HomeKit protocol for controlling Homekit accessories using asyncio.
 
-It's primary use is for with Home Assistant. We target the same versions of python as them and try to follow their code standards.
+This library is a fork of [Jc2k/aiohomekit](https://github.com/Jc2k/aiohomekit) with major refactoring. It is not backwards compatible with the original library and can't be used as a drop-in replacement.
 
-At the moment we don't offer any API guarantees. API stability and documentation will happen after we are happy with how things are working within Home Assistant.
+It's primary use is for [MajorDom](https://majordom.io), so python version and code standards are the same as at MajorDom.
 
-## Contributing
+## Changes
 
-`aiohomekit` is primarily for use with Home Assistant. Lots of users are using it with devices from a wide array of vendors. As a community open source project we do not have the hardware or time resources to certify every device with multiple vendors projects. We may be conservative about larger changes or changes that are low level. We do ask where possible that any changes should be tested with a certified HomeKit implementations of shipping products, not just against emulators or other uncertified implementations.
+### Notes to adapt the new API:
 
-Because API breaking changes would hamper our ability to quickly update Home Assistant to the latest code, if you can please submit a PR to update [homekit_controller](https://github.com/home-assistant/core/tree/dev/homeassistant/components/homekit_controller) too. If they don't your PR maybe on hold until someone is available to write such a PR.
+- storage mechanisms (for pairing data and characteristics cache) have been completed to automatically load and save all data, and delegated from controllers to separate injected Storage classes, which provide interface for CRUD operations and manage data persistence
+- Pairings and Discoveries no longer have a reference to the controller
+- finish_pairing returns PairingData, which can be used to instantiate a Pairing
+- async methods marked with `async` keyword no longer have `async_` prefix
+- some methods have been renamed for clarity
+- arguments for some methods have been changed to correspond to the abstract classes
+- redundant methods and arguments have been removed
+- files have been restructured to improve organization and maintainability, which may require changes in imports
+- to try the library or view the examples, check the renewed `__main__.py`
+- for other details, check the declaration of the classes and methods, it's pretty self-explanatory now
+
+### Other changes include:
+- added more type hints, comments, and more clear names
+- fixed bugs related to data persistence and storage management
+- fixed saving of updated pairing data when DHCP changes the IP address of the accessory
+
+## Roadmap
+
+Currently only ip discovery, pairing, and control is tested.
+
+Next steps to implement are:
+- BLE discovery
+- BLE pairing and provisioning of WiFi and Thread credentials
+- Device control over BLE and COAP (Thread))
+- Tests for the features above
+- Fix all errors and warnings from linters and type checkers. (most of them due to ignoring optional types)
+- Fix all docstrings since they became deprecated before this fork was even created
+
+## Code Quality Analysis (TODO)
+
+This projects uses tool stack by astra.sh:
+- `uv` project manager instead of `poetry`
+- `ruff` linter+formatter instead of `black`, `isort`, and `flake8`
+- `ty` static type checker instead of `mypy`
+
+## Contributing (legacy)
+
+Lots of users are using this library with devices from a wide array of vendors. As a community open source project we do not have the hardware or time resources to certify every device with multiple vendors projects. We may be conservative about larger changes or changes that are low level. We do ask where possible that any changes should be tested with a certified HomeKit implementations of shipping products, not just against emulators or other uncertified implementations.
 
 Please bear in mind that some shipping devices interpret the HAP specification loosely. In general we prefer to match the behaviour of real HAP controllers even where their behaviour is not strictly specified. Here are just some of the kinds of problems we've had to work around:
 
@@ -23,19 +60,18 @@ Please bear in mind that some shipping devices interpret the HAP specification l
 
 And so on. As a rule we need to be strict about what we send and loose about what we receive.
 
-## Device compatibility
+## Device compatibility (legacy)
 
-`aiohomekit` is primarily tested via Home Assistant with a Phillips Hue bridge and an Eve Extend bridge. It is known to work to some extent with many more devices though these are not currently explicitly documented anywhere at the moment.
+`aiohomekit` is primarily tested with a Phillips Hue bridge and an Eve Extend bridge. It is known to work to some extent with many more devices though these are not currently explicitly documented anywhere at the moment.
 
 You can look at the problems your device has faced in the home-assistant [issues list](https://github.com/home-assistant/core/issues?q=is%3Aopen+is%3Aissue+label%3A%22integration%3A+homekit_controller%22).
 
-## FAQ
+## FAQ (legacy, TODO)
 
 ### How do I use this?
 
-It's published on pypi as `aiohomekit` but its still under early development - proceed with caution.
+Check the __main__.py file for examples.
 
-The main consumer of the API is the [homekit_controller](https://github.com/home-assistant/core/tree/dev/homeassistant/components/homekit_controller) in Home Assistant so that's the best place to get a sense of the API.
 
 ### Does this support BLE accessories?
 
@@ -47,10 +83,6 @@ No, this is just the client part. You should use one the of other implementation
 
  * [homekit_python](https://github.com/jlusiardi/homekit_python/) (this is used a lot during aiohomekit development)
  * [HAP-python](https://github.com/ikalchev/HAP-python)
-
-### Why doesn't Home Assistant use library X instead?
-
-At the time of writing this is the only python 3.7/3.8 asyncio HAP client with events support.
 
 ### Why doesn't aiohomekit use library X instead?
 
@@ -69,4 +101,4 @@ Of course a working proof of concept (using a popular well maintained library) t
 
 ## Thanks
 
-This library wouldn't have been possible without homekit_python, a synchronous implementation of both the client and server parts of HAP. 
+This library wouldn't have been possible without homekit_python, a synchronous implementation of both the client and server parts of HAP.
