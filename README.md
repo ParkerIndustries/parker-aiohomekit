@@ -30,15 +30,16 @@ It's primary use is for [MajorDom](https://majordom.io), so python version and c
 
 ## Roadmap
 
-Currently only ip discovery, pairing, and control is tested.
-
-Next steps to implement are:
-- BLE discovery
-- BLE pairing and provisioning of WiFi and Thread credentials
-- Device control over BLE and COAP (Thread))
-- Tests for the features above
-- Fix all errors and warnings from linters and type checkers. (most of them due to ignoring optional types)
-- Fix all docstrings since they became deprecated before this fork was even created
+- [x] IP discovery, pairing, and control
+- [x] Test IP stack
+- [ ] Update code QA tools
+- [ ] BLE discovery
+- [ ] BLE pairing and provisioning of WiFi and Thread credentials
+- [ ] Device control over BLE and COAP (Thread))
+- [ ] Tests for the features above
+- [ ] Fix all errors and warnings from linters and type checkers (most of them due to ignoring optional types)
+- [ ] Fix all docstrings since they became deprecated before this fork was even created
+- [ ] Update readme, add docs
 
 ## Code Quality Analysis (TODO)
 
