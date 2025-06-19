@@ -30,11 +30,7 @@ from aiohomekit.model.characteristics import (
     CharacteristicPermissions,
 )
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.typed_dicts import (
-    AccessoryPairings,
-    PairingData,
-    Response,
-)
+from aiohomekit.model.typed_dicts import AccessoryPairings, PairingData, Response
 from aiohomekit.protocol.statuscodes import HapStatusCode
 from aiohomekit.utils import async_create_task
 from aiohomekit.uuid import normalize_uuid

@@ -135,8 +135,8 @@ class BleController(AbstractController):
 
         # TODO: implement
 
-        device: BLEDevice | None = None # noqa
-        description: HomeKitAdvertisement | None = None # noqa
+        device: BLEDevice | None = None  # noqa
+        description: HomeKitAdvertisement | None = None  # noqa
 
         # if discovery := self._discoveries.get(id):
         #     device = discovery.device
