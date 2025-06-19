@@ -45,8 +45,8 @@ from aiohomekit.exceptions import (
     MaxTriesError,
     UnavailableError,
 )
-from aiohomekit.protocol.tlv import TLV
 from aiohomekit.model import typed_dicts
+from aiohomekit.protocol.tlv import TLV
 
 logger = logging.getLogger(__name__)
 

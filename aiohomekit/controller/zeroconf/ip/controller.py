@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from aiohomekit.model.transport_type import TransportType, HAPZeroconfType
+from zeroconf.asyncio import AsyncZeroconf
+
+from aiohomekit.model.transport_type import HAPZeroconfType, TransportType
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from zeroconf.asyncio import AsyncZeroconf
+
 from ..controller import ZeroconfController
 from .discovery import IpDiscovery
 from .pairing import IpPairing

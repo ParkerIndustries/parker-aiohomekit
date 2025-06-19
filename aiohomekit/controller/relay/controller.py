@@ -31,14 +31,13 @@ from aiohomekit.controller.abstract import (
     AbstractController,
     AbstractDiscovery,
     AbstractPairing,
-    GenericDiscoveryCallback
+    GenericDiscoveryCallback,
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-
 
 type DiscoveryCallback = GenericDiscoveryCallback[AbstractController, AbstractDiscovery]
 

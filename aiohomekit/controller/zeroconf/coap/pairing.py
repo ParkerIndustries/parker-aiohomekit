@@ -21,15 +21,24 @@ from datetime import timedelta
 import logging
 from typing import override
 
+from aiohomekit.controller.zeroconf.pairing import ZeroconfPairing
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model.accessories import Accessories, AccessoriesState
+from aiohomekit.model.characteristics import (
+    CharacteristicKey,
+    CharacteristicKeyValue,
+    CharacteristicPermissions,
+)
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.characteristics import CharacteristicPermissions, CharacteristicKey, CharacteristicKeyValue
-from aiohomekit.model.typed_dicts import AccessoryPairings, HKDeviceID, Response, PairingData
+from aiohomekit.model.typed_dicts import (
+    AccessoryPairings,
+    HKDeviceID,
+    PairingData,
+    Response,
+)
 from aiohomekit.protocol.statuscodes import HapStatusCode
 from aiohomekit.utils import async_create_task
 from aiohomekit.uuid import normalize_uuid
-from aiohomekit.controller.zeroconf.pairing import ZeroconfPairing
 
 from .connection import CoAPHomeKitConnection
 

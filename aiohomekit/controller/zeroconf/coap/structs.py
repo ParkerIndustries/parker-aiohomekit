@@ -19,9 +19,9 @@ from dataclasses import dataclass
 import struct
 from typing import Any, Optional, Union
 
+from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
 from aiohomekit.protocol.tlv import HAP_TLV
 from aiohomekit.tlv8 import TLVStruct, tlv_entry, u16, u128
-from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
 
 
 @dataclass

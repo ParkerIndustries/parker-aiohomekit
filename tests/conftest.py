@@ -1,18 +1,18 @@
 import asyncio
+import contextlib
 import errno
 import logging
 import os
+import pathlib
 import socket
 import tempfile
 import threading
-import pathlib
+from typing import Iterable, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Optional, Iterable
-import contextlib
 
 import pytest
-from zeroconf import DNSQuestionType, Zeroconf, DNSCache, SignalRegistrationInterface
+from zeroconf import DNSCache, DNSQuestionType, SignalRegistrationInterface, Zeroconf
 from zeroconf.asyncio import AsyncServiceInfo, AsyncZeroconf
 
 from aiohomekit.controller.relay import Controller
@@ -21,7 +21,10 @@ from aiohomekit.model.accessories import Accessory
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageFile, PairingDataStorageMemory
+from aiohomekit.storage.pairing_data_storage import (
+    PairingDataStorageFile,
+    PairingDataStorageMemory,
+)
 
 from tests.accessoryserver import AccessoryServer
 

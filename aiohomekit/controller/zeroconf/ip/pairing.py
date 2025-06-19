@@ -38,17 +38,17 @@ import aiohomekit.hkjson as hkjson
 from aiohomekit.http import HttpContentTypes
 from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.characteristics import (
+    CharacteristicKey,
+    CharacteristicKeyValue,
     CharacteristicPermissions,
     CharacteristicsTypes,
-    CharacteristicKey,
-    CharacteristicKeyValue
 )
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import AccessoryPairings, PairingData, Response
 from aiohomekit.protocol import error_handler
 from aiohomekit.protocol.statuscodes import HapStatusCode, to_status_code
 from aiohomekit.protocol.tlv import TLV
 from aiohomekit.utils import asyncio_timeout
-from aiohomekit.model.typed_dicts import Response, PairingData, AccessoryPairings
-from aiohomekit.model.transport_type import TransportType
 
 from ..pairing import ZeroconfPairing
 from .connection import SecureHomeKitConnection

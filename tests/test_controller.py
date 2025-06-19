@@ -2,11 +2,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from aiohomekit.controller.relay import Controller, controller as controller_module
 from aiohomekit.controller.ble.controller import BleController
+from aiohomekit.controller.relay import Controller, controller as controller_module
 from aiohomekit.controller.zeroconf.ip.controller import IpController
-from aiohomekit.model.transport_type import TransportType
 from aiohomekit.exceptions import AccessoryDisconnectedError
+from aiohomekit.model.transport_type import TransportType
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 

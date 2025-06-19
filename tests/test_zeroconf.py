@@ -19,9 +19,9 @@ import socket
 import pytest
 from zeroconf.asyncio import AsyncServiceInfo
 
+from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 from aiohomekit.model.categories import Category
 from aiohomekit.model.feature_flags import FeatureFlags
-from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 
 
 def test_simple():

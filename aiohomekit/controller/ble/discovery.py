@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import override
 import uuid
 
 from bleak.backends.device import BLEDevice
@@ -27,12 +28,11 @@ from bleak_retry_connector import retry_bluetooth_connection_error
 
 from aiohomekit.controller.abstract import AbstractDiscovery, FinishPairing
 from aiohomekit.model.characteristics import CharacteristicsTypes
-from aiohomekit.model.services import ServicesTypes
 from aiohomekit.model.feature_flags import FeatureFlags
+from aiohomekit.model.services import ServicesTypes
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.utils import check_pin_format, pair_with_auth
-from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
-from typing import override
 
 from .bleak import AIOHomeKitBleakClient
 from .client import (
@@ -43,8 +43,6 @@ from .client import (
 )
 from .connection import establish_connection
 from .manufacturer_data import HomeKitAdvertisement
-
-
 
 logger = logging.getLogger(__name__)
 

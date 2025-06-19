@@ -7,8 +7,8 @@ import struct
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.categories import Category
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.status_flags import StatusFlags
 
 UNPACK_HHBB = struct.Struct("<HHBB").unpack

@@ -14,18 +14,18 @@
 # limitations under the License.
 #
 
+from typing import Any, override
 import uuid
 
-from typing import override, Any
 from aiohomekit.controller.abstract.discovery import AbstractDiscovery, FinishPairing
+from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 from aiohomekit.exceptions import AlreadyPairedError
+from aiohomekit.model.typed_dicts import PairingData
 from aiohomekit.protocol import perform_pair_setup_part1, perform_pair_setup_part2
 from aiohomekit.protocol.statuscodes import to_status_code
 from aiohomekit.utils import check_pin_format, pair_with_auth
-from aiohomekit.model.typed_dicts import PairingData
-from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
-from .connection import HomeKitConnection
 
+from .connection import HomeKitConnection
 
 
 class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):

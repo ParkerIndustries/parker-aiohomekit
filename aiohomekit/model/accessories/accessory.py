@@ -1,6 +1,11 @@
 from typing import Self
+
 from aiohomekit.model import typed_dicts
-from aiohomekit.model.characteristics import Characteristics, CharacteristicsTypes, NEEDS_POLLINGS_CHARS
+from aiohomekit.model.characteristics import (
+    NEEDS_POLLINGS_CHARS,
+    Characteristics,
+    CharacteristicsTypes,
+)
 from aiohomekit.model.services import Service, Services, ServicesTypes
 from aiohomekit.uuid import normalize_uuid
 

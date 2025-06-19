@@ -1,17 +1,10 @@
-from .characteristic import (
-    Characteristic,
-    Characteristics,
-    check_convert_value
-)
+from .characteristic import Characteristic, Characteristics, check_convert_value
 from .characteristic_formats import CharacteristicFormats
-from .characteristic_key import (
-    CharacteristicKey,
-    CharacteristicKeyValue
-)
+from .characteristic_key import CharacteristicKey, CharacteristicKeyValue
 from .characteristic_types import (
-    CharacteristicsTypes,
-    NEEDS_POLLINGS_CHARS,
     EVENT_CHARACTERISTICS,
+    NEEDS_POLLINGS_CHARS,
+    CharacteristicsTypes,
 )
 from .const import (
     ActivationStateValues,
@@ -33,21 +26,21 @@ from .const import (
 )
 from .permissions import CharacteristicPermissions
 from .structs import (
-    StreamingStatus,
-    SessionControl,
-    VideoAttrs,
-    VideoCodecParameters,
+    AudioCodecConfiguration,
     AudioCodecParameters,
-    VideoRTPParameters,
-    SelectedVideoParameters,
     AudioRTPParameters,
     SelectedAudioParameters,
-    AudioCodecConfiguration,
-    VideoConfigConfiguration,
-    SupportedVideoStreamConfiguration,
+    SelectedRTPStreamConfiguration,
+    SelectedVideoParameters,
+    SessionControl,
+    StreamingStatus,
     SupportedAudioStreamConfiguration,
     SupportedRTPConfiguration,
-    SelectedRTPStreamConfiguration
+    SupportedVideoStreamConfiguration,
+    VideoAttrs,
+    VideoCodecParameters,
+    VideoConfigConfiguration,
+    VideoRTPParameters,
 )
 from .types import CharacteristicShortUUID, CharacteristicUUID
 from .units import CharacteristicUnits

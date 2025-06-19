@@ -1,8 +1,8 @@
-from typing import override
 import logging
-from .protocol import ZeroconfDiscoveryInfo
-from ..abstract.pairing import AbstractPairing
+from typing import override
 
+from ..abstract.pairing import AbstractPairing
+from .protocol import ZeroconfDiscoveryInfo
 
 logger = logging.getLogger(__name__)
 

@@ -15,9 +15,11 @@
 #
 
 from __future__ import annotations
+
 from enum import Enum
-from uuid import UUID
 from typing import Self
+from uuid import UUID
+
 from aiohomekit.uuid import normalize_uuid
 
 

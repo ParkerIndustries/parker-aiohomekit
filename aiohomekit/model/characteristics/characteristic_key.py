@@ -1,6 +1,5 @@
 from typing import Any, NamedTuple
 
-
 type Value = Any
 
 class CharacteristicKey(NamedTuple):

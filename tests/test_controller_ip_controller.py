@@ -1,14 +1,13 @@
+from conftest import _get_mock_service_info, _install_mock_service_info
+import pytest
 from zeroconf.asyncio import AsyncZeroconf
 
-import pytest
-
-from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.categories import Category
 from aiohomekit.model.status_flags import StatusFlags
-from conftest import _get_mock_service_info, _install_mock_service_info
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 
 
 async def test_discover_find_one(mock_asynczeroconf: AsyncZeroconf):

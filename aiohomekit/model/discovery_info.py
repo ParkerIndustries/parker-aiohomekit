@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from .status_flags import StatusFlags
+
 from .categories import Category
+from .status_flags import StatusFlags
 from .typed_dicts import HKDeviceID
 
 

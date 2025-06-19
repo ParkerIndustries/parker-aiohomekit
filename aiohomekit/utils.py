@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import enum
+import logging
+import re
+import sys
+
 # from collections.abc import Coroutine
 from typing import Any, Awaitable
 from uuid import UUID
-import sys
-import enum
-import logging
-import asyncio
-import re
 
 from aiohomekit.const import COAP_TRANSPORT_SUPPORTED, IP_TRANSPORT_SUPPORTED
 from aiohomekit.exceptions import MalformedPinError

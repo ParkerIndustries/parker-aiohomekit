@@ -15,12 +15,12 @@
 #
 from __future__ import annotations
 
-from uuid import UUID
 import base64
 import binascii
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal, Iterator, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal
+from uuid import UUID
 
 from aiohomekit.exceptions import CharacteristicPermissionError, FormatError
 from aiohomekit.protocol.statuscodes import HapStatusCode
@@ -28,8 +28,8 @@ from aiohomekit.protocol.tlv import TLV, TlvParseException
 from aiohomekit.tlv8 import tlv_array
 from aiohomekit.uuid import normalize_uuid
 
-from .characteristic_types import CharacteristicsTypes
 from .characteristic_formats import CharacteristicFormats
+from .characteristic_types import CharacteristicsTypes
 from .data import characteristics
 from .permissions import CharacteristicPermissions
 

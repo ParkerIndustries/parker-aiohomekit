@@ -17,22 +17,17 @@
 """Helpers for detecing homekit devices via zeroconf."""
 from __future__ import annotations
 
-from typing import Self
 from dataclasses import dataclass
 import logging
+from typing import Self
 
-from zeroconf import (
-    IPVersion,
-    ServiceListener,
-    Zeroconf,
-)
+from zeroconf import IPVersion, ServiceListener, Zeroconf
 from zeroconf.asyncio import AsyncServiceInfo
 
 from aiohomekit.model.categories import Category
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.model.status_flags import StatusFlags
-
 
 CLASS_IN = 1
 TYPE_PTR = 12

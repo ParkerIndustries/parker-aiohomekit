@@ -16,8 +16,8 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-import logging
 from functools import wraps
+import logging
 import random
 from typing import Any, Callable, TypeVar, cast
 

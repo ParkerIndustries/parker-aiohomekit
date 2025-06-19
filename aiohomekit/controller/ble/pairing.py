@@ -19,13 +19,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Iterable
 from datetime import timedelta
+from functools import wraps
 import logging
 import random
 import struct
 import time
 from typing import TYPE_CHECKING, Any, TypeVar, cast, override
 from uuid import UUID
-from functools import wraps
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
@@ -43,33 +43,27 @@ from aiohomekit.exceptions import (
     InvalidError,
     UnknownError,
 )
-from aiohomekit.protocol.tlv import TLV
-from aiohomekit.protocol import get_session_keys
-from aiohomekit.protocol.statuscodes import HapStatusCode
-from aiohomekit.pdu import (
-    OpCode,
-    PDUStatus,
-    decode_pdu,
-    encode_pdu,
-)
-
-from aiohomekit.model.typed_dicts import Response, PairingData, HKDeviceID
-from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.accessories import Accessory, Accessories, AccessoriesState
+from aiohomekit.meshcop import Meshcop
+from aiohomekit.model.accessories import Accessories, AccessoriesState, Accessory
 from aiohomekit.model.characteristics import (
+    EVENT_CHARACTERISTICS,
     Characteristic,
-    CharacteristicPermissions,
-    CharacteristicsTypes,
     CharacteristicKey,
     CharacteristicKeyValue,
-    EVENT_CHARACTERISTICS
+    CharacteristicPermissions,
+    CharacteristicsTypes,
 )
-from aiohomekit.model.services import ServicesTypes, Service
+from aiohomekit.model.services import Service, ServicesTypes
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData, Response
+from aiohomekit.pdu import OpCode, PDUStatus, decode_pdu, encode_pdu
+from aiohomekit.protocol import get_session_keys
+from aiohomekit.protocol.statuscodes import HapStatusCode
+from aiohomekit.protocol.tlv import TLV
 from aiohomekit.utils import async_create_task
 from aiohomekit.uuid import normalize_uuid
-from aiohomekit.meshcop import Meshcop
-from ..abstract import AbstractPairing
 
+from ..abstract import AbstractPairing
 from .bleak import AIOHomeKitBleakClient
 from .client import (
     PDUStatusError,

@@ -1,17 +1,17 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Callable, AsyncIterable, Self, final
+from typing import AsyncIterable, Callable, Self, final
 
+from aiohomekit.exceptions import AccessoryNotFoundError
+from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
-from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
-from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.utils import async_create_task
+
 from .discovery import AbstractDiscovery
 from .pairing import AbstractPairing
-
 
 logger = logging.getLogger(__name__)
 

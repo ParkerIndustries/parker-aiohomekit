@@ -1,18 +1,27 @@
 from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from datetime import timedelta
-from typing import Callable, Iterable
 import logging
+from typing import Callable, Iterable
 
 from aiohomekit.model.accessories import Accessories, AccessoriesState
-from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey, CharacteristicKeyValue, Value
+from aiohomekit.model.characteristics.characteristic_key import (
+    CharacteristicKey,
+    CharacteristicKeyValue,
+    Value,
+)
 from aiohomekit.model.characteristics.characteristic_types import CharacteristicsTypes
-from aiohomekit.model.services.service_types import ServicesTypes
-from aiohomekit.model.typed_dicts import PairingData, Response, AccessoryPairings, HKDeviceID
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
+from aiohomekit.model.services.service_types import ServicesTypes
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import (
+    AccessoryPairings,
+    HKDeviceID,
+    PairingData,
+    Response,
+)
 from aiohomekit.utils import async_create_task
-
 
 logger = logging.getLogger(__name__)
 

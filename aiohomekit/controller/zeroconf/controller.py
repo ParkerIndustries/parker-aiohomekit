@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from typing import override, Coroutine, Any, cast
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import AsyncIterable
 from enum import Enum, auto
+from typing import Any, Coroutine, cast, override
 
-from zeroconf import Zeroconf, ServiceStateChange, current_time_millis, BadTypeInNameException
+from zeroconf import (
+    BadTypeInNameException,
+    ServiceStateChange,
+    Zeroconf,
+    current_time_millis,
+)
 from zeroconf._dns import DNSPointer
-from zeroconf.asyncio import AsyncZeroconf, AsyncServiceBrowser, AsyncServiceInfo
+from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
 
 from aiohomekit.controller.abstract import (
     AbstractController,
@@ -16,11 +21,13 @@ from aiohomekit.controller.abstract import (
     AbstractPairing,
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
+from aiohomekit.model.typed_dicts import HKDeviceID
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
 from aiohomekit.utils import async_create_task
-from aiohomekit.model.typed_dicts import HKDeviceID
-from .protocol import ZeroconfDiscoveryInfo, _TIMEOUT_MS, logger, TYPE_PTR, CLASS_IN
+
+from .protocol import _TIMEOUT_MS, CLASS_IN, TYPE_PTR, ZeroconfDiscoveryInfo, logger
+
 
 class IpTransport(str, Enum):
     TCP = auto()

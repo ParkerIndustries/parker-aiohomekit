@@ -14,10 +14,14 @@
 # limitations under the License.
 #
 
-from aiohomekit.controller.abstract import AbstractDiscovery, FinishPairing, DiscoveryDidFinishPairingCallback
-from aiohomekit.utils import check_pin_format, pair_with_auth
+from aiohomekit.controller.abstract import (
+    AbstractDiscovery,
+    DiscoveryDidFinishPairingCallback,
+    FinishPairing,
+)
 from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 from aiohomekit.model.typed_dicts import PairingData
+from aiohomekit.utils import check_pin_format, pair_with_auth
 
 from .connection import CoAPHomeKitConnection
 

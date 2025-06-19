@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 from typing import Iterator, Self
+
 from aiohomekit import hkjson
-from aiohomekit.model.characteristics import CharacteristicKey, EVENT_CHARACTERISTICS
 from aiohomekit.model import typed_dicts
+from aiohomekit.model.characteristics import EVENT_CHARACTERISTICS, CharacteristicKey
 from aiohomekit.protocol.statuscodes import to_status_code
+
 from .accessory import Accessory
 
 

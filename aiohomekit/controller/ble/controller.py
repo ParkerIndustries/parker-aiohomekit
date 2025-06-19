@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import override
 from collections.abc import AsyncIterable
 import logging
+from typing import override
+
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakDBusError, BleakError
 
-from aiohomekit.controller.abstract import (
-    AbstractController
-)
+from aiohomekit.controller.abstract import AbstractController
 from aiohomekit.controller.ble.manufacturer_data import (
     APPLE_MANUFACTURER_ID,
     HOMEKIT_ADVERTISEMENT_TYPE,
@@ -21,13 +20,13 @@ from aiohomekit.controller.ble.manufacturer_data import (
 )
 from aiohomekit.controller.ble.pairing import BlePairing
 from aiohomekit.exceptions import AccessoryNotFoundError
-from aiohomekit.utils import asyncio_timeout
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
-from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.typed_dicts import PairingData, HKDeviceID
-from .discovery import BleDiscovery
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageProtocol
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageProtocol
+from aiohomekit.utils import asyncio_timeout
 
+from .discovery import BleDiscovery
 
 logger = logging.getLogger(__name__)
 

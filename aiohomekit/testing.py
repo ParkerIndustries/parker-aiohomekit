@@ -24,9 +24,6 @@ from typing import Iterable
 from uuid import uuid4
 
 from aiohomekit import exceptions
-from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey
-from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.controller.abstract import (
     AbstractController,
     AbstractDiscovery,
@@ -35,15 +32,18 @@ from aiohomekit.controller.abstract import (
 )
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.accessories import Accessories, AccessoriesState
-from aiohomekit.model.typed_dicts import HKDeviceID, PairingData, Response
-from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.categories import Category
 from aiohomekit.model.characteristics import Characteristic, CharacteristicsTypes
 from aiohomekit.model.characteristics.characteristic_formats import (
     CharacteristicFormats,
 )
+from aiohomekit.model.characteristics.characteristic_key import CharacteristicKey
 from aiohomekit.model.status_flags import StatusFlags
+from aiohomekit.model.transport_type import TransportType
+from aiohomekit.model.typed_dicts import HKDeviceID, PairingData, Response
 from aiohomekit.protocol.statuscodes import HapStatusCode
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.uuid import normalize_uuid
 
 _LOGGER = logging.getLogger(__name__)

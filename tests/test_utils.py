@@ -14,9 +14,10 @@
 # limitations under the License.
 #
 
+from uuid import UUID
+
 import pytest
 
-from uuid import UUID
 from aiohomekit.model.accessories import Accessory
 from aiohomekit.model.characteristics import (
     CharacteristicsTypes,

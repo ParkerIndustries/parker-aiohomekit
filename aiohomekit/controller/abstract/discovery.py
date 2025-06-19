@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Awaitable, Callable, final
+
 from abc import ABC, abstractmethod
-from aiohomekit.model.typed_dicts import PairingData
+from typing import Awaitable, Callable, final
+
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.status_flags import StatusFlags
-
+from aiohomekit.model.typed_dicts import PairingData
 
 type FinishPairing = Callable[[str], Awaitable[PairingData]]
 type DiscoveryDidFinishPairingCallback = Callable[[PairingData], None]

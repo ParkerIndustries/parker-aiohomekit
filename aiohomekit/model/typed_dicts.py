@@ -3,7 +3,8 @@ Typing hints for the serialization format used by the JSON part of the HomeKit A
 """
 
 from __future__ import annotations
-from typing import TypedDict, Union, Any, Literal, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, Union
 
 if TYPE_CHECKING:
     from .characteristics import CharacteristicKey

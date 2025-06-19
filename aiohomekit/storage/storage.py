@@ -1,9 +1,10 @@
-import pathlib
-import logging
-from aiohomekit import hkjson
 from asyncio.protocols import Protocol
+import logging
+import pathlib
+
 from lark.exceptions import UnexpectedToken
 
+from aiohomekit import hkjson
 
 logger = logging.getLogger(__name__)
 

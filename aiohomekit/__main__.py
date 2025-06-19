@@ -22,22 +22,22 @@ from collections.abc import AsyncIterator
 import contextlib
 import locale
 import logging
+import pathlib
 import re
 import sys
-import pathlib
 
 from zeroconf.asyncio import AsyncServiceBrowser, AsyncZeroconf
 
 from aiohomekit import hkjson
-from aiohomekit.storage.characteristics_storage import CharacteristicsStorageFile
-from aiohomekit.storage.pairing_data_storage import PairingDataStorageFile
+from aiohomekit.controller.relay import Controller
+from aiohomekit.controller.zeroconf.protocol import EmptyZeroconfServiceListener
 from aiohomekit.model.accessories import AccessoriesState
 from aiohomekit.model.characteristics import CharacteristicKey, CharacteristicKeyValue
 from aiohomekit.model.typed_dicts import HKDeviceID
-from aiohomekit.controller.relay import Controller
-from aiohomekit.controller.zeroconf.protocol import EmptyZeroconfServiceListener
-from .exceptions import HomeKitException
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageFile
+from aiohomekit.storage.pairing_data_storage import PairingDataStorageFile
 
+from .exceptions import HomeKitException
 
 logger = logging.getLogger(__name__)
 

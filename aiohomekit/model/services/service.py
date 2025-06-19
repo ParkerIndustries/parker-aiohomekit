@@ -22,18 +22,19 @@ from uuid import UUID
 
 from aiohomekit.model.characteristics import (
     Characteristic,
+    CharacteristicKeyValue,
     Characteristics,
     CharacteristicsTypes,
-    CharacteristicKeyValue,
-    check_convert_value
+    check_convert_value,
 )
 from aiohomekit.uuid import normalize_uuid
+
 from .data import services
 from .service_types import ServicesTypes
 
 if TYPE_CHECKING:
-    from aiohomekit.model.accessories import Accessory
     from aiohomekit.model import typed_dicts
+    from aiohomekit.model.accessories import Accessory
 
 
 class Service:

@@ -7,8 +7,8 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 import pytest
 
-from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.controller.ble.controller import BleController
+from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 
 ADVERTISEMENT_DATA_DEFAULTS = {
     "local_name": "",

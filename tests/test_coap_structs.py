@@ -1,6 +1,7 @@
 import struct
 
 import pytest
+
 from aiohomekit.controller.zeroconf.coap.structs import (
     Pdu09Accessory,
     Pdu09AccessoryContainer,
