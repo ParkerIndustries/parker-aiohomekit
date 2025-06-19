@@ -136,7 +136,6 @@ async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
         )
 
         async with controller:
-
             yield controller
 
         await browser.async_cancel()

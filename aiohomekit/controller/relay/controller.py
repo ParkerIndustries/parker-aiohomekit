@@ -208,7 +208,6 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     async def find(
         self, device_id: HKDeviceID, timeout_sec: float = 30.0
     ) -> AbstractDiscovery:
-
         pending = []
 
         for transport in self._transports.values():

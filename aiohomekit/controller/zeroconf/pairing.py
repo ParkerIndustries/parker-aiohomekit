@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class ZeroconfPairing(AbstractPairing[ZeroconfDiscoveryInfo]):
-
     @override
     def process_description_update(self, description: ZeroconfDiscoveryInfo):
         old_description = self.description

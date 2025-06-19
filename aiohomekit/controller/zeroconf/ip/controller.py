@@ -12,7 +12,6 @@ from .pairing import IpPairing
 
 
 class IpController(ZeroconfController[IpDiscovery, IpPairing]):
-
     def __init__(
         self,
         char_cache_storage: CharacteristicsStorageProtocol,

@@ -15,6 +15,7 @@
 #
 
 """Helpers for detecing homekit devices via zeroconf."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -99,7 +100,6 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
 
 
 class EmptyZeroconfServiceListener(ServiceListener):
-
     def add_service(self, zc: Zeroconf, type_: str, name: str):
         """A service has been added."""
 

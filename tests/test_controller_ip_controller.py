@@ -229,7 +229,6 @@ async def test_discover_device_id_case_lower(mock_asynczeroconf: AsyncZeroconf):
 
     with _install_mock_service_info(mock_asynczeroconf, svc_info):
         async with controller:
-
             results = [d async for d in controller.discover(timeout_sec=0.001)]
 
     assert results[0].description.id == "aa:aa:aa:aa:aa:aa"
@@ -248,7 +247,6 @@ async def test_discover_device_id_case_upper(mock_asynczeroconf: AsyncZeroconf):
 
     with _install_mock_service_info(mock_asynczeroconf, svc_info):
         async with controller:
-
             results = [d async for d in controller.discover(timeout_sec=0.001)]
 
     assert results[0].description.id == "aa:aa:aa:aa:aa:aa"

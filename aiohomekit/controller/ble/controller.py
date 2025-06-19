@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 
 class BleController(AbstractController):
-
     def __init__(
         self,
         char_cache_storage: CharacteristicsStorageProtocol,

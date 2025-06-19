@@ -79,7 +79,6 @@ class AsyncServiceBrowserStub:
 
 
 class MockedAsyncServiceInfo(AsyncServiceInfo):
-
     async def async_request(
         self,
         zc: "Zeroconf",

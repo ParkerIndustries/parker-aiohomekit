@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 class DictStorageProtocol[ID, StorageLayoutItem](Protocol):
-
     async def get_all(self) -> dict[ID, StorageLayoutItem]: ...
 
     async def get(self, id: ID) -> StorageLayoutItem | None: ...
@@ -34,7 +33,6 @@ class DictStorageProtocol[ID, StorageLayoutItem](Protocol):
 
 
 class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
-
     _storage_data: dict[ID, StorageLayoutItem]
 
     def __init__(self):

@@ -61,7 +61,6 @@ class ConnectionReady(Exception):
 
 
 class AccessoryDescription(Protocol):
-
     @property
     def addresses(self) -> list[str]: ...
 
@@ -70,7 +69,6 @@ class AccessoryDescription(Protocol):
 
 
 class ConnectionDelegate(Protocol):
-
     @property
     def description(self) -> Optional[AccessoryDescription]:
         """Required information to connect to the accessory."""

@@ -12,7 +12,6 @@ from .pairing import CoAPPairing
 
 
 class CoAPController(ZeroconfController[CoAPDiscovery, CoAPPairing]):
-
     def __init__(
         self,
         char_cache_storage: CharacteristicsStorageProtocol,
