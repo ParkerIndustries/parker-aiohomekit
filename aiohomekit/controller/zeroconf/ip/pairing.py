@@ -24,7 +24,6 @@ from operator import itemgetter
 from typing import Any, override
 from uuid import UUID
 
-from aiohomekit.controller.abstract import AbstractController
 from aiohomekit.exceptions import (
     AccessoryDisconnectedError,
     AuthenticationError,

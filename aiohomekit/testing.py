@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 import logging
 from typing import Iterable
-from uuid import uuid4
 
 from aiohomekit import exceptions
 from aiohomekit.controller.abstract import (

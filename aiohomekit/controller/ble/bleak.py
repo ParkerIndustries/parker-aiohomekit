@@ -4,6 +4,7 @@ from functools import cached_property, lru_cache
 import logging
 from typing import Any
 import uuid
+from uuid import UUID
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice

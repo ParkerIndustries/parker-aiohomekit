@@ -40,6 +40,8 @@ from aiohomekit.protocol import (
     perform_pair_setup_part1,
     perform_pair_setup_part2,
 )
+from aiohomekit.model.characteristics import CharacteristicKey, CharacteristicKeyValue
+from aiohomekit.model.typed_dicts import Response
 from aiohomekit.protocol.tlv import HAP_TLV, TLV
 from aiohomekit.utils import asyncio_timeout
 

@@ -133,8 +133,10 @@ class BleController(AbstractController):
         if pairing_data["Connection"] != "BLE":
             return None
 
-        device: BLEDevice | None = None
-        description: HomeKitAdvertisement | None = None
+        # TODO: implement
+
+        device: BLEDevice | None = None # noqa
+        description: HomeKitAdvertisement | None = None # noqa
 
         # if discovery := self._discoveries.get(id):
         #     device = discovery.device

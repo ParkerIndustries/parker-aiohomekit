@@ -715,7 +715,7 @@ class HomeKitConnection:
 class SecureHomeKitConnection(HomeKitConnection):
     """A HomeKit connection that negotiates a secure session."""
 
-    def __init__(self, delegate: ConnectionDelegate, pairing_data: Dict[str, Any]):
+    def __init__(self, delegate: ConnectionDelegate, pairing_data: dict[str, Any]):
         super().__init__(
             delegate,
             pairing_data.get("AccessoryIPs", [pairing_data["AccessoryIP"]]),
@@ -725,7 +725,7 @@ class SecureHomeKitConnection(HomeKitConnection):
 
     @property
     def is_connected(self):
-        return super().is_connected and self.is_secure != False
+        return super().is_connected and self.is_secure in {True, None}
 
     async def _connect_once(self):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""

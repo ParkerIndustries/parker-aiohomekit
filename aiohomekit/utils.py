@@ -8,7 +8,6 @@ import sys
 
 # from collections.abc import Coroutine
 from typing import Any, Awaitable
-from uuid import UUID
 
 from aiohomekit.const import COAP_TRANSPORT_SUPPORTED, IP_TRANSPORT_SUPPORTED
 from aiohomekit.exceptions import MalformedPinError

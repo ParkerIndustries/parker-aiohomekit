@@ -55,7 +55,7 @@ from aiohomekit.model.characteristics import (
 )
 from aiohomekit.model.services import Service, ServicesTypes
 from aiohomekit.model.transport_type import TransportType
-from aiohomekit.model.typed_dicts import HKDeviceID, PairingData, Response
+from aiohomekit.model.typed_dicts import PairingData, Response
 from aiohomekit.pdu import OpCode, PDUStatus, decode_pdu, encode_pdu
 from aiohomekit.protocol import get_session_keys
 from aiohomekit.protocol.statuscodes import HapStatusCode

@@ -32,7 +32,6 @@ from aiohomekit.model.characteristics import (
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.typed_dicts import (
     AccessoryPairings,
-    HKDeviceID,
     PairingData,
     Response,
 )
