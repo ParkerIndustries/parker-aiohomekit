@@ -17,3 +17,6 @@ __pycache__
 
 charmap.json
 pairings.json
+
+# misc
+.coverage

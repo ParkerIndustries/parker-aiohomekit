@@ -1,6 +1,6 @@
-from asyncio.protocols import Protocol
 import logging
 import pathlib
+from asyncio.protocols import Protocol
 
 from lark.exceptions import UnexpectedToken
 
@@ -73,19 +73,18 @@ class DictStorageFile[ID, StorageLayoutItem](
 
         with open(location, encoding="utf-8") as fp:
             try:
-                self._storage_data = hkjson.loads(fp.read())
+                file = fp.read()
+                self._storage_data = hkjson.loads(file)
                 # print('CLI | Loaded characteristics: ', self.storage_data)
             except hkjson.JSON_DECODE_EXCEPTIONS as e:
-                print(e)
                 self._do_save()  # write a correct empty schema to replace the corrupted cache
                 logger.debug(
-                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
+                    f"Characteristic cache was corrupted, proceeding with cold cache. Rewriting cache file with in-memory snapshot: {self._storage_data}. Error: {e}. File content: {file}"
                 )
             except (UnexpectedToken, TypeError, KeyError) as e:
-                print(e)
                 self._do_save()  # write a correct schema to replace the corrupted cache
                 logger.debug(
-                    f"Characteristic cache was corrupted, proceeding with cold cache: {e}. Rewriting cache file with in-memory snapshot: {self._storage_data}"
+                    f"Characteristic cache was corrupted, proceeding with cold cache. Rewriting cache file with in-memory snapshot: {self._storage_data}. Error: {e}. File content: {file}"
                 )
 
     async def save(self, id: ID, item: StorageLayoutItem):
