@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Iterable
 import contextlib
 import errno
 import logging
@@ -7,7 +8,7 @@ import pathlib
 import socket
 import tempfile
 import threading
-from typing import Iterable, Optional
+from typing import Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -196,6 +197,7 @@ async def controller_and_unpaired_accessory(request, mock_asynczeroconf, id_fact
     controller = Controller(
         char_cache=CharacteristicsStorageMemory(),
         pairing_data_storage=PairingDataStorageMemory(),
+        zeroconf_instance=mock_asynczeroconf,
     )
 
     with mock.patch("aiohomekit.__main__.Controller") as c:
@@ -203,6 +205,9 @@ async def controller_and_unpaired_accessory(request, mock_asynczeroconf, id_fact
         yield controller, available_port
 
     os.unlink(config_file.name)
+
+    # httpd.shutdown()
+    # t.join()
 
     def _shutdown():
         httpd.shutdown()
@@ -276,6 +281,7 @@ async def controller_and_paired_accessory(request, mock_asynczeroconf, id_factor
     controller = Controller(
         char_cache=CharacteristicsStorageMemory(),
         pairing_data_storage=PairingDataStorageFile(pathlib.Path(controller_file.name)),
+        zeroconf_instance=mock_asynczeroconf,
     )
 
     async with controller:
@@ -306,10 +312,10 @@ async def pairing(controller_and_paired_accessory):
         iter(controller_and_paired_accessory.pairings.values())
     )  # TODO: check
     yield pairing
-    try:
-        await pairing.close()
-    except asyncio.CancelledError:
-        pass
+    # try:
+    await pairing.close()
+    # except asyncio.CancelledError:
+    #     pass
 
 
 @pytest.fixture

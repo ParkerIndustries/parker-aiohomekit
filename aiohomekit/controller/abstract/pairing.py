@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable
 from datetime import timedelta
 import logging
-from typing import Callable, Iterable
+from typing import Callable
 
 from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.characteristics.characteristic_key import (

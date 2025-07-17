@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import base64
 import binascii
+from collections.abc import Iterable, Iterator
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 from aiohomekit.exceptions import CharacteristicPermissionError, FormatError
@@ -37,17 +38,41 @@ if TYPE_CHECKING:
     from aiohomekit.model.services import Service
 
 
-DEFAULT_FOR_TYPE = {
-    CharacteristicFormats.bool: False,
-    CharacteristicFormats.uint8: 0,
-    CharacteristicFormats.uint16: 0,
-    CharacteristicFormats.uint32: 0,
-    CharacteristicFormats.uint64: 0,
-    CharacteristicFormats.int: 0,
-    CharacteristicFormats.float: 0.0,
-    CharacteristicFormats.string: "",
-    CharacteristicFormats.array: [],
-    CharacteristicFormats.dict: {},
+DEFAULT_MAX_STRING_LENGTH = 64  # bytes
+DEFAULT_MAX_DATA_LENGTH = 2097152  # bytes
+
+DEFAULT_CONFIGURATION_FOR_FORMAT = {
+    CharacteristicFormats.bool: {"default_value": False},
+    CharacteristicFormats.uint8: {"min_value": 0, "max_value": 255, "default_value": 0},
+    CharacteristicFormats.uint16: {
+        "min_value": 0,
+        "max_value": 65535,
+        "default_value": 0,
+    },
+    CharacteristicFormats.uint32: {
+        "min_value": 0,
+        "max_value": 4294967295,
+        "default_value": 0,
+    },
+    CharacteristicFormats.uint64: {
+        "min_value": 0,
+        "max_value": 18446744073709551615,
+        "default_value": 0,
+    },
+    CharacteristicFormats.int: {
+        "min_value": -2147483648,
+        "max_value": 2147483647,
+        "default_value": 0,
+    },
+    CharacteristicFormats.float: {
+        "min_value": -3.40282347e38,
+        "max_value": 3.40282347e38,
+        "default_value": 0.0,
+    },
+    CharacteristicFormats.string: {"max_len": DEFAULT_MAX_STRING_LENGTH},
+    CharacteristicFormats.data: {"max_data_len": DEFAULT_MAX_DATA_LENGTH},
+    CharacteristicFormats.array: {"default_value": []},
+    CharacteristicFormats.dict: {"default_value": {}},
 }
 
 INTEGER_TYPES = [
@@ -93,11 +118,9 @@ class Characteristic:
     maxValue: int | float | None
     minStep: int | float | None
     maxLen: int
-    valid_values: list[Any] | None
-    parent_service: "Service"
-
-    # static
     maxDataLen: int
+    valid_values: list[Any] | None
+    parent_service: Service
 
     # undocumented
     handle: int | None
@@ -108,6 +131,8 @@ class Characteristic:
     _status: HapStatusCode
 
     def __init__(self, service: Service, characteristic_type: UUID, **kwargs):
+        self.format = None  # to make updated _get_configuration work
+
         self.parent_service = service
         self.type = normalize_uuid(characteristic_type)
         self.iid = (
@@ -135,8 +160,12 @@ class Characteristic:
         self.minValue = self._get_configuration(kwargs, "min_value", None)
         self.maxValue = self._get_configuration(kwargs, "max_value", None)
         self.minStep = self._get_configuration(kwargs, "min_step", None)
-        self.maxLen = 64
-        self.maxDataLen = 2097152
+        self.maxLen = self._get_configuration(
+            kwargs, "max_len", DEFAULT_MAX_STRING_LENGTH
+        )
+        self.maxDataLen = self._get_configuration(
+            kwargs, "max_data_len", DEFAULT_MAX_DATA_LENGTH
+        )
         self.valid_values = self._get_configuration(kwargs, "valid_values", None)
         self.valid_values_range = None
 
@@ -156,8 +185,13 @@ class Characteristic:
             self.value = self.valid_values[0]
             return
 
-        if self.format:
-            self.value = DEFAULT_FOR_TYPE.get(self.format, None)
+        if (
+            self.format
+            and (defaults := DEFAULT_CONFIGURATION_FOR_FORMAT.get(self.format, None))
+            and ("default_value" in defaults)
+        ):
+            self.value = defaults["default_value"]
+            return
 
         if self.minValue:
             if self.value is None:
@@ -169,19 +203,23 @@ class Characteristic:
                 self.value = self.maxValue
             self.value = min(self.value, self.maxValue)  # ensure value is within range
 
-    def _get_configuration(
-        self,
-        kwargs: dict[str, Any],
-        key: str,
-        default: Any | None = None,
-    ) -> Any | None:
+    def _get_configuration[
+        T
+    ](self, kwargs: dict[str, Any], key: str, default: T = None,) -> T:
         if key in kwargs:
             return kwargs[key]
-        if self.type_str not in characteristics:
-            return default
-        if key not in characteristics[self.type_str]:
-            return default
-        return characteristics[self.type_str][key]
+
+        if self.type_str in characteristics and key in characteristics[self.type_str]:
+            return characteristics[self.type_str][key]
+
+        if (
+            self.format
+            and self.format in DEFAULT_CONFIGURATION_FOR_FORMAT
+            and key in DEFAULT_CONFIGURATION_FOR_FORMAT[self.format]
+        ):
+            return DEFAULT_CONFIGURATION_FOR_FORMAT[self.format][key]
+
+        return default
 
     @property
     def type_str(self) -> str:
@@ -256,13 +294,7 @@ class Characteristic:
 
         try:
             # convert input to python int if it is any kind of int
-            if self.format in [
-                CharacteristicFormats.uint64,
-                CharacteristicFormats.uint32,
-                CharacteristicFormats.uint16,
-                CharacteristicFormats.uint8,
-                CharacteristicFormats.int,
-            ]:
+            if self.format in INTEGER_TYPES:
                 new_val = int(new_val)
             # convert input to python float
             if self.format == CharacteristicFormats.float:
@@ -273,14 +305,7 @@ class Characteristic:
         except ValueError:
             raise FormatError(HapStatusCode.INVALID_VALUE)
 
-        if self.format in [
-            CharacteristicFormats.uint64,
-            CharacteristicFormats.uint32,
-            CharacteristicFormats.uint16,
-            CharacteristicFormats.uint8,
-            CharacteristicFormats.int,
-            CharacteristicFormats.float,
-        ]:
+        if self.format in NUMBER_TYPES:
             if self.minValue is not None and new_val < self.minValue:
                 raise FormatError(HapStatusCode.INVALID_VALUE)
             if self.maxValue is not None and self.maxValue < new_val:

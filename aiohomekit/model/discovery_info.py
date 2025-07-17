@@ -11,7 +11,7 @@ from .typed_dicts import HKDeviceID
 class AbstractDiscoveryInfo:
     id: HKDeviceID
     name: str
+    category: Category
     status_flags: StatusFlags
     config_num: int
     state_num: int
-    category: Category

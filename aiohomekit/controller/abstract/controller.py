@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterable
 import logging
-from typing import AsyncIterable, Callable, Self, final
+from typing import Callable, Self, final
 
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo

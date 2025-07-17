@@ -41,8 +41,7 @@ class CoAPDiscovery(AbstractDiscovery):
             None, description.address, description.port
         )
 
-    def setup(self):
-        ...
+    def setup(self): ...
 
     def __repr__(self):
         return f"CoAPDiscovery(host={self.description.address}, port={self.description.port})"

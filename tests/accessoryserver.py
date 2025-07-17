@@ -198,15 +198,11 @@ class AccessoryServerData:
                 json.dump(self.data, output_file, indent=2, sort_keys=True)
         except PermissionError:
             raise ConfigSavingError(
-                'Could not write "{f}" due to missing permissions'.format(
-                    f=self.data_file
-                )
+                f'Could not write "{self.data_file}" due to missing permissions'
             )
         except FileNotFoundError:
             raise ConfigSavingError(
-                'Could not write "{f}" because it (or the folder) does not exist'.format(
-                    f=self.data_file
-                )
+                f'Could not write "{self.data_file}" because it (or the folder) does not exist'
             )
 
     @property
@@ -327,9 +323,7 @@ class AccessoryServerData:
         for f in required_fields:
             if f not in self.data:
                 raise ConfigurationError(
-                    '"{r}" is missing in the config file "{f}"!'.format(
-                        r=f, f=self.data_file
-                    )
+                    f'"{f}" is missing in the config file "{self.data_file}"!'
                 )
 
 
@@ -352,9 +346,7 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
 
     def __init__(self, request, client_address, server):
         # keep pycharm from complaining about those not being define in __init__
-        self.session_id = "{ip}:{port}".format(
-            ip=client_address[0], port=client_address[1]
-        )
+        self.session_id = f"{client_address[0]}:{client_address[1]}"
         if self.session_id not in server.sessions:
             server.sessions[self.session_id] = {"handler": self}
         self.rfile = None

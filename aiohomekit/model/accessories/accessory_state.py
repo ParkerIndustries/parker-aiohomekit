@@ -18,3 +18,12 @@ class AccessoriesState:
             "state_num": self.state_num,
             "accessories": self.accessories.serialize(),
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AccessoriesState":
+        return cls(
+            accessories=Accessories.from_list(data["accessories"]),
+            config_num=data["config_num"],
+            broadcast_key=data.get("broadcast_key"),
+            state_num=data.get("state_num"),
+        )

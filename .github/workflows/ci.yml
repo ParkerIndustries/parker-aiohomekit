@@ -25,31 +25,31 @@ jobs:
           cache: "poetry"
 
       - name: Install dependencies
-        shell: bash
+        #shell: bash
         run: poetry install
 
       - name: Run pyupgrade
-        shell: bash
+        #shell: bash
         run: poetry run find aiohomekit tests -name '*.py' -exec python -m pyupgrade --py39-plus {} + && git diff --exit-code
 
       - name: Run isort
-        shell: bash
+        #shell: bash
         run: poetry run python -m isort -c --diff aiohomekit tests
 
       - name: Run black
-        shell: bash
+        #shell: bash
         run: poetry run python -m black --check --diff aiohomekit tests
 
       # - name: Run flake8
-      #   shell: bash
+      #   #shell: bash
       #   run: poetry run python -m flake8 aiohomekit tests
 
       - name: Run poetry build
-        shell: bash
+        #shell: bash
         run: poetry build
 
       - name: Run poetry check
-        shell: bash
+        #shell: bash
         run: poetry check
 
   tests:
@@ -80,15 +80,15 @@ jobs:
 
       - name: Get full Python version
         id: full-python-version
-        shell: bash
+        #shell: bash
         run: echo ::set-output name=version::$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))")
 
       - name: Install dependencies
-        shell: bash`
+        #shell: bash`
         run: poetry install
 
       - name: Run pytest
-        shell: bash
+        #shell: bash
         run: poetry run python -m pytest --cov=. --cov-report=xml
 
-      - uses: codecov/codecov-action@v5
+      # - uses: codecov/codecov-action@v5

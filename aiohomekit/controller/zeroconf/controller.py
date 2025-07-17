@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import asyncio
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Coroutine
 from enum import Enum, auto
-from typing import Any, Coroutine, cast, override
+from typing import Any, cast, override
 
 from zeroconf import (
     BadTypeInNameException,

@@ -18,6 +18,7 @@ import enum
 
 
 class Category(enum.IntFlag):
+    # TODO: lowercase name and display name properties
     OTHER = 1
     BRIDGE = 2
     FAN = 3

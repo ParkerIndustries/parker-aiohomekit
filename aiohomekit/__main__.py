@@ -26,11 +26,10 @@ import pathlib
 import re
 import sys
 
-from zeroconf.asyncio import AsyncServiceBrowser, AsyncZeroconf
+from zeroconf.asyncio import AsyncZeroconf
 
 from aiohomekit import hkjson
 from aiohomekit.controller.relay import Controller
-from aiohomekit.controller.zeroconf.protocol import EmptyZeroconfServiceListener
 from aiohomekit.model.accessories import AccessoriesState
 from aiohomekit.model.characteristics import CharacteristicKey, CharacteristicKeyValue
 from aiohomekit.model.typed_dicts import HKDeviceID
@@ -55,7 +54,7 @@ aliases: dict[str, HKDeviceID] = {}  # alias to pairingId
 def load_aliases():
     global aliases
     try:
-        with open(DEFAULT_ALIASES_FILE, "r") as f:
+        with open(DEFAULT_ALIASES_FILE) as f:
             aliases = hkjson.loads(f.read())
     except FileNotFoundError:
         pass
@@ -124,21 +123,21 @@ async def get_controller(args: argparse.Namespace) -> AsyncIterator[Controller]:
         zeroconf,
     )
 
-    async with zeroconf:
-        listener = EmptyZeroconfServiceListener()
-        browser = AsyncServiceBrowser(
-            zeroconf.zeroconf,
-            [
-                "_hap._tcp.local.",
-                "_hap._udp.local.",
-            ],
-            listener=listener,
-        )
+    async with zeroconf, controller:
+        # listener = EmptyZeroconfServiceListener()
+        # browser = AsyncServiceBrowser(
+        #     zeroconf.zeroconf,
+        #     [
+        #         "_hap._tcp.local.",
+        #         "_hap._udp.local.",
+        #     ],
+        #     listener=listener,
+        # )
+        # Controllers will register their respective service types under the hood
 
-        async with controller:
-            yield controller
+        yield controller
 
-        await browser.async_cancel()
+        # await browser.async_cancel()
 
 
 def pin_from_keyboard():
@@ -339,9 +338,7 @@ async def put_characteristics(args: Namespace) -> bool:
             # used to be < 0 but bluetooth le errors are > 0 and only success (= 0) needs to be checked
             if status != 0:
                 print(
-                    "put_characteristics failed on {aid}.{iid} because: {reason} ({code})".format(
-                        aid=aid, iid=iid, reason=desc, code=status
-                    )
+                    f"put_characteristics failed on {aid}.{iid} because: {desc} ({status})"
                 )
 
     return True
@@ -448,11 +445,7 @@ async def get_events(args):
                 status = value.get("status") or 0
                 desc = value.get("description")
                 if status < 0:
-                    print(
-                        "watch failed on {aid}.{iid} because: {reason} ({code})".format(
-                            aid=aid, iid=iid, reason=desc, code=status
-                        )
-                    )
+                    print(f"watch failed on {aid}.{iid} because: {desc} ({status})")
             return False
 
         # Legacy observer:
