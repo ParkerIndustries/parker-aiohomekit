@@ -70,7 +70,7 @@ class AccessoryDescription(Protocol):
 
 class ConnectionDelegate(Protocol):
     @property
-    def description(self) -> Optional[AccessoryDescription]:
+    def description(self) -> AccessoryDescription | None:
         """Required information to connect to the accessory."""
         pass
 

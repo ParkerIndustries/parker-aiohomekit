@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any, AsyncIterable, override
+from typing import Any, override
+from collections.abc import AsyncIterable
 
 from bleak import BleakScanner
 from zeroconf.asyncio import AsyncZeroconf

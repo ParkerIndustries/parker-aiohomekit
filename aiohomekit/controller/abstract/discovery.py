@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable, final
+from typing import Callable, final
+from collections.abc import Awaitable
 
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.status_flags import StatusFlags

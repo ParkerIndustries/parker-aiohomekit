@@ -7,7 +7,8 @@ import re
 import sys
 
 # from collections.abc import Coroutine
-from typing import Any, Awaitable
+from typing import Any
+from collections.abc import Awaitable
 
 from aiohomekit.const import COAP_TRANSPORT_SUPPORTED, IP_TRANSPORT_SUPPORTED
 from aiohomekit.exceptions import MalformedPinError
