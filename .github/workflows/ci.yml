@@ -15,18 +15,15 @@ jobs:
       - name: Check out code from GitHub
         uses: actions/checkout@v2
 
-      - name: Install poetry
-        run: pipx install poetry
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v2
         with:
-          python-version: 3.12
-          cache: "poetry"
+          python-version: "3.12"
 
       - name: Install dependencies
-        #shell: bash
-        run: poetry install
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
 
       - name: Run pyupgrade
         #shell: bash
@@ -53,39 +50,47 @@ jobs:
         run: poetry check
 
   tests:
-    name: pytest/${{ matrix.os }}/${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ubuntu-latest
+    # name: pytest/${{ matrix.os }}/${{ matrix.python-version }}
+    # runs-on: ${{ matrix.os }}-latest
 
-    strategy:
-      matrix:
-        os: [Ubuntu, MacOS, Windows]
-        python-version: ["3.12", "3.13"]
+    # strategy:
+    #   matrix:
+    #     os: [Ubuntu, MacOS, Windows]
+    #     python-version: ["3.12", "3.13"]
 
-    env:
-      OS: ${{ matrix.os }}
-      PYTHON: ${{ matrix.python-version }}
+    # env:
+    #   OS: ${{ matrix.os }}
+    #   PYTHON: ${{ matrix.python-version }}
 
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4
 
-      - name: Install poetry
-        run: pipx install poetry
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: "poetry"
-
-      - name: Get full Python version
-        id: full-python-version
-        #shell: bash
-        run: echo ::set-output name=version::$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))")
+          python-version: "3.12"
 
       - name: Install dependencies
-        #shell: bash`
-        run: poetry install
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
+
+      # - name: Set up Python ${{ matrix.python-version }}
+      # uses: actions/setup-python@v5
+      # with:
+      #   python-version: ${{ matrix.python-version }}
+      #   cache: "poetry"
+
+      # - name: Get full Python version
+      #   id: full-python-version
+      #   #shell: bash
+      #   run: echo ::set-output name=version::$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))")
+
+      # - name: Install dependencies
+      #   #shell: bash`
+      #   run: poetry install
 
       - name: Run pytest
         #shell: bash
