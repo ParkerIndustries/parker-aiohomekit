@@ -1,6 +1,6 @@
+from asyncio.protocols import Protocol
 import logging
 import pathlib
-from asyncio.protocols import Protocol
 
 from lark.exceptions import UnexpectedToken
 
