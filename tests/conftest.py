@@ -26,8 +26,7 @@ from aiohomekit.storage.pairing_data_storage import (
     PairingDataStorageFile,
     PairingDataStorageMemory,
 )
-
-from tests.accessoryserver import AccessoryServer
+from aiohomekit.testing.accessoryserver import AccessoryServer
 
 HAP_TYPE_TCP = "_hap._tcp.local."
 HAP_TYPE_UDP = "_hap._udp.local."

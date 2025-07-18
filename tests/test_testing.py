@@ -4,7 +4,7 @@ from aiohomekit.model.accessories import Accessories, AccessoriesState, Accessor
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 from aiohomekit.protocol.statuscodes import HapStatusCode
-from aiohomekit.testing import FakeController
+from aiohomekit.testing.fakes import FakeController
 
 
 async def test_pairing():
