@@ -1,9 +1,10 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
 from aiohomekit.controller.ble.controller import BleController
-from aiohomekit.controller.relay import Controller, controller as controller_module
+from aiohomekit.controller.relay import Controller
+from aiohomekit.controller.relay import controller as controller_module
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model.transport_type import TransportType
@@ -68,3 +69,43 @@ async def test_passing_in_async_zeroconf(mock_asynczeroconf):
 
     assert len(controller._transports) == 1, controller._transports
     assert isinstance(controller._transports[TransportType.IP], IpController)
+
+async def test_controller_on_discovery_callback_before_start():
+    with (
+        patch.object(controller_module, "BLE_TRANSPORT_SUPPORTED", False),
+        patch.object(controller_module, "COAP_TRANSPORT_SUPPORTED", False),
+        patch.object(controller_module, "IP_TRANSPORT_SUPPORTED", True),
+    ):
+        controller = Controller(
+            CharacteristicsStorageMemory(),
+            PairingDataStorageMemory(),
+        )
+        callback_mock = Mock()
+        controller.on_discovery(callback_mock)
+        await controller.start()
+
+    assert controller._transports
+    child_controller = controller._transports[TransportType.IP]
+    assert child_controller._on_discovery_callback
+    child_controller._on_discovery_callback(child_controller, None)
+    callback_mock.assert_called_once_with(child_controller, None)
+
+async def test_controller_on_discovery_callback_after_start():
+    with (
+        patch.object(controller_module, "BLE_TRANSPORT_SUPPORTED", False),
+        patch.object(controller_module, "COAP_TRANSPORT_SUPPORTED", False),
+        patch.object(controller_module, "IP_TRANSPORT_SUPPORTED", True),
+    ):
+        controller = Controller(
+            CharacteristicsStorageMemory(),
+            PairingDataStorageMemory(),
+        )
+        callback_mock = Mock()
+        await controller.start()
+        controller.on_discovery(callback_mock)
+
+    assert controller._transports
+    child_controller = controller._transports[TransportType.IP]
+    assert child_controller._on_discovery_callback
+    child_controller._on_discovery_callback(child_controller, None)
+    callback_mock.assert_called_once_with(child_controller, None)

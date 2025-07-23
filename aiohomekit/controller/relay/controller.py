@@ -121,6 +121,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             )
 
     async def _register_backend(self, controller: AbstractController):
+        controller.on_discovery(self._call_discovery_callback)
         self._transports[controller.transport_type] = (
             await self._tasks.enter_async_context(controller)
         )
@@ -184,17 +185,10 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                 yield device
 
     @override
-    def on_discovery(self, callback: DiscoveryCallback):
-        for transport in self._transports.values():
-            transport.on_discovery(callback)
-
-    @override
     def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
-        if pairing_data["Connection"] in self._transports:
-            if pairing := self._transports[pairing_data["Connection"]].load_pairing(
-                pairing_data
-            ):
-                return pairing
+        if pairing_data["Connection"] in self._transports \
+           and (pairing := self._transports[pairing_data["Connection"]].load_pairing(pairing_data)):
+            return pairing
 
     @override
     async def remove_pairing(self, pairing_id: HKDeviceID) -> AbstractPairing:
@@ -233,3 +227,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                     pass
 
         raise AccessoryNotFoundError(f"Accessory with device id {device_id} not found")
+
+    # Private
+
+    def _call_discovery_callback(self, controller: AbstractController, discovery: AbstractDiscovery):
+        if self._on_discovery_callback:
+            self._on_discovery_callback(controller, discovery)
