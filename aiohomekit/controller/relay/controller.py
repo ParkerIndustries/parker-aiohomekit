@@ -186,8 +186,11 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @override
     def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
-        if pairing_data["Connection"] in self._transports \
-           and (pairing := self._transports[pairing_data["Connection"]].load_pairing(pairing_data)):
+        if pairing_data["Connection"] in self._transports and (
+            pairing := self._transports[pairing_data["Connection"]].load_pairing(
+                pairing_data
+            )
+        ):
             return pairing
 
     @override
@@ -230,6 +233,8 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     # Private
 
-    def _call_discovery_callback(self, controller: AbstractController, discovery: AbstractDiscovery):
+    def _call_discovery_callback(
+        self, controller: AbstractController, discovery: AbstractDiscovery
+    ):
         if self._on_discovery_callback:
             self._on_discovery_callback(controller, discovery)

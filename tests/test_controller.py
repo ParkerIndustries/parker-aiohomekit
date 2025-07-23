@@ -3,8 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from aiohomekit.controller.ble.controller import BleController
-from aiohomekit.controller.relay import Controller
-from aiohomekit.controller.relay import controller as controller_module
+from aiohomekit.controller.relay import Controller, controller as controller_module
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model.transport_type import TransportType
@@ -70,6 +69,7 @@ async def test_passing_in_async_zeroconf(mock_asynczeroconf):
     assert len(controller._transports) == 1, controller._transports
     assert isinstance(controller._transports[TransportType.IP], IpController)
 
+
 async def test_controller_on_discovery_callback_before_start():
     with (
         patch.object(controller_module, "BLE_TRANSPORT_SUPPORTED", False),
@@ -89,6 +89,7 @@ async def test_controller_on_discovery_callback_before_start():
     assert child_controller._on_discovery_callback
     child_controller._on_discovery_callback(child_controller, None)
     callback_mock.assert_called_once_with(child_controller, None)
+
 
 async def test_controller_on_discovery_callback_after_start():
     with (

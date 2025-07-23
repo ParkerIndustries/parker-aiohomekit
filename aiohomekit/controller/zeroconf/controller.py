@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
+import asyncio
 from collections.abc import AsyncIterable, Coroutine
 from enum import Enum, auto
 from typing import Any, cast, override
