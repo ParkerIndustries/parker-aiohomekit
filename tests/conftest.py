@@ -1,20 +1,12 @@
 import asyncio
-from collections.abc import Iterable
-import contextlib
-import errno
 import logging
 import os
 import pathlib
-import socket
 import tempfile
 import threading
-from typing import Optional
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from zeroconf import DNSCache, DNSQuestionType, SignalRegistrationInterface, Zeroconf
-from zeroconf.asyncio import AsyncServiceInfo, AsyncZeroconf
 
 from aiohomekit.controller.relay import Controller
 from aiohomekit.controller.zeroconf.ip import IpPairing
@@ -27,134 +19,14 @@ from aiohomekit.storage.pairing_data_storage import (
     PairingDataStorageMemory,
 )
 from aiohomekit.testing.accessoryserver import AccessoryServer
-
-HAP_TYPE_TCP = "_hap._tcp.local."
-HAP_TYPE_UDP = "_hap._udp.local."
-TYPE_PTR = 12
-CLASS_IN = 1
-
-
-def _get_test_socket() -> socket.socket:
-    """Create a socket to test binding ports."""
-    test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    test_socket.setblocking(False)
-    test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    return test_socket
-
-
-def port_ready(port: int) -> bool:
-    try:
-        _get_test_socket().bind(("127.0.0.1", port))
-    except OSError as e:
-        if e.errno == errno.EADDRINUSE:
-            return True
-
-    return False
-
-
-def next_available_port() -> int:
-    for port in range(51842, 53842):
-        if not port_ready(port):
-            return port
-
-    raise RuntimeError("No available ports")
-
-
-async def wait_for_server_online(port: int):
-    for i in range(100):
-        if port_ready(port):
-            break
-        await asyncio.sleep(0.025)
-
-
-class AsyncServiceBrowserStub:
-    types = [
-        "_hap._tcp.local.",
-        "_hap._udp.local.",
-    ]
-
-    def __init__(self):
-        self._handlers = []
-        self.service_state_changed = SignalRegistrationInterface(self._handlers)
-
-
-class MockedAsyncServiceInfo(AsyncServiceInfo):
-    async def async_request(
-        self,
-        zc: "Zeroconf",
-        timeout: float,
-        question_type: Optional[DNSQuestionType] = None,
-        addr: Optional[str] = None,
-        port: Optional[int] = None,
-    ) -> bool:
-        success = self.load_from_cache(zc)
-        assert (
-            success
-        ), f"Failed to load service info from cache {self.type=}, {self.name=}"
-        return success
-
-
-def _get_mock_service_info():
-    desc = {
-        b"c#": b"1",
-        b"id": b"00:00:01:00:00:02",
-        b"md": b"unittest",
-        b"s#": b"1",
-        b"ci": b"5",
-        b"sf": b"0",
-    }
-    return MockedAsyncServiceInfo(
-        HAP_TYPE_TCP,
-        f"foo.{HAP_TYPE_TCP}",
-        addresses=[socket.inet_aton("127.0.0.1")],
-        port=1234,
-        properties=desc,
-        weight=0,
-        priority=0,
-    )
-
-
-@contextlib.contextmanager
-def _install_mock_service_info(
-    mock_asynczeroconf: AsyncZeroconf, info: MockedAsyncServiceInfo
-) -> Iterable:
-    zeroconf: Zeroconf = mock_asynczeroconf.zeroconf
-
-    zeroconf.cache.async_add_records(
-        [*info.dns_addresses(), info.dns_pointer(), info.dns_service(), info.dns_text()]
-    )
-
-    assert (
-        zeroconf.cache.get_all_by_details(HAP_TYPE_TCP, TYPE_PTR, CLASS_IN) is not None
-    )
-
-    yield
+from aiohomekit.testing.mock_zeroconf import mock_asynczeroconf as do_mock_asynczeroconf
+from aiohomekit.testing.utils import next_available_port, wait_for_server_online
 
 
 @pytest.fixture
 def mock_asynczeroconf():
-    """Mock zeroconf."""
-
-    with (
-        patch("zeroconf.asyncio.AsyncServiceBrowser", AsyncServiceBrowserStub),
-        patch("zeroconf.asyncio.AsyncZeroconf") as mock_zc,
-        patch(
-            "aiohomekit.controller.zeroconf.controller.AsyncServiceInfo",
-            MockedAsyncServiceInfo,
-        ),
-    ):  # patch where it’s used, not where it’s from, because the class is already imported in the module
-        zc = mock_zc.return_value
-        zc.register_service = AsyncMock()
-        zc.async_close = AsyncMock()
-        zeroconf = MagicMock(name="zeroconf_mock")
-        zeroconf.cache = DNSCache()
-        zeroconf.async_wait_for_start = AsyncMock()
-        zeroconf.listeners = [AsyncServiceBrowserStub()]
-        zc.zeroconf = zeroconf
-        # with _install_mock_service_info(
-        #     zc, _get_mock_service_info()
-        # ):
-        yield zc
+    with do_mock_asynczeroconf() as zeroconf:
+        yield zeroconf
 
 
 @pytest.fixture
