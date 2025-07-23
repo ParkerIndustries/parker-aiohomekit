@@ -10,6 +10,7 @@ def get_test_socket() -> socket.socket:
     test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return test_socket
 
+
 def port_ready(port: int) -> bool:
     try:
         get_test_socket().bind(("127.0.0.1", port))
@@ -19,12 +20,14 @@ def port_ready(port: int) -> bool:
 
     return False
 
+
 def next_available_port() -> int:
     for port in range(51842, 53842):
         if not port_ready(port):
             return port
 
     raise RuntimeError("No available ports")
+
 
 async def wait_for_server_online(port: int):
     for _ in range(100):

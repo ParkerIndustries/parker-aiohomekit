@@ -1,7 +1,7 @@
-import contextlib
-import socket
 from collections.abc import Iterable
+import contextlib
 from contextlib import contextmanager
+import socket
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,6 +12,7 @@ HAP_TYPE_TCP = "_hap._tcp.local."
 HAP_TYPE_UDP = "_hap._udp.local."
 TYPE_PTR = 12
 CLASS_IN = 1
+
 
 class AsyncServiceBrowserStub:
     types = [

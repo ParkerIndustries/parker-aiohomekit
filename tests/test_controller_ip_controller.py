@@ -7,7 +7,10 @@ from aiohomekit.model.categories import Category
 from aiohomekit.model.status_flags import StatusFlags
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
-from aiohomekit.testing.mock_zeroconf import get_mock_service_info, install_mock_service_info
+from aiohomekit.testing.mock_zeroconf import (
+    get_mock_service_info,
+    install_mock_service_info,
+)
 
 
 async def test_discover_find_one(mock_asynczeroconf: AsyncZeroconf):
