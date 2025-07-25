@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 from aiohomekit import Controller
 from aiohomekit.controller.zeroconf.ip import IpDiscovery, IpPairing
 from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
@@ -23,7 +25,7 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
             addresses=["127.0.0.1"],
             port=port,
         ),
-        lambda _: None,
+        AsyncMock(),
     )
 
     finish_pairing = await discovery.start_pairing()
@@ -56,7 +58,7 @@ async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int
             addresses=["127.0.0.1"],
             port=port,
         ),
-        lambda _: None,
+        AsyncMock(),
     )
 
     identified = await discovery.identify()

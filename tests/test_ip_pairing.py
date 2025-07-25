@@ -194,12 +194,13 @@ async def test_put_characteristics_callbacks(pairing: IpPairing):
     assert events == []
 
     characteristics = await pairing.put_characteristics([(1, 9, True)])
-    assert events == [{}, {(1, 9): {"value": True}}]
+    assert events == [{(1, 9): {"value": True}}]
     assert characteristics == {}
+    events.clear()
 
     # Identify is a write only characteristic, so we should not get a callback
     characteristics = await pairing.put_characteristics([(1, 2, True)])
-    assert events == [{}, {(1, 9): {"value": True}}]
+    assert events == []
 
     characteristics = await pairing.get_characteristics([(1, 9)])
 

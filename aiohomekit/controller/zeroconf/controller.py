@@ -245,9 +245,9 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
                 description
             )
 
-        discovery = self._discoveries[description.id] = self._make_discovery(
-            description
-        )
+        # discovery = self._discoveries[description.id] = self._make_discovery(
+        #     description
+        # )
 
         if pairing := self.pairings.get(description.id):
             logger.debug(

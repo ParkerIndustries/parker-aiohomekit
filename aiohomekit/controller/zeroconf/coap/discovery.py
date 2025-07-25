@@ -74,7 +74,7 @@ class CoAPDiscovery(AbstractDiscovery):
             pairing_data["AccessoryPort"] = self.description.port
             pairing_data["Connection"] = "CoAP"
 
-            self._pairing_finished_callback(pairing_data)
+            await self._pairing_finished_callback(pairing_data)
 
             return pairing_data
 

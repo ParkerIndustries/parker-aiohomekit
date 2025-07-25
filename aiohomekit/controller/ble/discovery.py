@@ -195,7 +195,7 @@ class BleDiscovery(AbstractDiscovery):
             pairing_data["AccessoryAddress"] = self.description.address
             pairing_data["Connection"] = "BLE"
 
-            self._pairing_finished_callback(pairing_data)
+            await self._pairing_finished_callback(pairing_data)
 
             # obj = self.controller.pairings[id] = BlePairing(
             #     self.controller,

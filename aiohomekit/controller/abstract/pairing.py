@@ -259,7 +259,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self.description = description
 
         if repopulate_accessories:
-            async_create_task(self._process_config_changed(description.config_num))
+            async_create_task(
+                self._process_config_changed(description.config_num)
+            )  # TODO: check if it should be await
 
     # Observers
 

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -80,7 +80,7 @@ async def test_controller_on_discovery_callback_before_start():
             CharacteristicsStorageMemory(),
             PairingDataStorageMemory(),
         )
-        callback_mock = Mock()
+        callback_mock = AsyncMock()
         controller.on_discovery(callback_mock)
         await controller.start()
 
@@ -101,7 +101,7 @@ async def test_controller_on_discovery_callback_after_start():
             CharacteristicsStorageMemory(),
             PairingDataStorageMemory(),
         )
-        callback_mock = Mock()
+        callback_mock = AsyncMock()
         await controller.start()
         controller.on_discovery(callback_mock)
 

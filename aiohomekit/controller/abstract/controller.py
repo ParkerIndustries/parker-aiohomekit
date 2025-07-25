@@ -144,12 +144,15 @@ class AbstractController[
         if discovery := self._discoveries.get(accessory_id):
             pairing.process_description_update(discovery.description)
 
-        # TODO: consider:
-        # await pairing.fetch_accessories_and_characteristics()? or fetch from storage?
+        await pairing.fetch_accessories_and_characteristics()  # TODO: fetch from storage first
+
+        # TODO: initial save NOTE: current commented code causes "dict changed size during iteration" error
+
         # await self.char_cache_storage.save(accessory_id, pairing.accessories_state)
         # await self.pairing_data_storage.save(accessory_id, pairing_data)
 
-        # observe pairing data changes and store unsubscribe callables
+        # observe changes in pairing data and data model
+
         unsubscribes = []
 
         def _schedule_save_config(id: HKDeviceID, config_num: int):
@@ -170,8 +173,11 @@ class AbstractController[
 
         return pairing
 
-    def _on_pairing(self, pairing_data: PairingData):
-        async_create_task(self.load_pairing(pairing_data))
+    async def _on_pairing(self, pairing_data: PairingData):
+        #  async_create_task(self.load_pairing(pairing_data))
+        await self.load_pairing(
+            pairing_data
+        )  # so we return to the caller of finish_pairing with completely loaded pairing
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return self.Discovery(discovery_info, self._on_pairing)

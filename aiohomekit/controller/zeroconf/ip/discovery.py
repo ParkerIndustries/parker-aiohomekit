@@ -86,7 +86,7 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
             pairing_data["AccessoryPort"] = self.description.port
             pairing_data["Connection"] = "IP"
 
-            self._pairing_finished_callback(pairing_data)
+            await self._pairing_finished_callback(pairing_data)
 
             await self.connection.close()  # discovery connection is no longer needed, the pairing connection will be used instead
 

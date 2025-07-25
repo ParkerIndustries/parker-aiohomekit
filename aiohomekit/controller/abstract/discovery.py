@@ -9,7 +9,7 @@ from aiohomekit.model.status_flags import StatusFlags
 from aiohomekit.model.typed_dicts import PairingData
 
 type FinishPairing = Callable[[str], Awaitable[PairingData]]
-type DiscoveryDidFinishPairingCallback = Callable[[PairingData], None]
+type DiscoveryDidFinishPairingCallback = Callable[[PairingData], Awaitable[None]]
 
 
 class AbstractDiscovery[DiscoveryDescription: AbstractDiscoveryInfo](ABC):
