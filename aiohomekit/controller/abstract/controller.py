@@ -128,21 +128,26 @@ class AbstractController[
 
     async def load_pairings_from_storage(self):
         for pairing_data in (await self.pairing_data_storage.get_all()).values():
-            self.load_pairing(pairing_data)
+            await self.load_pairing(pairing_data)
 
-    def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
+    async def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
         if pairing_data["Connection"] != self.transport_type:
             return None
 
         accessory_id = pairing_data["AccessoryPairingID"]
 
         if not accessory_id:
-            return None
+            raise ValueError("Invalid pairing data: Missing accessory ID")
 
         pairing = self._pairings[accessory_id] = self.Pairing(pairing_data)
 
         if discovery := self._discoveries.get(accessory_id):
             pairing.process_description_update(discovery.description)
+
+        # TODO: consider:
+        # await pairing.fetch_accessories_and_characteristics()? or fetch from storage?
+        # await self.char_cache_storage.save(accessory_id, pairing.accessories_state)
+        # await self.pairing_data_storage.save(accessory_id, pairing_data)
 
         # observe pairing data changes and store unsubscribe callables
         unsubscribes = []
@@ -166,18 +171,13 @@ class AbstractController[
         return pairing
 
     def _on_pairing(self, pairing_data: PairingData):
-        self.load_pairing(pairing_data)
-        async_create_task(
-            self.pairing_data_storage.save(
-                pairing_data["AccessoryPairingID"], pairing_data
-            )
-        )
+        async_create_task(self.load_pairing(pairing_data))
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return self.Discovery(discovery_info, self._on_pairing)
 
     def _stop_observing(self):
-        for pairing_id in self._pairing_cleanups.copy().keys():
+        for pairing_id in self._pairing_cleanups.copy():
             self._cleanup_pairing(pairing_id)
 
     def _cleanup_pairing(self, pairing_id: HKDeviceID):

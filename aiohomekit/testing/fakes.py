@@ -79,7 +79,7 @@ class FakeDiscovery(AbstractDiscovery):
             discovery.description = FakeDescription(status_flags=0)
 
             pairing_data = {}
-            # pairing_data["AccessoryIP"] = self.address
+            # pairing_data["AccessoryAddress"] = self.address
             # pairing_data["AccessoryPort"] = self.port
             pairing_data["AccessoryPairingID"] = discovery.description.id
             pairing_data["Connection"] = "Fake"
@@ -420,7 +420,7 @@ class FakeController(AbstractController):
         del self.pairings[pairing_id]
         await self.char_cache_storage.delete(pairing_id)
 
-    def load_pairing(self, pairing_data):
+    async def load_pairing(self, pairing_data):
         # This assumes a test has already preseed self.pairings with a fake via
         # add_paired_device
         pairing_id = pairing_data["AccessoryPairingID"]

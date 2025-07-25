@@ -30,7 +30,7 @@ def mock_asynczeroconf():
 
 
 @pytest.fixture
-async def controller_and_unpaired_accessory(request, mock_asynczeroconf, id_factory):
+async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
     available_port = next_available_port()
 
     config_file = tempfile.NamedTemporaryFile(delete=False)
@@ -89,7 +89,7 @@ async def controller_and_unpaired_accessory(request, mock_asynczeroconf, id_fact
 
 
 @pytest.fixture
-async def controller_and_paired_accessory(request, mock_asynczeroconf, id_factory):
+async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
     available_port = next_available_port()
 
     config_file = tempfile.NamedTemporaryFile(delete=False)
@@ -140,7 +140,7 @@ async def controller_and_paired_accessory(request, mock_asynczeroconf, id_factor
             "AccessoryLTPK": "7986cf939de8986f428744e36ed72d86189bea46b4dcdc8d9d79a3e4fceb92b9",
             "AccessoryPairingID": "12:34:56:00:01:0A",
             "AccessoryPort": %port%,
-            "AccessoryIP": "127.0.0.1",
+            "AccessoryAddress": "127.0.0.1",
             "iOSDeviceLTSK": "fa45f082ef87efc6c8c8d043d74084a3ea923a2253e323a7eb9917b4090c2fcc"
         }
     }""".replace(
@@ -190,7 +190,7 @@ async def pairing(controller_and_paired_accessory):
 
 
 @pytest.fixture
-async def pairings(request, controller_and_paired_accessory):
+async def pairings(controller_and_paired_accessory):
     """Returns a pairing of pairngs."""
     left = next(iter(controller_and_paired_accessory.pairings.values()))  # TODO: check
 

@@ -160,6 +160,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @override
     async def stop(self):
+        await super().stop()
         await self._tasks.aclose()
 
     @override
@@ -185,9 +186,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
                 yield device
 
     @override
-    def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
+    async def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
         if pairing_data["Connection"] in self._transports and (
-            pairing := self._transports[pairing_data["Connection"]].load_pairing(
+            pairing := await self._transports[pairing_data["Connection"]].load_pairing(
                 pairing_data
             )
         ):

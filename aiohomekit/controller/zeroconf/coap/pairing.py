@@ -45,7 +45,7 @@ class CoAPPairing(ZeroconfPairing):
         super().__init__(pairing_data)
         self.connection = CoAPHomeKitConnection(
             self,
-            pairing_data["AccessoryIP"],
+            pairing_data["AccessoryAddress"],
             pairing_data["AccessoryPort"],  # TODO: generic DiscoveryInfo for zeroconf?
         )
         self.connection_future = None

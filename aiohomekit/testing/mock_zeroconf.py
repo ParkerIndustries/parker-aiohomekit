@@ -20,7 +20,7 @@ class AsyncServiceBrowserStub:
         "_hap._udp.local.",
     ]
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self._handlers = []
         self.service_state_changed = SignalRegistrationInterface(self._handlers)
 
@@ -43,12 +43,12 @@ class MockedAsyncServiceInfo(AsyncServiceInfo):
 
 def get_mock_service_info():
     desc = {
-        b"c#": b"1",
-        b"id": b"00:00:01:00:00:02",
-        b"md": b"unittest",
-        b"s#": b"1",
-        b"ci": b"5",
-        b"sf": b"0",
+        "c#": "1",  # Configuration number
+        "id": "00:00:01:00:00:02",  # Device ID (like MAC, but HAP-specific)
+        "md": "unittest",  # Model name
+        "s#": "1",  # State number
+        "ci": "5",  # Category Identifier (5 = Lightbulb)
+        "sf": "0",  # Status Flag (0 = not discoverable)
     }
     return MockedAsyncServiceInfo(
         HAP_TYPE_TCP,

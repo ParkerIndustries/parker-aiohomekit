@@ -81,7 +81,7 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
                     pairing_data = result.value
                     break
 
-            pairing_data["AccessoryIP"] = self.description.address
+            pairing_data["AccessoryAddress"] = self.description.address
             pairing_data["AccessoryIPs"] = self.description.addresses
             pairing_data["AccessoryPort"] = self.description.port
             pairing_data["Connection"] = "IP"
@@ -106,10 +106,7 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
         code = to_status_code(response["code"])
 
         raise AlreadyPairedError(
-            "Identify failed because: {reason} ({code}).".format(
-                reason=code.description,
-                code=code.value,
-            )
+            f"Identify failed because: {code.description} ({code.value})."
         )
 
     async def close(self):

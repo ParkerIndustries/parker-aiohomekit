@@ -129,9 +129,10 @@ class BleController(AbstractController):
         for device in self._discoveries.values():
             yield device
 
-    def load_pairing(self, pairing_data: PairingData) -> BlePairing | None:
+    async def load_pairing(self, pairing_data: PairingData) -> BlePairing | None:
         if pairing_data["Connection"] != "BLE":
             return None
+        await super().load_pairing(pairing_data)
 
         # TODO: implement
 
@@ -142,9 +143,9 @@ class BleController(AbstractController):
         #     device = discovery.device
         #     description = discovery.description
 
-        pairing = self.pairings[pairing_data["AccessoryPairingID"]] = BlePairing(
-            pairing_data  # , device=device, description=description
-        )
+        # pairing = self.pairings[pairing_data["AccessoryPairingID"]] = BlePairing(
+        #     pairing_data  # , device=device, description=description
+        # ) already done in super
         return pairing
 
     def _device_detected(

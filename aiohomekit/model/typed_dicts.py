@@ -4,12 +4,10 @@ Typing hints for the serialization format used by the JSON part of the HomeKit A
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, Union
+from typing import Any, Literal, NotRequired, TypedDict, Union
 
-if TYPE_CHECKING:
-    from .characteristics import CharacteristicKey
-    from .transport_type import TransportType
-
+from .characteristics import CharacteristicKey
+from .transport_type import TransportType
 
 Characteristic = TypedDict(  # Using functional style because "valid-values" is not a valid Python identifier
     "Characteristic",
@@ -67,9 +65,10 @@ class PairingData(PairingCredentials, total=True):
     """data in addition to credentials to connect to the accessory"""
 
     Connection: TransportType
-    AccessoryIP: str
-    # AccessoryPort: int # TODO: check which transports use this
-    # AccessoryIPs: str  # TODO: check which transports use this
+    AccessoryAddress: str  # used by all transports including ble
+    # zeroconf (ip-coap) only, not present in ble
+    AccessoryPort: NotRequired[int]
+    AccessoryIPs: NotRequired[str]
 
 
 class AccessoryPairings(TypedDict, total=True):

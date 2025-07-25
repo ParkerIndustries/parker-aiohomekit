@@ -20,7 +20,7 @@ from collections.abc import Iterable
 import logging
 import socket
 from struct import Struct
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import aiohappyeyeballs
 from async_interrupt import interrupt
@@ -279,7 +279,6 @@ class HomeKitConnection:
 
         self._connect_lock = asyncio.Lock()
 
-        self._loop = asyncio.get_running_loop()
         self._concurrency_limit = asyncio.Semaphore(concurrency_limit)
         self._reconnect_future: asyncio.Future[None] | None = None
         self._last_connector_error: Exception | None = None
@@ -604,7 +603,7 @@ class HomeKitConnection:
                         addr_infos,
                         happy_eyeballs_delay=0.25,
                         interleave=interleave,
-                        loop=self._loop,
+                        loop=loop,
                     )
                     connected_host = sock.getpeername()[0]
                     break
@@ -646,7 +645,8 @@ class HomeKitConnection:
         # If an active service browser is running the entry that zeroconf
         # saw will already be in the cache and will be available to
         # _connect_once without having to do I/O
-        #
+
+        loop = asyncio.get_event_loop()
         if self._connect_lock.locked():
             # Reconnect already in progress.
             return
@@ -682,7 +682,7 @@ class HomeKitConnection:
                     )
 
                 interval = min(60, 1.5 * interval)
-                self._reconnect_future = self._loop.create_future()
+                self._reconnect_future = loop.create_future()
                 try:
                     async with interrupt(self._reconnect_future, ConnectionReady, None):
                         await asyncio.sleep(interval)
@@ -718,7 +718,7 @@ class SecureHomeKitConnection(HomeKitConnection):
     def __init__(self, delegate: ConnectionDelegate, pairing_data: dict[str, Any]):
         super().__init__(
             delegate,
-            pairing_data.get("AccessoryIPs", [pairing_data["AccessoryIP"]]),
+            pairing_data.get("AccessoryIPs", [pairing_data["AccessoryAddress"]]),
             pairing_data["AccessoryPort"],
         )
         self.pairing_data = pairing_data

@@ -70,7 +70,7 @@ class CoAPDiscovery(AbstractDiscovery):
             check_pin_format(pin)
 
             pairing_data = await self.connection.do_pair_setup_finish(pin, salt, srpB)
-            pairing_data["AccessoryIP"] = self.description.address
+            pairing_data["AccessoryAddress"] = self.description.address
             pairing_data["AccessoryPort"] = self.description.port
             pairing_data["Connection"] = "CoAP"
 

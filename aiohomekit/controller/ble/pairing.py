@@ -316,7 +316,11 @@ class BlePairing(AbstractPairing):
     @property
     def address(self) -> str:
         """Return the address of the device."""
-        return self.device.address if self.device else self.pairing_data["AccessoryIP"]
+        return (
+            self.device.address
+            if self.device
+            else self.pairing_data["AccessoryAddress"]
+        )
 
     @property
     def name(self) -> str:

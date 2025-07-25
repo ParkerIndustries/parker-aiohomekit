@@ -42,7 +42,7 @@ class ZeroconfPairing(AbstractPairing[ZeroconfDiscoveryInfo]):
         if not self.pairing_data or not self.description:
             return
 
-        self.pairing_data["AccessoryIP"] = self.description.address
+        self.pairing_data["AccessoryAddress"] = self.description.address
         self.pairing_data["AccessoryIPs"] = self.description.addresses
 
         self._callback_pairing_data_changed(self.pairing_data)
