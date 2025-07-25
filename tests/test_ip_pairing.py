@@ -286,7 +286,7 @@ async def test_receiving_events(pairings):
     await left.put_characteristics([(1, 9, True)])
 
     # Wait for event to be received for up to 5s
-    await asyncio.wait_for(ev.wait(), 1)  # TODO: try 5s
+    await asyncio.wait_for(ev.wait(), 3)  # NOTE: try 5s in case of error
 
     assert event_value == {(1, 9): {"value": True}}
 

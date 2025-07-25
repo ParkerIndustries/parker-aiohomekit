@@ -90,7 +90,6 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         self.connection = connection
         self.result_cbs: list[asyncio.Future[HttpResponse]] = []
         self.current_response = HttpResponse()
-        self.loop = asyncio.get_running_loop()
 
     def connection_made(self, transport: asyncio.Transport):
         super().connection_made(transport)
@@ -123,7 +122,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         # We return a future so that our caller can block on a reply
         # We can send many requests and dispatch the results in order
         # Should mean we don't need locking around request/reply cycles
-        loop = self.loop
+        loop = asyncio.get_running_loop()
         result: asyncio.Future[HttpResponse] = loop.create_future()
         self.result_cbs.append(result)
         timeout_handle = loop.call_at(loop.time() + 30, self._handle_timeout, result)
