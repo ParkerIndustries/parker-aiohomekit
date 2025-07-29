@@ -16,14 +16,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Iterable
 from datetime import timedelta
 from itertools import groupby
-import logging
 from operator import itemgetter
 from typing import Any, override
 from uuid import UUID
 
+import aiohomekit.hkjson as hkjson
 from aiohomekit.exceptions import (
     AccessoryDisconnectedError,
     AuthenticationError,
@@ -33,7 +34,6 @@ from aiohomekit.exceptions import (
     UnknownError,
     UnpairedError,
 )
-import aiohomekit.hkjson as hkjson
 from aiohomekit.http import HttpContentTypes
 from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.characteristics import (
@@ -144,7 +144,7 @@ class IpPairing(ZeroconfPairing):
                 f"Ensure connection returned but still not connected: {connection.hosts}:{connection.port}"
             )
 
-        self._callback_availability_changed(True)
+        self._callback_availability_changed(True) # TODO: check if should call connection_made instead
 
     @override
     async def close(self):

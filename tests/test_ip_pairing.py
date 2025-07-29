@@ -286,7 +286,7 @@ async def test_receiving_events(pairings):
     await left.put_characteristics([(1, 9, True)])
 
     # Wait for event to be received for up to 5s
-    await asyncio.wait_for(ev.wait(), 3)  # NOTE: try 5s in case of error
+    await asyncio.wait_for(ev.wait(), 5)  # NOTE: try 5s in case of error
 
     assert event_value == {(1, 9): {"value": True}}
 
@@ -363,6 +363,7 @@ async def test_add_and_remove_pairings(pairing: IpPairing):
         },
     ]
 
+    # remove other pairing
     await pairing.remove_pairing("decc6fa3-de3e-41c9-adba-ef7409821bfe")
 
     pairings = await pairing.list_pairings()
@@ -375,6 +376,12 @@ async def test_add_and_remove_pairings(pairing: IpPairing):
         }
     ]
 
+    # remove self
+    await pairing.remove_pairing("decc6fa3-de3e-41c9-adba-ef7409821bfc")
+    assert not pairing.is_connected
+    assert not pairing.is_available
+    with pytest.raises(AccessoryDisconnectedError):
+        await pairing.get_characteristics([(1, 9)])
 
 async def test_identify(pairing):
     identified = await pairing.identify()

@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from aiohomekit.controller.ble.controller import BleController
-from aiohomekit.controller.relay import Controller, controller as controller_module
+from aiohomekit.controller.relay import Controller
+from aiohomekit.controller.relay import controller as controller_module
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.exceptions import AccessoryDisconnectedError
 from aiohomekit.model.transport_type import TransportType
@@ -14,7 +15,7 @@ from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 async def test_remove_pairing(controller_and_paired_accessory):
     pairing_id = next(
         iter(controller_and_paired_accessory.pairings.keys())
-    )  # TODO: check
+    )
     pairing = controller_and_paired_accessory.pairings[pairing_id]
 
     # Verify that there is a pairing connected and working

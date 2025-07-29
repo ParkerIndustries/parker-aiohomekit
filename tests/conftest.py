@@ -181,7 +181,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
 async def pairing(controller_and_paired_accessory):
     pairing = next(
         iter(controller_and_paired_accessory.pairings.values())
-    )  # TODO: check
+    )
     yield pairing
     # try:
     await pairing.close()
@@ -192,7 +192,7 @@ async def pairing(controller_and_paired_accessory):
 @pytest.fixture
 async def pairings(controller_and_paired_accessory):
     """Returns a pairing of pairngs."""
-    left = next(iter(controller_and_paired_accessory.pairings.values()))  # TODO: check
+    left = next(iter(controller_and_paired_accessory.pairings.values()))
 
     right = IpPairing(left.pairing_data)
 

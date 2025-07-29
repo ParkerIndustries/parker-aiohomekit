@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import base64
+import logging
 from collections.abc import AsyncIterable, Iterable
 from dataclasses import dataclass
 from datetime import timedelta
-import logging
 
 from aiohomekit import exceptions
 from aiohomekit.controller.abstract import (
@@ -84,7 +84,7 @@ class FakeDiscovery(AbstractDiscovery):
             pairing_data["AccessoryPairingID"] = discovery.description.id
             pairing_data["Connection"] = "Fake"
 
-            self.controller.pairings[discovery.description.id] = FakePairing(
+            self.controller.pairings[discovery.description.id.lower()] = FakePairing(
                 pairing_data, self.accessories
             )
 

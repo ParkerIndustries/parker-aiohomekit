@@ -1,6 +1,6 @@
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterable
-import logging
 from typing import Callable, Self, final
 
 from aiohomekit.exceptions import AccessoryNotFoundError
@@ -139,7 +139,7 @@ class AbstractController[
         if not accessory_id:
             raise ValueError("Invalid pairing data: Missing accessory ID")
 
-        pairing = self._pairings[accessory_id] = self.Pairing(pairing_data)
+        pairing = self._pairings[accessory_id.lower()] = self.Pairing(pairing_data)
 
         if discovery := self._discoveries.get(accessory_id):
             pairing.process_description_update(discovery.description)
@@ -169,7 +169,7 @@ class AbstractController[
             pairing.add_observer_for_pairing_data(_schedule_pairing_save)
         )
 
-        self._pairing_cleanups[accessory_id] = unsubscribes
+        self._pairing_cleanups[accessory_id.lower()] = unsubscribes
 
         return pairing
 

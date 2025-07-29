@@ -68,7 +68,7 @@ class PairingData(PairingCredentials, total=True):
     AccessoryAddress: str  # used by all transports including ble
     # zeroconf (ip-coap) only, not present in ble
     AccessoryPort: NotRequired[int]
-    AccessoryIPs: NotRequired[str]
+    AccessoryIPs: NotRequired[list[str]]
 
 
 class AccessoryPairings(TypedDict, total=True):

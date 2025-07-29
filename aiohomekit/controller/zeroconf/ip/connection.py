@@ -16,15 +16,16 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
 import logging
 import socket
+from collections.abc import Iterable
 from struct import Struct
 from typing import Any, Protocol
 
 import aiohappyeyeballs
 from async_interrupt import interrupt
 
+import aiohomekit.hkjson as hkjson
 from aiohomekit.crypto.chacha20poly1305 import (
     PACK_NONCE,
     ChaCha20Poly1305Decryptor,
@@ -40,7 +41,6 @@ from aiohomekit.exceptions import (
     HttpErrorResponse,
     TimeoutError,
 )
-import aiohomekit.hkjson as hkjson
 from aiohomekit.http import HttpContentTypes
 from aiohomekit.http.response import HttpResponse
 from aiohomekit.protocol import get_session_keys
@@ -82,6 +82,11 @@ class ConnectionDelegate(Protocol):
         """Called when a connection has been established."""
         pass
 
+loop_switch_error = RuntimeError('''Connection accessed from a different loop. This connection only works in the loop it was created in. The loop is thread-bound, and asyncio primitives (like Futures, Locks, Transports, Protocols) are not cross-loop safe. Using it in a different loop will result in:
+- RuntimeError: Task got Future attached to a different loop
+- RuntimeError: Event loop is closed
+- or silent hangs
+''')
 
 class InsecureHomeKitProtocol(asyncio.Protocol):
     """An asyncio.Protocol implementation for HomeKit connections."""
@@ -90,6 +95,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         self.connection = connection
         self.result_cbs: list[asyncio.Future[HttpResponse]] = []
         self.current_response = HttpResponse()
+        self._loop = asyncio.get_running_loop() # This connection only works in this loop, see `loop_switch_error`
 
     def connection_made(self, transport: asyncio.Transport):
         super().connection_made(transport)
@@ -110,6 +116,8 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
 
     async def _send_lines(self, payload: Iterable[bytes]) -> HttpResponse:
         """Send bytes to the device."""
+        assert asyncio.get_running_loop() is self._loop, loop_switch_error
+
         if self.transport.is_closing():
             # FIXME: It would be nice to try and wait for the reconnect in future.
             # In that case we need to make sure we do it at a layer above send_lines otherwise
@@ -122,10 +130,10 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         # We return a future so that our caller can block on a reply
         # We can send many requests and dispatch the results in order
         # Should mean we don't need locking around request/reply cycles
-        loop = asyncio.get_running_loop()
-        result: asyncio.Future[HttpResponse] = loop.create_future()
+
+        result: asyncio.Future[HttpResponse] = self._loop.create_future()
         self.result_cbs.append(result)
-        timeout_handle = loop.call_at(loop.time() + 30, self._handle_timeout, result)
+        timeout_handle = self._loop.call_at(self._loop.time() + 30, self._handle_timeout, result)
         timeout_expired = False
 
         try:
@@ -277,6 +285,7 @@ class HomeKitConnection:
         self.is_secure: bool | None = False
 
         self._connect_lock = asyncio.Lock()
+        self._loop = asyncio.get_running_loop()
 
         self._concurrency_limit = asyncio.Semaphore(concurrency_limit)
         self._reconnect_future: asyncio.Future[None] | None = None
@@ -585,8 +594,6 @@ class HomeKitConnection:
 
     async def _connect_once(self):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""
-        loop = asyncio.get_running_loop()
-
         logger.debug("Attempting connection to %s:%s", self.hosts, self.port)
 
         addr_infos = _convert_hosts_to_addr_infos(self.hosts, self.port)
@@ -602,7 +609,7 @@ class HomeKitConnection:
                         addr_infos,
                         happy_eyeballs_delay=0.25,
                         interleave=interleave,
-                        loop=loop,
+                        loop=self._loop,
                     )
                     connected_host = sock.getpeername()[0]
                     break
@@ -618,7 +625,7 @@ class HomeKitConnection:
         # set keep-alive on the socket to ensure we detect dropped connections
         # since we don't send keep-alive packets ourselves
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        self.transport, self.protocol = await loop.create_connection(
+        self.transport, self.protocol = await self._loop.create_connection(
             lambda: InsecureHomeKitProtocol(self), sock=sock
         )
         self.connected_host = connected_host
@@ -645,7 +652,6 @@ class HomeKitConnection:
         # saw will already be in the cache and will be available to
         # _connect_once without having to do I/O
 
-        loop = asyncio.get_event_loop()
         if self._connect_lock.locked():
             # Reconnect already in progress.
             return
@@ -681,7 +687,7 @@ class HomeKitConnection:
                     )
 
                 interval = min(60, 1.5 * interval)
-                self._reconnect_future = loop.create_future()
+                self._reconnect_future = self._loop.create_future()
                 try:
                     async with interrupt(self._reconnect_future, ConnectionReady, None):
                         await asyncio.sleep(interval)
