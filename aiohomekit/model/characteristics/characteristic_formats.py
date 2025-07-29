@@ -25,7 +25,7 @@ class CharacteristicFormats:
     uint16 = "uint16"
     uint32 = "uint32"
     uint64 = "uint64"
-    int = "int" # same as int32
+    int = "int"  # same as int32
     int32 = "int32"
     float = "float"
     string = "string"

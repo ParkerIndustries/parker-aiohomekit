@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable, Iterable
+from datetime import timedelta
+from functools import wraps
 import logging
 import random
 import struct
 import time
-from collections.abc import Callable, Iterable
-from datetime import timedelta
-from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar, cast, override
 from uuid import UUID
 
@@ -33,8 +33,6 @@ from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakError
 from bleak_retry_connector import (
     BLEAK_RETRY_EXCEPTIONS as BLEAK_EXCEPTIONS,
-)
-from bleak_retry_connector import (
     retry_bluetooth_connection_error,
 )
 
@@ -81,13 +79,9 @@ from .structs import (
     HAP_BLE_CHARACTERISTIC_CONFIGURATION_REQUEST_TLV,
     HAP_BLE_PROTOCOL_CONFIGURATION_REQUEST_TLV,
     HAP_TLV,
+    Characteristic as CharacteristicTLV,
     ProtocolParams,
     ProtocolParamsTLV,
-)
-from .structs import (
-    Characteristic as CharacteristicTLV,
-)
-from .structs import (
     Service as ServiceTLV,
 )
 from .values import from_bytes, to_bytes

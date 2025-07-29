@@ -383,6 +383,7 @@ async def test_add_and_remove_pairings(pairing: IpPairing):
     with pytest.raises(AccessoryDisconnectedError):
         await pairing.get_characteristics([(1, 9)])
 
+
 async def test_identify(pairing):
     identified = await pairing.identify()
     assert identified

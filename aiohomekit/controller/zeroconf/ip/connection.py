@@ -16,16 +16,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterable
 import logging
 import socket
-from collections.abc import Iterable
 from struct import Struct
 from typing import Any, Protocol
 
 import aiohappyeyeballs
 from async_interrupt import interrupt
 
-import aiohomekit.hkjson as hkjson
 from aiohomekit.crypto.chacha20poly1305 import (
     PACK_NONCE,
     ChaCha20Poly1305Decryptor,
@@ -41,6 +40,7 @@ from aiohomekit.exceptions import (
     HttpErrorResponse,
     TimeoutError,
 )
+import aiohomekit.hkjson as hkjson
 from aiohomekit.http import HttpContentTypes
 from aiohomekit.http.response import HttpResponse
 from aiohomekit.protocol import get_session_keys
@@ -82,11 +82,15 @@ class ConnectionDelegate(Protocol):
         """Called when a connection has been established."""
         pass
 
-loop_switch_error = RuntimeError('''Connection accessed from a different loop. This connection only works in the loop it was created in. The loop is thread-bound, and asyncio primitives (like Futures, Locks, Transports, Protocols) are not cross-loop safe. Using it in a different loop will result in:
+
+loop_switch_error = RuntimeError(
+    """Connection accessed from a different loop. This connection only works in the loop it was created in. The loop is thread-bound, and asyncio primitives (like Futures, Locks, Transports, Protocols) are not cross-loop safe. Using it in a different loop will result in:
 - RuntimeError: Task got Future attached to a different loop
 - RuntimeError: Event loop is closed
 - or silent hangs
-''')
+"""
+)
+
 
 class InsecureHomeKitProtocol(asyncio.Protocol):
     """An asyncio.Protocol implementation for HomeKit connections."""
@@ -95,7 +99,9 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         self.connection = connection
         self.result_cbs: list[asyncio.Future[HttpResponse]] = []
         self.current_response = HttpResponse()
-        self._loop = asyncio.get_running_loop() # This connection only works in this loop, see `loop_switch_error`
+        self._loop = (
+            asyncio.get_running_loop()
+        )  # This connection only works in this loop, see `loop_switch_error`
 
     def connection_made(self, transport: asyncio.Transport):
         super().connection_made(transport)
@@ -133,7 +139,9 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
 
         result: asyncio.Future[HttpResponse] = self._loop.create_future()
         self.result_cbs.append(result)
-        timeout_handle = self._loop.call_at(self._loop.time() + 30, self._handle_timeout, result)
+        timeout_handle = self._loop.call_at(
+            self._loop.time() + 30, self._handle_timeout, result
+        )
         timeout_expired = False
 
         try:

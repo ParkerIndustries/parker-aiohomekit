@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import base64
-import logging
 from collections.abc import AsyncIterable, Iterable
 from dataclasses import dataclass
 from datetime import timedelta
+import logging
 
 from aiohomekit import exceptions
 from aiohomekit.controller.abstract import (

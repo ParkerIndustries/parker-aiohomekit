@@ -1,4 +1,8 @@
-from aiohomekit.model.characteristics.const import TemperatureDisplayUnits, ThreadNodeCapabilities, ThreadStatus
+from aiohomekit.model.characteristics.const import (
+    TemperatureDisplayUnits,
+    ThreadNodeCapabilities,
+    ThreadStatus,
+)
 from aiohomekit.model.characteristics.structs import (
     SelectedRTPStreamConfiguration,
     StreamingStatus,
