@@ -10,6 +10,7 @@ INT_TYPES = {
     CharacteristicFormats.uint32,
     CharacteristicFormats.uint64,
     CharacteristicFormats.int,
+    CharacteristicFormats.int32,
 }
 
 

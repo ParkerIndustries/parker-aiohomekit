@@ -54,6 +54,11 @@ DEFAULT_CONFIGURATION_FOR_FORMAT = {
         "max_value": 4294967295,
         "default_value": 0,
     },
+    CharacteristicFormats.int32: {
+        "min_value": -2147483648,
+        "max_value": 2147483647,
+        "default_value": 0,
+    },
     CharacteristicFormats.uint64: {
         "min_value": 0,
         "max_value": 18446744073709551615,
@@ -81,6 +86,7 @@ INTEGER_TYPES = [
     CharacteristicFormats.uint16,
     CharacteristicFormats.uint8,
     CharacteristicFormats.int,
+    CharacteristicFormats.int32,
 ]
 
 NUMBER_TYPES = INTEGER_TYPES + [CharacteristicFormats.float]
