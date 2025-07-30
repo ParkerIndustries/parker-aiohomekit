@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from enum import Enum
 
 
-class CharacteristicFormats:
+class CharacteristicFormats(str, Enum):
     """
     Values for characteristic's format taken from table 5-5 page 67
     """

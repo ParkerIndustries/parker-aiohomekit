@@ -14,8 +14,10 @@
 # limitations under the License.
 #
 
+from enum import Enum
 
-class CharacteristicPermissions:
+
+class CharacteristicPermissions(str, Enum):
     """
     See table 5-4 page 67
     """
