@@ -271,8 +271,10 @@ async def test_receiving_events(pairings):
     ev = asyncio.Event()
 
     def handler(id, data):
-        print(data)
+        print('handler: ', id, data)
         nonlocal event_value
+        if not data:
+            return
         event_value = data
         ev.set()
 
