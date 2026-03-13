@@ -664,7 +664,7 @@ class HomeKitConnection:
             # Reconnect already in progress.
             return
         async with self._connect_lock:
-            interval = 0.5
+            interval = 0.1
 
             logger.debug("Starting reconnect loop to %s:%s", self.hosts, self.port)
 
@@ -694,7 +694,7 @@ class HomeKitConnection:
                         self.name,
                     )
 
-                interval = min(60, 1.5 * interval)
+                interval = min(60, 1.2 * interval)
                 self._reconnect_future = self._loop.create_future()
                 try:
                     async with interrupt(self._reconnect_future, ConnectionReady, None):

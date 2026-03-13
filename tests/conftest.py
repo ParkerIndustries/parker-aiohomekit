@@ -77,15 +77,7 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
 
     os.unlink(config_file.name)
 
-    # httpd.shutdown()
-    # t.join()
-
-    def _shutdown():
-        httpd.shutdown()
-        t.join()
-
-    loop = asyncio.get_running_loop()
-    asyncio.ensure_future(loop.run_in_executor(None, _shutdown))
+    httpd.shutdown()
 
 
 @pytest.fixture
@@ -169,12 +161,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
     os.unlink(config_file.name)
     os.unlink(controller_file.name)
 
-    def _shutdown():
-        httpd.shutdown()
-        t.join()
-
-    loop = asyncio.get_running_loop()
-    asyncio.ensure_future(loop.run_in_executor(None, _shutdown))
+    httpd.shutdown()
 
 
 @pytest.fixture

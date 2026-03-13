@@ -70,7 +70,7 @@ class AccessoryServer(ThreadingMixIn, HTTPServer):
         self.data = AccessoryServerData(config_file)
         self.data.increase_configuration_number()
         self.sessions = {}
-        self.zeroconf = Zeroconf()
+        self.zeroconf: Zeroconf | None = None
         self.mdns_type = "_hap._tcp.local."
         self.mdns_name = self.data.name + "._hap._tcp.local."
         self.identify_callback = None
@@ -107,6 +107,9 @@ class AccessoryServer(ThreadingMixIn, HTTPServer):
         self.identify_callback = func
 
     def publish_device(self):
+        if self.zeroconf is None:
+            return
+
         desc = {
             "md": str(self.data.name),  # model name of accessory
             # category identifier (page 254, 2 means bridge), must be a String
@@ -143,8 +146,13 @@ class AccessoryServer(ThreadingMixIn, HTTPServer):
         # tell all handlers to close the connection
         for session in self.sessions:
             self.sessions[session]["handler"].close_connection = True
+        # Set the shutdown flag directly instead of calling HTTPServer.shutdown()
+        # which blocks for up to 0.5s per call waiting for serve_forever to acknowledge.
+        # The serve_forever thread is a daemon so it will exit on its own.
+        self._BaseServer__shutdown_request = True
         self.socket.close()
-        HTTPServer.shutdown(self)
+        if self.zeroconf is not None:
+            self.zeroconf.close()
 
 
 class AccessoryServerData:
@@ -331,8 +339,9 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server):
         # keep pycharm from complaining about those not being define in __init__
         self.session_id = f"{client_address[0]}:{client_address[1]}"
-        if self.session_id not in server.sessions:
-            server.sessions[self.session_id] = {"handler": self}
+        # Always reset session state on new connection — port reuse can cause a new
+        # connection to collide with stale crypto state from a previous connection.
+        server.sessions[self.session_id] = {"handler": self}
         self.rfile = None
         self.wfile = None
         self.body = None
@@ -435,12 +444,15 @@ class AccessoryRequestHandler(BaseHTTPRequestHandler):
         "Request Methods".
         """
         try:
-            # make connection non blocking so the select can work
             self.connection.setblocking(0)
-            ready = select.select([self.connection], [], [], 1)
+
+            # poll() has no fd-number limit (unlike select() which caps at 1024)
+            poller = select.poll()
+            poller.register(self.connection.fileno(), select.POLLIN)
+            conn_ready = bool(poller.poll(50))  # milliseconds
 
             # no data was to be received, so we count up to track how many seconds in total this happened
-            if not ready[0]:
+            if not conn_ready:
                 self.timeout_counter += 1
 
                 # if this is above our configured timeout the connection gets closed

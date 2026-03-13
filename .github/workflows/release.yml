@@ -29,8 +29,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config user.email "markparker.it@gmail.com"
-          git config user.name "ParkerIndustries"
+          git config user.email "bot@example.com"
+          git config user.name "ParkerIndustries Bot"
 
       - name: Merge main into develop
         run: |

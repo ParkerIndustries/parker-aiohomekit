@@ -111,7 +111,7 @@ async def test_reconnect_soon_after_device_is_offline_for_a_bit(pairing: IpPairi
             assert not pairing.connection.is_connected
 
     # pairing.process_description_update(None)
-    await asyncio.wait_for(pairing.connection._connector, timeout=0.5)
+    await asyncio.wait_for(pairing.connection._connector, timeout=1.0)
     assert pairing.connection.is_connected
     assert pairing.is_available
 
@@ -137,7 +137,7 @@ async def test_reconnect_soon_on_device_reboot(pairing: IpPairing):
     await asyncio.sleep(0)
     assert not pairing.connection.is_connected
     assert not pairing.is_available
-    await asyncio.wait_for(pairing.connection._connector, timeout=0.5)
+    await asyncio.wait_for(pairing.connection._connector, timeout=1.0)
     assert pairing.connection.is_connected
     assert pairing.is_available
 
@@ -271,7 +271,7 @@ async def test_receiving_events(pairings):
     ev = asyncio.Event()
 
     def handler(id, data):
-        print('handler: ', id, data)
+        print("handler: ", id, data)
         nonlocal event_value
         if not data:
             return

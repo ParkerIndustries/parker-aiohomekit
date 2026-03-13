@@ -38,6 +38,8 @@ async def test_pair(controller_and_unpaired_accessory: tuple[Controller, int]):
         (1, 9): {"value": False},
     }
 
+    await pairing.close()
+
 
 async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int]):
     controller, port = controller_and_unpaired_accessory
