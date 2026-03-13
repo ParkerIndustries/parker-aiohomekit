@@ -15,9 +15,9 @@ jobs:
 
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -26,10 +26,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry
           poetry install
-
-      - name: Run pyupgrade
-        #shell: bash
-        run: poetry run find aiohomekit tests -name '*.py' -exec python -m pyupgrade --py39-plus {} + && git diff --exit-code
 
       - name: Run isort
         #shell: bash
@@ -68,9 +64,9 @@ jobs:
 
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
