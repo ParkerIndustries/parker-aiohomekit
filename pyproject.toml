@@ -1,23 +1,23 @@
 [tool.poetry]
-name = "aiohomekit"
+name = "parker-aiohomekit"
 version = "4.0.0"
 description = "An asyncio HomeKit client"
-# TODO: update:
-authors = ["John Carr <john.carr@unrouted.co.uk>"]
+authors = ["Mark Parker <mark@parker-programs.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/Jc2k/aiohomekit"
-repository = "https://github.com/Jc2k/aiohomekit"
-keywords = ["HomeKit", "home", "automation"]
+homepage = "https://github.com/ParkerIndustries/parker-aiohomekit"
+repository = "https://github.com/ParkerIndustries/parker-aiohomekit"
+keywords = ["HomeKit", "home", "automation", "aiohomekit"]
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Topic :: Home Automation",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 include = ["aiohomekit/py.typed"]
+packages = [{include = "aiohomekit"}]
 
 [tool.poetry.dependencies]
 python = "^3.12,<3.14"
@@ -63,6 +63,7 @@ aiohomekitctl = "aiohomekit.__main__:sync_main"
 [tool.pytest.ini_options]
 minversion = "6.0"
 asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
 
 [tool.coverage.run]
 omit = ["tests/*"]

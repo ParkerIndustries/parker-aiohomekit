@@ -1,0 +1,174 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    branches:
+      - develop
+
+jobs:
+  qa:
+    name: QA & Tests
+    uses: ./.github/workflows/test.yml
+
+  bump-and-build:
+    name: Version bump & build
+    needs: qa
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Configure git
+        run: |
+          git config user.email "markparker.it@gmail.com"
+          git config user.name "ParkerIndustries"
+
+      - name: Merge main into develop
+        run: |
+          git fetch origin main
+          git merge origin/main --no-edit --strategy-option=ours
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "poetry"
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          poetry version patch
+          VERSION=$(poetry version --short)
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          git add pyproject.toml
+          git commit -m "chore: bump version to ${TAG}"
+          git push origin develop
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s")
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" "${LAST_TAG}..HEAD")
+          fi
+          # Multiline output
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "changelog<<${EOF}" >> $GITHUB_OUTPUT
+          echo "${CHANGELOG}" >> $GITHUB_OUTPUT
+          echo "${EOF}" >> $GITHUB_OUTPUT
+
+      - name: Build distribution
+        run: poetry build
+
+      - name: Store distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: bump-and-build
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/parker-aiohomekit
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  merge-and-tag:
+    name: Merge develop → main & tag
+    needs:
+      - bump-and-build
+      - publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ needs.bump-and-build.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure git
+        run: |
+          git config user.email "markparker.it@gmail.com"
+          git config user.name "ParkerIndustries"
+
+      - name: Merge develop into main
+        run: |
+          git fetch origin develop
+          git merge origin/develop --ff-only
+          git push origin main
+
+      - name: Create version tag
+        run: |
+          TAG="${{ needs.bump-and-build.outputs.tag }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+  github-release:
+    name: GitHub Release
+    needs:
+      - bump-and-build
+      - merge-and-tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Sign distributions with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.0.1
+        with:
+          inputs: >-
+            ./dist/*.tar.gz
+            ./dist/*.whl
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.bump-and-build.outputs.tag }}
+          name: Release ${{ needs.bump-and-build.outputs.tag }}
+          body: ${{ needs.bump-and-build.outputs.changelog }}
+          files: dist/**
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false

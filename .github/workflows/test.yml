@@ -1,14 +1,16 @@
-name: CI
+name: Run QA and Tests
 
 on:
   push:
     branches:
       - main
+      - develop
   pull_request: ~
+  workflow_call:
 
 jobs:
   lint:
-    name: lint
+    name: Code QA
     runs-on: ubuntu-latest
 
     steps:
@@ -50,11 +52,12 @@ jobs:
         run: poetry check
 
   tests:
+    name: Run tests
     runs-on: ubuntu-latest
     # name: pytest/${{ matrix.os }}/${{ matrix.python-version }}
     # runs-on: ${{ matrix.os }}-latest
 
-    # strategy:
+    # strategy: # TODO:
     #   matrix:
     #     os: [Ubuntu, MacOS, Windows]
     #     python-version: ["3.12", "3.13"]
@@ -96,4 +99,4 @@ jobs:
         #shell: bash
         run: poetry run python -m pytest --cov=. --cov-report=xml
 
-      # - uses: codecov/codecov-action@v5
+      # - uses: codecov/codecov-action@v5 # TODO:
