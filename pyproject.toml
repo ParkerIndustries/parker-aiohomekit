@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "parker-aiohomekit"
-version = "4.0.0"
+version = "4.0.1"
 description = "An asyncio HomeKit client"
 authors = ["Mark Parker <mark@parker-programs.com>"]
 license = "Apache-2.0"
