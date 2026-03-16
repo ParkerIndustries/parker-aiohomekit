@@ -209,9 +209,12 @@ class Characteristic:
                 self.value = self.maxValue
             self.value = min(self.value, self.maxValue)  # ensure value is within range
 
-    def _get_configuration[
-        T
-    ](self, kwargs: dict[str, Any], key: str, default: T = None,) -> T:
+    def _get_configuration[T](
+        self,
+        kwargs: dict[str, Any],
+        key: str,
+        default: T = None,
+    ) -> T:
         if key in kwargs:
             return kwargs[key]
 

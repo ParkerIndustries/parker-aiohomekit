@@ -34,8 +34,7 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
     available_port = next_available_port()
 
     config_file = tempfile.NamedTemporaryFile(delete=False)
-    config_file.write(
-        b"""{
+    config_file.write(b"""{
         "accessory_ltpk": "7986cf939de8986f428744e36ed72d86189bea46b4dcdc8d9d79a3e4fceb92b9",
         "accessory_ltsk": "3d99f3e959a1f93af4056966f858074b2a1fdec1c5fd84a51ea96f9fa004156a",
         "accessory_pairing_id": "12:34:56:00:01:0A",
@@ -46,10 +45,7 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
         "host_port": %port%,
         "name": "unittestLight",
         "unsuccessful_tries": 0
-    }""".replace(
-            b"%port%", str(available_port).encode("utf-8")
-        )
-    )
+    }""".replace(b"%port%", str(available_port).encode("utf-8")))
     config_file.close()
 
     httpd = AccessoryServer(config_file.name, None)
@@ -102,9 +98,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
             }
         },
         "unsuccessful_tries": 0
-    }""".replace(
-        b"%port%", str(available_port).encode("utf-8")
-    )
+    }""".replace(b"%port%", str(available_port).encode("utf-8"))
 
     config_file.write(data)
     config_file.close()
@@ -123,8 +117,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
     await wait_for_server_online(available_port)
 
     controller_file = tempfile.NamedTemporaryFile(delete=False)
-    controller_file.write(
-        b"""{
+    controller_file.write(b"""{
         "alias": {
             "Connection": "IP",
             "iOSDeviceLTPK": "d708df2fbf4a8779669f0ccd43f4962d6d49e4274f88b1292f822edc3bcf8ed8",
@@ -135,10 +128,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
             "AccessoryAddress": "127.0.0.1",
             "iOSDeviceLTSK": "fa45f082ef87efc6c8c8d043d74084a3ea923a2253e323a7eb9917b4090c2fcc"
         }
-    }""".replace(
-            b"%port%", str(available_port).encode("utf-8")
-        )
-    )
+    }""".replace(b"%port%", str(available_port).encode("utf-8")))
     controller_file.close()
 
     controller = Controller(

@@ -70,7 +70,7 @@ class Accessories:
         """
         changed: set[CharacteristicKey] = set()
         for aid_iid, value in changes.items():
-            (aid, iid) = aid_iid
+            aid, iid = aid_iid
             if not (char := self.aid(aid).characteristics.iid(iid)):
                 continue
 
