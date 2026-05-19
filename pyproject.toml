@@ -16,7 +16,7 @@ classifiers = [
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "cryptography>=2.9.2",
+    "cryptography>=46.0.7",
     "zeroconf>=0.132.2",
     "commentjson>=0.9.0",
     "aiocoap>=0.4.5",
@@ -38,14 +38,14 @@ dev = [
     "isort>=5.10.1",
     "black>=24.3.0",
     "flake8>=4.0.1",
-    "pytest>=7.2.0",
+    "pytest>=9.0.3",
     "coverage>=6.3",
     "pylint>=2.12.2",
     "pytest-aiohttp>=1.0.3",
     "pyupgrade>=2.31.0",
     "pytest-cov>=3.0.0",
     "asynctest>=0.13.0",
-    "aiohttp>=3.8.3",
+    "aiohttp>=3.13.4",
     "mypy>=1.16.1",
     "ty>=0.0.1a11",
 ]
