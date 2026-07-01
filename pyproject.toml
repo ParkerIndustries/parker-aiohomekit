@@ -16,8 +16,8 @@ classifiers = [
 ]
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "cryptography>=48.0.1",
-    "zeroconf>=0.149.16",
+    "cryptography>=49.0.0",
+    "zeroconf>=0.150.0",
     "commentjson>=0.9.0",
     "aiocoap>=0.4.5",
     "bleak>=0.22.0,<1.0",
@@ -33,21 +33,21 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest-repeat>=0.9.4",
-    "pyright>=1.1.410",
-    "ruff>=0.15.15",
+    "pyright>=1.1.411",
+    "ruff>=0.15.20",
     "isort>=5.10.1",
     "black>=26.5.1",
     "flake8>=4.0.1",
-    "pytest>=9.0.3",
-    "coverage>=7.14.1",
-    "pylint>=2.12.2",
-    "pytest-aiohttp>=1.0.3",
+    "pytest>=9.1.1",
+    "coverage>=7.14.3",
+    "pylint>=4.0.6",
+    "pytest-aiohttp>=1.1.1",
     "pyupgrade>=2.31.0",
     "pytest-cov>=7.1.0",
     "asynctest>=0.13.0",
     "aiohttp>=3.14.1",
     "mypy>=2.1.0",
-    "ty>=0.0.42",
+    "ty>=0.0.55",
 ]
 
 [project.urls]
