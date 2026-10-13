@@ -318,6 +318,12 @@ class IpPairing(ZeroconfPairing):
             # we need to remove the listener update for the failed
             # characteristics.
             for characteristic in response["characteristics"]:
+                if not _is_characteristic_row(characteristic):
+                    logger.debug(
+                        "Skipping malformed characteristic in response: %s",
+                        characteristic,
+                    )
+                    continue
                 aid, iid = characteristic["aid"], characteristic["iid"]
                 key = CharacteristicKey(aid, iid)
                 status = characteristic["status"]
@@ -551,6 +557,11 @@ class IpPairing(ZeroconfPairing):
         self.connection.reconnect_soon()
 
 
+def _is_characteristic_row(row: Any) -> bool:
+    # Some devices (e.g. TaHoma covers) mix booleans into the characteristics list
+    return isinstance(row, dict) and "aid" in row and "iid" in row
+
+
 def _status_description(status: int) -> str:
     status_code = to_status_code(status)
     if status_code == HapStatusCode.UNKNOWN:
@@ -579,8 +590,8 @@ def _format_characteristics_response(
             }
 
     for c in data.get("characteristics", []):
-        if "aid" not in c or "iid" not in c:
-            logger.debug("Skipping characteristic missing aid or iid: %s", c)
+        if not _is_characteristic_row(c):
+            logger.debug("Skipping malformed characteristic: %s", c)
             continue
 
         key = CharacteristicKey(c["aid"], c["iid"])
