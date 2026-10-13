@@ -408,6 +408,8 @@ class IpPairing(ZeroconfPairing):
             if response:
                 # An empty body is a success response
                 for row in response.get("characteristics", []):
+                    if not _is_characteristic_row(row):
+                        continue
                     status[(row["aid"], row["iid"])] = {
                         "status": row["status"],
                         "description": to_status_code(row["status"]).description,

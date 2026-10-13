@@ -306,6 +306,27 @@ async def test_subscribe_invalid_iid(pairing: IpPairing):
     }
 
 
+async def test_subscribe_response_rows_without_aid_iid(pairing: IpPairing):
+    """Rows missing aid or iid in a subscribe response are skipped."""
+    response = {
+        "characteristics": [
+            {"status": HapStatusCode.UNABLE_TO_COMMUNICATE.value},
+            {"aid": 1, "status": HapStatusCode.UNABLE_TO_COMMUNICATE.value},
+            {"aid": 1, "iid": 9, "status": HapStatusCode.RESOURCE_BUSY.value},
+        ]
+    }
+
+    with mock.patch.object(pairing.connection, "put_json", return_value=response):
+        result = await pairing.subscribe_characteristics([(1, 9)])
+
+    assert result == {
+        (1, 9): {
+            "description": "Resource is busy, try again.",
+            "status": HapStatusCode.RESOURCE_BUSY.value,
+        }
+    }
+
+
 async def test_list_pairings(pairing: IpPairing):
     pairings = await pairing.list_pairings()
     assert pairings == [
