@@ -275,7 +275,7 @@ class IpPairing(ZeroconfPairing):
 
         response = await self.connection.get_json(url)
 
-        return _format_characteristics_response(response)
+        return _format_characteristics_response(response, characteristics_set)
 
     @override
     async def put_characteristics(
@@ -551,16 +551,45 @@ class IpPairing(ZeroconfPairing):
         self.connection.reconnect_soon()
 
 
-def _format_characteristics_response(data) -> Response:
-    tmp = {}
-    for c in data["characteristics"]:
-        key = (c["aid"], c["iid"])
+def _status_description(status: int) -> str:
+    try:
+        return to_status_code(status).description
+    except ValueError:
+        return f"Unknown error code: {status}"
+
+
+def _format_characteristics_response(
+    data: dict[str, Any], requested: set[CharacteristicKey] | None = None
+) -> Response:
+    tmp: Response = {}
+
+    # A top-level error status fails the whole request, so every requested
+    # characteristic gets it unless the response also lists that characteristic.
+    if data.get("status", 0) != 0:
+        description = _status_description(data["status"])
+        logger.debug(
+            "Device returned error status %s (%s) for characteristics request",
+            data["status"],
+            description,
+        )
+        for aid, iid in requested or ():
+            tmp[CharacteristicKey(aid, iid)] = {
+                "status": data["status"],
+                "description": description,
+            }
+
+    for c in data.get("characteristics", []):
+        if "aid" not in c or "iid" not in c:
+            logger.debug("Skipping characteristic missing aid or iid: %s", c)
+            continue
+
+        key = CharacteristicKey(c["aid"], c["iid"])
         del c["aid"]
         del c["iid"]
 
         if "status" in c and c["status"] == 0:
             del c["status"]
         if "status" in c and c["status"] != 0:
-            c["description"] = to_status_code(c["status"]).description
+            c["description"] = _status_description(c["status"])
         tmp[key] = c
     return tmp
