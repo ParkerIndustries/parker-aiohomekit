@@ -556,7 +556,8 @@ class IpPairing(ZeroconfPairing):
     def _endpoint_changed(self):
         super()._endpoint_changed()
         # hasten the process if we are not connected, or are in the process of reconnecting
-        self.connection.reconnect_soon()
+        if not self._shutdown:
+            self.connection.reconnect_soon()
 
 
 def _is_characteristic_row(row: Any) -> bool:
