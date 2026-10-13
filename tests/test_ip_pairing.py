@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Generator
 from datetime import timedelta
+import socket
 from typing import Any
 from unittest import mock
 from uuid import UUID
@@ -314,6 +315,32 @@ async def test_host_change_clears_failed_hosts(pairing: IpPairing) -> None:
     assert not connection._pair_verify_failed_hosts
     assert connection.is_connected
     assert connection.is_secure
+
+
+@pytest.mark.parametrize(
+    ("host", "family"),
+    [
+        pytest.param("127.0.0.1", socket.AF_INET, id="ipv4"),
+        pytest.param("::1", socket.AF_INET6, id="ipv6"),
+    ],
+)
+async def test_insecure_connect_notifies_delegate_once(host: str, family: int) -> None:
+    """connection_made(False) fires once for IPv4 and IPv6 peers alike."""
+    try:
+        # The kernel completes the TCP handshake from the backlog, no accept needed
+        listener = socket.create_server((host, 0), family=family)
+    except OSError:
+        pytest.skip(f"{host} is not available")
+    port = listener.getsockname()[1]
+    delegate = mock.Mock(description=None, connection_made=mock.AsyncMock())
+    connection = HomeKitConnection(delegate, [host], port)
+
+    try:
+        await connection._connect_once()
+        delegate.connection_made.assert_awaited_once_with(False)
+    finally:
+        await connection.close()
+        listener.close()
 
 
 async def test_put_characteristics(pairing: IpPairing):

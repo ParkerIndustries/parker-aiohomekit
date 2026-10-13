@@ -689,8 +689,8 @@ class HomeKitConnection:
             self.host_header = f"Host: [{connected_host}]"
         else:
             self.host_header = f"Host: {connected_host}"
-            if self.delegate:
-                await self.delegate.connection_made(False)
+        if self.delegate:
+            await self.delegate.connection_made(False)
 
     async def _reconnect(self):
         # When the device is seen by zeroconf, call reconnect_soon
