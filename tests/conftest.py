@@ -20,7 +20,6 @@ from aiohomekit.storage.pairing_data_storage import (
 )
 from aiohomekit.testing.accessoryserver import AccessoryServer
 from aiohomekit.testing.mock_zeroconf import mock_asynczeroconf as do_mock_asynczeroconf
-from aiohomekit.testing.utils import next_available_port, wait_for_server_online
 
 
 @pytest.fixture
@@ -31,8 +30,6 @@ def mock_asynczeroconf():
 
 @pytest.fixture
 async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
-    available_port = next_available_port()
-
     config_file = tempfile.NamedTemporaryFile(delete=False)
     config_file.write(b"""{
         "accessory_ltpk": "7986cf939de8986f428744e36ed72d86189bea46b4dcdc8d9d79a3e4fceb92b9",
@@ -42,13 +39,16 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
         "c#": 1,
         "category": "Lightbulb",
         "host_ip": "127.0.0.1",
-        "host_port": %port%,
+        "host_port": 0,
         "name": "unittestLight",
         "unsuccessful_tries": 0
-    }""".replace(b"%port%", str(available_port).encode("utf-8")))
+    }""")
     config_file.close()
 
+    # Port 0 lets the OS pick a free port at bind time, so no other process
+    # can take it between choosing and binding
     httpd = AccessoryServer(config_file.name, None)
+    available_port = httpd.server_port
     accessory = Accessory.create_with_info(
         id_factory(), "Testlicht", "lusiardi.de", "Demoserver", "0001", "0.1"
     )
@@ -58,8 +58,6 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
 
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
-
-    await wait_for_server_online(available_port)
 
     controller = Controller(
         char_cache=CharacteristicsStorageMemory(),
@@ -78,8 +76,6 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
 
 @pytest.fixture
 async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
-    available_port = next_available_port()
-
     config_file = tempfile.NamedTemporaryFile(delete=False)
     data = b"""{
         "accessory_ltpk": "7986cf939de8986f428744e36ed72d86189bea46b4dcdc8d9d79a3e4fceb92b9",
@@ -89,7 +85,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
         "c#": 1,
         "category": "Lightbulb",
         "host_ip": "127.0.0.1",
-        "host_port": %port%,
+        "host_port": 0,
         "name": "unittestLight",
         "peers": {
             "decc6fa3-de3e-41c9-adba-ef7409821bfc": {
@@ -98,12 +94,15 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
             }
         },
         "unsuccessful_tries": 0
-    }""".replace(b"%port%", str(available_port).encode("utf-8"))
+    }"""
 
     config_file.write(data)
     config_file.close()
 
+    # Port 0 lets the OS pick a free port at bind time, so no other process
+    # can take it between choosing and binding
     httpd = AccessoryServer(config_file.name, None)
+    available_port = httpd.server_port
     accessory = Accessory.create_with_info(
         id_factory(), "Testlicht", "lusiardi.de", "Demoserver", "0001", "0.1"
     )
@@ -113,8 +112,6 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
 
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
-
-    await wait_for_server_online(available_port)
 
     controller_file = tempfile.NamedTemporaryFile(delete=False)
     controller_file.write(b"""{
