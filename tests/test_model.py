@@ -571,3 +571,15 @@ def test_needs_polling():
 
     accessories = Accessories.from_file("tests/fixtures/nanoleaf_bulb.json")
     assert any(a.needs_polling for a in accessories) is False
+
+
+def test_ecobee_sleep_away_target_types():
+    """Sleep and away targets were swapped (Jc2k/aiohomekit#548)."""
+    expected = {
+        "SLEEP_TARGET_HEAT": "05B97374-6DC0-439B-A0FA-CA33F612D425",
+        "SLEEP_TARGET_COOL": "A251F6E7-AC46-4190-9C5D-3D06277BDF9F",
+        "AWAY_TARGET_HEAT": "73AAB542-892A-4439-879A-D2A883724B69",
+        "AWAY_TARGET_COOL": "5DA985F0-898A-4850-B987-B76C6C78D670",
+    }
+    for name, uuid in expected.items():
+        assert getattr(CharacteristicsTypes, f"VENDOR_ECOBEE_{name}") == uuid
