@@ -5,6 +5,10 @@ on:
     branches:
       - develop
 
+# Poetry installs into the runner Python; local runs use a venv
+env:
+  POETRY_VIRTUALENVS_CREATE: "false"
+
 jobs:
   qa:
     name: QA & Tests
