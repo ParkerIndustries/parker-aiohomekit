@@ -14,7 +14,11 @@
 # limitations under the License.
 #
 
+import logging
+
 from aiohomekit.enum import EnumWithDescription
+
+logger = logging.getLogger(__name__)
 
 
 class HapStatusCode(EnumWithDescription):
@@ -37,11 +41,18 @@ class HapStatusCode(EnumWithDescription):
     INVALID_VALUE = -70410, "Accessory received an invalid value in a write request."
     INSUFFICIENT_AUTH = -70411, "Insufficient Authorization."
     NOT_ALLOWED_IN_CURRENT_STATE = -70412, "Not allowed in current state"
+    # Vendor-specific or undefined codes, e.g. -6 from Nanoleaf
+    UNKNOWN = -1, "Unknown or undefined status code"
 
 
 def to_status_code(status_code: int) -> HapStatusCode:
     # Some HAP implementations return positive values for error code (myq)
-    return HapStatusCode(abs(status_code) * -1)
+    normalized = abs(status_code) * -1
+    try:
+        return HapStatusCode(normalized)
+    except ValueError:
+        logger.debug("Unknown HAP status code: %s", status_code)
+        return HapStatusCode.UNKNOWN
 
 
 class _HapBleStatusCodes:

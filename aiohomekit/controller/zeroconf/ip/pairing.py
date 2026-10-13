@@ -552,10 +552,10 @@ class IpPairing(ZeroconfPairing):
 
 
 def _status_description(status: int) -> str:
-    try:
-        return to_status_code(status).description
-    except ValueError:
+    status_code = to_status_code(status)
+    if status_code == HapStatusCode.UNKNOWN:
         return f"Unknown error code: {status}"
+    return status_code.description
 
 
 def _format_characteristics_response(
