@@ -327,10 +327,12 @@ class IpPairing(ZeroconfPairing):
                 aid, iid = characteristic["aid"], characteristic["iid"]
                 key = CharacteristicKey(aid, iid)
                 status = characteristic["status"]
-                status_code = to_status_code(status).description
-                if status_code != HapStatusCode.SUCCESS:
+                if to_status_code(status) != HapStatusCode.SUCCESS:
                     listener_update.pop(key, None)
-                response_status[key] = {"status": status, "description": status_code}
+                response_status[key] = {
+                    "status": status,
+                    "description": _status_description(status),
+                }
 
         if listener_update:
             self._callback_characteristic_changed(listener_update)

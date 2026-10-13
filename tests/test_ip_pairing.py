@@ -326,6 +326,30 @@ async def test_put_characteristics(pairing: IpPairing):
     assert characteristics[(1, 9)] == {"value": True}
 
 
+@pytest.mark.parametrize(
+    ("status", "expected_events"),
+    [
+        (HapStatusCode.SUCCESS.value, [{(1, 9): {"value": True}}]),
+        (HapStatusCode.UNABLE_TO_COMMUNICATE.value, []),
+    ],
+)
+async def test_put_characteristics_status_rows_callbacks(
+    pairing: IpPairing, status: int, expected_events: list[Response]
+):
+    """Only writes the accessory reports as successful notify listeners."""
+    events = []
+    pairing.add_observer_for_characteristics(
+        lambda _id, new_values: events.append(new_values)
+    )
+    response = {"characteristics": [{"aid": 1, "iid": 9, "status": status}]}
+
+    with mock.patch.object(pairing.connection, "put_json", return_value=response):
+        result = await pairing.put_characteristics([(1, 9, True)])
+
+    assert events == expected_events
+    assert result[(1, 9)]["status"] == status
+
+
 async def test_put_characteristics_cancelled(pairing: IpPairing):
     characteristics = await pairing.put_characteristics([(1, 9, True)])
     characteristics = await pairing.get_characteristics([(1, 9)])
