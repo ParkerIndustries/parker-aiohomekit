@@ -8,6 +8,10 @@ on:
   pull_request: ~
   workflow_call:
 
+# Poetry installs into the runner Python; local runs use a venv
+env:
+  POETRY_VIRTUALENVS_CREATE: "false"
+
 jobs:
   lint:
     name: Code QA

@@ -95,6 +95,40 @@ def test_linked_services():
     assert service.linked[0].type_str == "000000CC-0000-1000-8000-0026BB765291"
 
 
+def test_linked_service_missing_iid_is_skipped() -> None:
+    """Linked service iids that do not exist are dropped instead of raising.
+
+    The Yeelight Pro Gateway references linked service iids that are not
+    present in the accessory, and the Schlage Encode Plus lists iid 0;
+    both must not prevent the accessory from parsing.
+    """
+    accessories = Accessories.from_list(
+        [
+            {
+                "aid": 28,
+                "services": [
+                    {
+                        "iid": 80,
+                        "type": ServicesTypes.SERVICE_LABEL,
+                        "characteristics": [],
+                        "linked": [0, 82, 88],
+                    },
+                    {
+                        "iid": 82,
+                        "type": ServicesTypes.STATELESS_PROGRAMMABLE_SWITCH,
+                        "characteristics": [],
+                    },
+                ],
+            }
+        ]
+    )
+
+    service = accessories.aid(28).services.iid(80)
+    assert [linked.iid for linked in service.linked] == [82]
+    serialized = accessories.serialize()
+    assert serialized[0]["services"][0]["linked"] == [82]
+
+
 def test_get_by_name():
     name = "Hue dimmer switch button 3"
     a = Accessories.from_file("tests/fixtures/hue_bridge.json").aid(6623462389072572)
@@ -537,3 +571,15 @@ def test_needs_polling():
 
     accessories = Accessories.from_file("tests/fixtures/nanoleaf_bulb.json")
     assert any(a.needs_polling for a in accessories) is False
+
+
+def test_ecobee_sleep_away_target_types():
+    """Sleep and away targets were swapped (Jc2k/aiohomekit#548)."""
+    expected = {
+        "SLEEP_TARGET_HEAT": "05B97374-6DC0-439B-A0FA-CA33F612D425",
+        "SLEEP_TARGET_COOL": "A251F6E7-AC46-4190-9C5D-3D06277BDF9F",
+        "AWAY_TARGET_HEAT": "73AAB542-892A-4439-879A-D2A883724B69",
+        "AWAY_TARGET_COOL": "5DA985F0-898A-4850-B987-B76C6C78D670",
+    }
+    for name, uuid in expected.items():
+        assert getattr(CharacteristicsTypes, f"VENDOR_ECOBEE_{name}") == uuid
