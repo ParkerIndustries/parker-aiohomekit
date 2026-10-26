@@ -6,6 +6,7 @@ from aiohomekit import Controller
 from aiohomekit.controller.zeroconf.ip import IpDiscovery, IpPairing
 from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
 from aiohomekit.crypto.srp import SrpClient, SrpServer
+from aiohomekit.exceptions import AuthenticationError
 from aiohomekit.model.categories import Category
 from aiohomekit.model.feature_flags import FeatureFlags
 from aiohomekit.model.status_flags import StatusFlags
@@ -98,6 +99,37 @@ async def test_pair_with_a_leading_zero_byte(
 
     assert pairing_data["AccessoryPairingID"] == "12:34:56:00:01:0A"
 
+
+async def test_pair_with_a_wrong_code(
+    controller_and_unpaired_accessory: tuple[Controller, int],
+):
+    _, port = controller_and_unpaired_accessory
+
+    discovery = IpDiscovery(
+        ZeroconfDiscoveryInfo(
+            name="Test",
+            id="00:01:02:03:04:05",
+            model="Test",
+            feature_flags=FeatureFlags(0),
+            status_flags=StatusFlags.UNPAIRED,
+            config_num=0,
+            state_num=0,
+            category=Category.OTHER,
+            protocol_version="1.0",
+            zc_type="_hap._tcp.local",
+            address="127.0.0.1",
+            addresses=["127.0.0.1"],
+            port=port,
+        ),
+        AsyncMock(),
+    )
+
+    finish_pairing = await discovery.start_pairing()
+
+    with pytest.raises(AuthenticationError) as exc_info:
+        await finish_pairing("111-22-333")
+
+    assert exc_info.value.stage == "step 4"
 
 async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int]):
     controller, port = controller_and_unpaired_accessory

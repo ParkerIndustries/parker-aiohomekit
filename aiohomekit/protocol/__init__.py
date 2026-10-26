@@ -88,7 +88,7 @@ def handle_state_step(tlv_dict, expected_state):
         raise InvalidError(f"Exepected state {expected_state} but got {actual_state}")
 
     if TLV.kTLVType_Error in tlv_dict:
-        error_handler(tlv_dict[TLV.kTLVType_Error], f"step {expected_state}")
+        error_handler(tlv_dict[TLV.kTLVType_Error], f"step {expected_state[0]}")
 
 
 def perform_pair_setup_part1(
