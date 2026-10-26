@@ -1,12 +1,14 @@
 import asyncio
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from zeroconf import Zeroconf
 from zeroconf.asyncio import AsyncZeroconf
 
-from aiohomekit.controller.relay import Controller
+from aiohomekit.controller.relay import Controller, controller as relay_controller
+from aiohomekit.controller.zeroconf.controller import ZeroconfController
 from aiohomekit.controller.zeroconf.ip import IpPairing
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
@@ -19,6 +21,7 @@ from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.testing.mock_zeroconf import (
     AsyncServiceBrowserStub,
     get_mock_service_info,
+    install_mock_service_info,
 )
 from aiohomekit.testing.utils import next_available_port
 
@@ -192,4 +195,53 @@ async def test_stop_keeps_a_browser_it_shares(
     await controller.stop()
 
     assert mock_asynczeroconf.zeroconf.listeners == [shared_browser]
+    assert shared_browser._handlers == []
+
+
+async def test_failed_start_leaves_nothing_running(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    # The stored accessory is advertised, so its discovery starts a reconnect loop before start fails
+    controller = await make_controller(
+        mock_asynczeroconf, (offline_pairing_data(), cached_state())
+    )
+    load_from_cache = ZeroconfController._load_zeroconf_from_cache
+
+    async def load_then_fail(self: ZeroconfController, zc: Zeroconf | None = None):
+        await load_from_cache(self, zc)
+        assert reconnect_loops()
+        raise RuntimeError("zeroconf failed")
+
+    with (
+        install_mock_service_info(mock_asynczeroconf, get_mock_service_info()),
+        patch.object(ZeroconfController, "_load_zeroconf_from_cache", load_then_fail),
+        pytest.raises(RuntimeError),
+    ):
+        await controller.start()
+
+    assert shared_browser._handlers == []
+    assert not reconnect_loops()
+    assert controller.pairings == {}
+
+
+async def test_failed_relay_start_stops_the_transports_it_started(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    scanner = AsyncMock(register_detection_callback=MagicMock())
+    scanner.start.side_effect = RuntimeError("bluetooth failed")
+    controller = Controller(
+        CharacteristicsStorageMemory(),
+        PairingDataStorageMemory(),
+        zeroconf_instance=mock_asynczeroconf,
+        bleak_scanner_instance=scanner,
+    )
+
+    with (
+        patch.object(relay_controller, "IP_TRANSPORT_SUPPORTED", True),
+        patch.object(relay_controller, "COAP_TRANSPORT_SUPPORTED", False),
+        patch.object(relay_controller, "BLE_TRANSPORT_SUPPORTED", False),
+        pytest.raises(RuntimeError),
+    ):
+        await controller.start()
+
     assert shared_browser._handlers == []

@@ -79,6 +79,14 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @override
     async def start(self):
+        try:
+            await self._start_transports()
+        except BaseException:
+            # A start that fails part-way must leave nothing running, including the transports that started
+            await self.stop()
+            raise
+
+    async def _start_transports(self):
         if IP_TRANSPORT_SUPPORTED or self._zeroconf_instance:
             self._zeroconf_instance = self._zeroconf_instance or AsyncZeroconf()
             from ..zeroconf.ip.controller import (
