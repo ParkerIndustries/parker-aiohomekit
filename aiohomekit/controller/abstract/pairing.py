@@ -230,7 +230,8 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         repopulate_accessories = False
 
-        # -1 when nothing is cached yet, so the first discovery populates the pairing
+        # -1, not 0, when nothing is cached yet: the first discovery populates the pairing
+        # even when the accessory advertises c#=0 or none (from_service_info reads it as 0)
         cached_config_num = (
             self._accessories_state.config_num if self._accessories_state else -1
         )

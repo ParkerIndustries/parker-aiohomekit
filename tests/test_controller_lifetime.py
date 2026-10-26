@@ -184,9 +184,13 @@ async def test_load_pairing_applies_a_known_discovery(
     await controller.stop()
 
 
-async def test_discovery_repopulates_a_pairing_without_cache():
+@pytest.mark.parametrize("config_num", [0, 1])  # 0 also when an accessory advertises no c#
+async def test_discovery_repopulates_a_pairing_without_cache(config_num: int):
     pairing = IpPairing(offline_pairing_data())
-    description = ZeroconfDiscoveryInfo.from_service_info(get_mock_service_info())
+    description = replace(
+        ZeroconfDiscoveryInfo.from_service_info(get_mock_service_info()),
+        config_num=config_num,
+    )
 
     with patch.object(pairing, "_process_config_changed", AsyncMock()) as repopulate:
         pairing.process_description_update(description)
