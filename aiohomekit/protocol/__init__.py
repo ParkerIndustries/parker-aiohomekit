@@ -85,7 +85,9 @@ def handle_state_step(tlv_dict, expected_state):
         return
 
     if actual_state != expected_state:
-        raise InvalidError(f"Exepected state {expected_state} but got {actual_state}")
+        raise InvalidError(
+            f"Expected state {expected_state[0]} but got {int.from_bytes(actual_state)}"
+        )
 
     if TLV.kTLVType_Error in tlv_dict:
         error_handler(tlv_dict[TLV.kTLVType_Error], f"step {expected_state[0]}")
