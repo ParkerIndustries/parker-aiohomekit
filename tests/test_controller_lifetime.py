@@ -50,8 +50,9 @@ def reconnect_loops() -> list[asyncio.Task]:
     return [
         task
         for task in asyncio.all_tasks()
-        if getattr(task.get_coro(), "__qualname__", "")
-        == "HomeKitConnection._reconnect"
+        if getattr(task.get_coro(), "__qualname__", "").startswith(
+            "HomeKitConnection._reconnect"
+        )
     ]
 
 

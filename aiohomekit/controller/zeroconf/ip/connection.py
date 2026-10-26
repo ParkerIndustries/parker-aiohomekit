@@ -289,6 +289,7 @@ class HomeKitConnection:
         self.protocol: InsecureHomeKitProtocol | SecureHomeKitProtocol | None = None
 
         self._connector: asyncio.Task[None] | None = None
+        self._reconnect_backoff = 0.0
 
         self.is_secure: bool | None = False
 
@@ -324,7 +325,28 @@ class HomeKitConnection:
         """
         if (self._connector and not self._connector.done()) or self.is_connected:
             return
-        self._connector = async_create_task(self._reconnect())
+        self._connector = async_create_task(self._reconnect_with_backoff())
+
+    async def _reconnect_with_backoff(self):
+        """
+        Run a reconnect loop, after a delay that grows while the previous loops fail.
+
+        A loop gives up on errors that retrying won't fix (AuthenticationError), but the
+        accessory may then close the socket, and _connection_lost starts the next loop at once.
+        """
+        if self._reconnect_backoff:
+            logger.debug(
+                f"{self.name}: Last reconnect failed; retrying in {self._reconnect_backoff:.2f} s"
+            )
+            await asyncio.sleep(self._reconnect_backoff)
+        try:
+            await self._reconnect()
+        except Exception:
+            # 0.5 s growing 1.5x up to 60 s: upstream aiohomekit's reconnect schedule
+            self._reconnect_backoff = min(60, max(0.5, 1.5 * self._reconnect_backoff))
+            raise
+        if self.is_connected:
+            self._reconnect_backoff = 0.0
 
     def reconnect_soon(self):
         """Reconnect to the device if disconnected.
