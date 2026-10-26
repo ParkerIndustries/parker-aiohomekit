@@ -266,7 +266,7 @@ async def test_stop_shuts_every_pairing_down_when_one_fails(
     await controller.start()
     failing, other = controller.pairings.values()
 
-    # e.g. close() re-raises the error the reconnect loop ended with
+    # e.g. closing the session fails
     with patch.object(
         failing, "shutdown", AsyncMock(side_effect=AuthenticationError("step 4"))
     ):
@@ -274,6 +274,30 @@ async def test_stop_shuts_every_pairing_down_when_one_fails(
 
         failing.shutdown.assert_awaited_once()
     assert other._shutdown
+
+
+async def test_stop_closes_the_socket_of_a_rejected_pairing(
+    mock_asynczeroconf: AsyncZeroconf,
+):
+    controller = await make_controller(
+        mock_asynczeroconf, (offline_pairing_data(), cached_state())
+    )
+    await controller.start()
+    connection = controller.pairings[ACCESSORY_ID].connection
+
+    async def rejected():
+        raise AuthenticationError("step 4")
+
+    # The last reconnect loop was rejected at pair-verify; the accessory kept the socket open
+    connection._connector = asyncio.ensure_future(rejected())
+    await asyncio.sleep(0)
+    transport = connection.transport = MagicMock()
+    connection.protocol = MagicMock()
+
+    await controller.stop()
+
+    transport.close.assert_called_once()
+    assert connection.transport is None
 
 
 async def test_stop_cancels_the_browser_it_created(mock_asynczeroconf: AsyncZeroconf):

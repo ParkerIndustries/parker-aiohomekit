@@ -428,6 +428,9 @@ class HomeKitConnection:
             await self._connector
         except asyncio.CancelledError:
             pass
+        except Exception as ex:
+            # The loop had failed and told its callers; closing must still close the socket
+            logger.debug(f"{self.name}: The last reconnect loop failed: {ex!r}")
 
     async def get(self, target: str) -> HttpResponse:
         """
