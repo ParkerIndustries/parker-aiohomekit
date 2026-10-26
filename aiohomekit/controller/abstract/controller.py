@@ -163,6 +163,11 @@ class AbstractController[
             logger.exception(f"{accessory_id}: Failed to read the cached data model")
             accessories_state = None
 
+        if replaced := self._pairings.pop(accessory_id.lower(), None):
+            # e.g. a re-paired accessory: the old session must not keep reconnecting
+            self._cleanup_pairing(accessory_id.lower())
+            await replaced.shutdown()
+
         pairing = self._pairings[accessory_id.lower()] = self.Pairing(pairing_data)
 
         # No connection here: the accessory may be offline. The pairing connects on demand

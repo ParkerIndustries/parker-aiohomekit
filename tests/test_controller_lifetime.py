@@ -147,6 +147,24 @@ async def test_start_loads_a_pairing_whose_cache_fails_to_read(
     await controller.stop()
 
 
+async def test_reloading_a_pairing_shuts_the_replaced_one_down(
+    mock_asynczeroconf: AsyncZeroconf,
+):
+    controller = await make_controller(
+        mock_asynczeroconf, (offline_pairing_data(), cached_state())
+    )
+    await controller.start()
+    old = controller.pairings[ACCESSORY_ID]
+    old.connection._start_connector()  # e.g. a re-paired accessory: the old keys keep trying
+
+    new = await controller.load_pairing(offline_pairing_data())
+
+    assert controller.pairings[ACCESSORY_ID] is new is not old
+    assert old._shutdown
+    assert not reconnect_loops()
+    await controller.stop()
+
+
 async def test_discovery_repopulates_a_pairing_without_cache():
     pairing = IpPairing(offline_pairing_data())
     description = ZeroconfDiscoveryInfo.from_service_info(get_mock_service_info())
