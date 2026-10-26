@@ -21,6 +21,7 @@ from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.testing.mock_zeroconf import (
     HAP_TYPE_TCP,
     AsyncServiceBrowserStub,
+    MockedAsyncServiceInfo,
     get_mock_service_info,
     install_mock_service_info,
 )
@@ -174,6 +175,44 @@ async def test_restarted_controller_sees_live_discoveries(
 
     assert ACCESSORY_ID in controller.discoveries
     await controller.stop()
+
+
+async def test_stop_ignores_a_discovery_still_resolving(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    controller = await make_controller(
+        mock_asynczeroconf, (offline_pairing_data(), cached_state())
+    )
+    discovered = MagicMock()
+    controller.on_discovery(discovered)
+    await controller.start()
+    pairing = controller.pairings[ACCESSORY_ID]
+    info = get_mock_service_info()
+    answered = asyncio.Event()
+
+    async def answer_late(
+        self: MockedAsyncServiceInfo, zc: Zeroconf, timeout: float
+    ) -> bool:
+        await answered.wait()
+        return self.load_from_cache(zc)
+
+    async def answer_during_shutdown():
+        answered.set()
+        await asyncio.sleep(0.1)
+
+    with patch.object(MockedAsyncServiceInfo, "async_request", answer_late):
+        # Nothing cached: the controller asks the accessory, which answers while stop() runs
+        announce(mock_asynczeroconf, shared_browser, info.name)
+        await asyncio.sleep(0.6)
+        with (
+            install_mock_service_info(mock_asynczeroconf, info),
+            patch.object(pairing, "shutdown", answer_during_shutdown),
+        ):
+            await controller.stop()
+        await asyncio.sleep(0.1)
+
+    assert controller.discoveries == {}
+    discovered.assert_not_called()
 
 
 async def test_stop_closes_sessions_before_a_restart(

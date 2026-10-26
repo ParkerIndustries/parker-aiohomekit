@@ -94,8 +94,8 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
 
     @override
     async def stop(self):
-        await super().stop()
         self._running = False
+        await super().stop()
         if self._browser:
             self._browser.service_state_changed.unregister_handler(
                 self._zeroconf_did_discover_service
@@ -249,6 +249,10 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
 
     def _handle_loaded_discovery_info(self, info: AsyncServiceInfo):
         """Process loaded or discovered service"""
+        if not self._running:
+            # e.g. a query still running at stop(): nothing reaches a stopped controller
+            return
+
         try:
             description = ZeroconfDiscoveryInfo.from_service_info(info)
         except ValueError as e:
