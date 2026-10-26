@@ -14,12 +14,12 @@ UNKNOWN_CONTROLLER_ID = "00000000-0000-0000-0000-000000000000"
 
 @pytest.fixture
 def connect_attempts() -> Iterator[list[float]]:
-    """Times of every secure connect attempt."""
+    """The reconnect backoff at every secure connect attempt."""
     attempts = []
     connect_once = SecureHomeKitConnection._connect_once
 
     async def counting_connect_once(self: SecureHomeKitConnection):
-        attempts.append(asyncio.get_running_loop().time())
+        attempts.append(self._reconnect_backoff)
         await connect_once(self)
 
     with patch.object(SecureHomeKitConnection, "_connect_once", counting_connect_once):
@@ -43,12 +43,7 @@ async def test_rejected_pairing_backs_off_between_reconnects(
     await pairing.close()
 
     # at 0, 0.5 and 1.25 s with a backoff of 0.5 s growing 1.5x; a tight loop makes hundreds
-    assert len(connect_attempts) <= 4
-    delays = [
-        later - earlier
-        for earlier, later in zip(connect_attempts, connect_attempts[1:])
-    ]
-    assert delays == sorted(delays)
+    assert connect_attempts == [0.0, 0.5, 0.75]
 
 
 async def test_successful_connection_resets_the_backoff(
