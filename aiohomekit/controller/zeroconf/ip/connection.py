@@ -290,6 +290,7 @@ class HomeKitConnection:
 
         self._connector: asyncio.Task[None] | None = None
         self._reconnect_backoff = 0.0
+        self._backoff_wait: asyncio.Future[None] | None = None
 
         self.is_secure: bool | None = False
 
@@ -312,9 +313,9 @@ class HomeKitConnection:
         """Return if the connection is active."""
         return bool(self.transport and self.protocol and not self.closed)
 
-    def _start_connector(self):
+    def _start_connector(self, backoff: bool = False):
         """
-        Start a reconnect background task.
+        Start a reconnect background task, after the backoff if asked.
 
         This function is *not* thread safe. It should only be called on the main thread
         where the event loop is running. If it is not there is a race where multiple
@@ -325,20 +326,29 @@ class HomeKitConnection:
         """
         if (self._connector and not self._connector.done()) or self.is_connected:
             return
-        self._connector = async_create_task(self._reconnect_with_backoff())
+        self._connector = async_create_task(self._reconnect_with_backoff(backoff))
 
-    async def _reconnect_with_backoff(self):
+    async def _reconnect_with_backoff(self, backoff: bool):
         """
         Run a reconnect loop, after a delay that grows while the previous loops fail.
 
         A loop gives up on errors that retrying won't fix (AuthenticationError), but the
         accessory may then close the socket, and _connection_lost starts the next loop at once.
+        Only that loop waits: reconnect_soon() and ensure_connection() try at once and cut the
+        wait short.
         """
-        if self._reconnect_backoff:
+        if backoff and self._reconnect_backoff:
             logger.debug(
                 f"{self.name}: Last reconnect failed; retrying in {self._reconnect_backoff:.2f} s"
             )
-            await asyncio.sleep(self._reconnect_backoff)
+            self._backoff_wait = self._loop.create_future()
+            try:
+                async with interrupt(self._backoff_wait, ConnectionReady, None):
+                    await asyncio.sleep(self._reconnect_backoff)
+            except ConnectionReady:
+                pass
+            finally:
+                self._backoff_wait = None
         try:
             await self._reconnect()
         except Exception:
@@ -347,6 +357,10 @@ class HomeKitConnection:
             raise
         if self.is_connected:
             self._reconnect_backoff = 0.0
+
+    def _cut_backoff_short(self):
+        if self._backoff_wait and not self._backoff_wait.done():
+            self._backoff_wait.set_result(None)
 
     def reconnect_soon(self):
         """Reconnect to the device if disconnected.
@@ -361,6 +375,7 @@ class HomeKitConnection:
             # tries right away
             self._reconnect_future.set_result(None)
             return
+        self._cut_backoff_short()
         self._start_reconnecting()
 
     def _start_reconnecting(self) -> bool:
@@ -387,6 +402,8 @@ class HomeKitConnection:
         Otherwise, start a reconnection and wait for it.
         """
         if self._start_reconnecting():
+            # An on-demand call skips the backoff: it fails fast while the accessory rejects us
+            self._cut_backoff_short()
             # If we are running under a timeout, we still need to shield the
             # connector task so it continues to run if the timeout is hit.
             await asyncio.shield(self._connector)
@@ -620,7 +637,7 @@ class HomeKitConnection:
         if self.closing:
             self.closed = True
         else:
-            self._start_connector()
+            self._start_connector(backoff=True)
 
     async def _connect_once(self):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""
