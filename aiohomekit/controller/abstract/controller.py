@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import asyncio
 from collections.abc import AsyncIterable
 import logging
 from typing import Callable, Self, final
@@ -125,6 +126,16 @@ class AbstractController[
 
     async def stop(self):
         self._stop_observing()
+
+        # Close every session and its reconnect loop; the next start loads fresh pairings
+        pairings = list(self._pairings.values())
+        self._pairings.clear()
+        results = await asyncio.gather(
+            *(pairing.shutdown() for pairing in pairings), return_exceptions=True
+        )
+        for pairing, result in zip(pairings, results, strict=True):
+            if isinstance(result, Exception):
+                logger.warning(f"{pairing.name}: Failed to shut down: {result!r}")
 
     async def load_pairings_from_storage(self):
         for pairing_data in (await self.pairing_data_storage.get_all()).values():

@@ -4,9 +4,11 @@ from unittest.mock import AsyncMock, patch
 
 from zeroconf.asyncio import AsyncZeroconf
 
+from aiohomekit.controller.relay import Controller
 from aiohomekit.controller.zeroconf.ip import IpPairing
 from aiohomekit.controller.zeroconf.ip.controller import IpController
 from aiohomekit.controller.zeroconf.protocol import ZeroconfDiscoveryInfo
+from aiohomekit.exceptions import AuthenticationError
 from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.typed_dicts import PairingData
@@ -34,6 +36,15 @@ def offline_pairing_data(accessory_id: str = ACCESSORY_ID) -> PairingData:
 
 def cached_state() -> AccessoriesState:
     return AccessoriesState(Accessories.from_file(FIXTURE), config_num=1)
+
+
+def reconnect_loops() -> list[asyncio.Task]:
+    return [
+        task
+        for task in asyncio.all_tasks()
+        if getattr(task.get_coro(), "__qualname__", "")
+        == "HomeKitConnection._reconnect"
+    ]
 
 
 async def make_controller(
@@ -93,3 +104,47 @@ async def test_discovery_repopulates_a_pairing_without_cache():
 
     repopulate.assert_awaited_once_with(description.config_num)
     await pairing.close()
+
+
+async def test_stop_closes_sessions_before_a_restart(
+    controller_and_paired_accessory: Controller,
+):
+    controller = controller_and_paired_accessory
+    old = next(iter(controller.pairings.values()))
+    await old.get_characteristics([(1, 9)])
+    assert old.is_connected
+
+    await controller.stop()
+
+    assert not old.is_connected
+    assert not reconnect_loops()
+    assert controller.pairings == {}
+
+    await controller.start()
+    new = next(iter(controller.pairings.values()))
+    await new.get_characteristics([(1, 9)])
+
+    assert new is not old
+    assert new.is_connected
+    assert not old.is_connected
+
+
+async def test_stop_shuts_every_pairing_down_when_one_fails(
+    mock_asynczeroconf: AsyncZeroconf,
+):
+    controller = await make_controller(
+        mock_asynczeroconf,
+        (offline_pairing_data(accessory_id="00:00:00:00:00:01"), cached_state()),
+        (offline_pairing_data(), cached_state()),
+    )
+    await controller.start()
+    failing, other = controller.pairings.values()
+
+    # e.g. close() re-raises the error the reconnect loop ended with
+    with patch.object(
+        failing, "shutdown", AsyncMock(side_effect=AuthenticationError("step 4"))
+    ):
+        await controller.stop()
+
+        failing.shutdown.assert_awaited_once()
+    assert other._shutdown

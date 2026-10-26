@@ -61,9 +61,12 @@ async def test_put_characteristic(pairing):
             ["-f", "tests-pairing.json", "put", "-a", "alias", "-c", "1.9", "true"]
         )
 
-    characteristics = await pairing.get_characteristics([(1, 9)])
+    # the command stops the controller, which shuts its pairings down, so read it back the same way
+    with mock.patch("sys.stdout") as stdout:
+        await main(["-f", "tests-pairing.json", "get", "-a", "alias", "-c", "1.9"])
 
-    assert characteristics[(1, 9)] == {"value": True}
+    printed = stdout.write.call_args_list[0][0][0]
+    assert json.loads(printed) == {"1.9": {"value": True}}
 
 
 async def test_list_pairings(pairing):
