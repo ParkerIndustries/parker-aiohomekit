@@ -156,7 +156,12 @@ class AbstractController[
         if not accessory_id:
             raise ValueError("Invalid pairing data: Missing accessory ID")
 
-        accessories_state = await self.char_cache_storage.get(accessory_id)
+        try:
+            accessories_state = await self.char_cache_storage.get(accessory_id)
+        except Exception:
+            # The pairing loads without it and fetches the data model on demand
+            logger.exception(f"{accessory_id}: Failed to read the cached data model")
+            accessories_state = None
 
         pairing = self._pairings[accessory_id.lower()] = self.Pairing(pairing_data)
 

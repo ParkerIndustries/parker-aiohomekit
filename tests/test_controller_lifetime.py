@@ -130,6 +130,23 @@ async def test_start_skips_a_pairing_that_fails_to_load(
     await controller.stop()
 
 
+async def test_start_loads_a_pairing_whose_cache_fails_to_read(
+    mock_asynczeroconf: AsyncZeroconf,
+):
+    controller = await make_controller(
+        mock_asynczeroconf, (offline_pairing_data(), cached_state())
+    )
+    error = RuntimeError("database is locked")
+
+    with patch.object(controller.char_cache_storage, "get", side_effect=error):
+        await controller.start()
+
+    pairing = controller.pairings[ACCESSORY_ID]
+    with pytest.raises(AssertionError, match="not populated"):
+        assert pairing.accessories  # fetched on demand
+    await controller.stop()
+
+
 async def test_discovery_repopulates_a_pairing_without_cache():
     pairing = IpPairing(offline_pairing_data())
     description = ZeroconfDiscoveryInfo.from_service_info(get_mock_service_info())
