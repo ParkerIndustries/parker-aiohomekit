@@ -135,7 +135,9 @@ class AbstractController[
         )
         for pairing, result in zip(pairings, results, strict=True):
             if isinstance(result, Exception):
-                logger.warning(f"{pairing.name}: Failed to shut down: {result!r}")
+                logger.warning(
+                    f"{pairing.name}: Failed to shut down: {result!r}", exc_info=result
+                )
 
     async def load_pairings_from_storage(self):
         for pairing_data in (await self.pairing_data_storage.get_all()).values():

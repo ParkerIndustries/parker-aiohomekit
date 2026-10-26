@@ -352,8 +352,8 @@ class HomeKitConnection:
         try:
             await self._reconnect()
         except Exception:
-            # 0.5 s growing 1.5x up to 60 s: upstream aiohomekit's reconnect schedule
-            self._reconnect_backoff = min(60, max(0.5, 1.5 * self._reconnect_backoff))
+            # 0.5 s growing 1.5x up to 60 s, the interval upstream aiohomekit retries at within a loop
+            self._reconnect_backoff = min(60.0, max(0.5, 1.5 * self._reconnect_backoff))
             raise
         if self.is_connected:
             self._reconnect_backoff = 0.0
