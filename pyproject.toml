@@ -6,6 +6,8 @@ authors = [
     { name = "Mark Parker", email = "mark@parker-programs.com" }
 ]
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE.md"]
 keywords = ["HomeKit", "home", "automation", "aiohomekit"]
 classifiers = [
     "Topic :: Home Automation",
