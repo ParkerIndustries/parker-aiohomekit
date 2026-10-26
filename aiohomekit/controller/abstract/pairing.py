@@ -191,6 +191,10 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
             return await self._do_fetch_accessories_and_characteristics()
         return self._accessories_state
 
+    def restore_accessories_state(self, accessories_state: AccessoriesState):
+        """Populate the state from the cache, without connecting to the accessory."""
+        self._accessories_state = accessories_state
+
     async def get_primary_name(self) -> str:
         """Return the primary name of the device from the accessory information service."""
         await self.fetch_accessories_and_characteristics()
@@ -226,13 +230,16 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         repopulate_accessories = False
 
-        if description.config_num > (
-            self._accessories_state.config_num if self._accessories_state else 0
-        ):
+        # -1 when nothing is cached yet, so the first discovery populates the pairing
+        cached_config_num = (
+            self._accessories_state.config_num if self._accessories_state else -1
+        )
+
+        if description.config_num > cached_config_num:
             logger.debug(
                 "%s: Config number has changed from %s to %s; char cache invalid",
                 self.name,
-                self.config_num,
+                cached_config_num,
                 description.config_num,
             )
             repopulate_accessories = True

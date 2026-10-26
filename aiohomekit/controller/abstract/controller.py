@@ -128,7 +128,13 @@ class AbstractController[
 
     async def load_pairings_from_storage(self):
         for pairing_data in (await self.pairing_data_storage.get_all()).values():
-            await self.load_pairing(pairing_data)
+            try:
+                await self.load_pairing(pairing_data)
+            except Exception:
+                # One broken pairing must not keep the controller and the other pairings down
+                logger.exception(
+                    f"Failed to load pairing {pairing_data.get('AccessoryPairingID')!r}"
+                )
 
     async def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
         if pairing_data["Connection"] != self.transport_type:
@@ -139,12 +145,17 @@ class AbstractController[
         if not accessory_id:
             raise ValueError("Invalid pairing data: Missing accessory ID")
 
+        accessories_state = await self.char_cache_storage.get(accessory_id)
+
         pairing = self._pairings[accessory_id.lower()] = self.Pairing(pairing_data)
+
+        # No connection here: the accessory may be offline. The pairing connects on demand
+        # or on discovery, which also repopulates the cache when it is missing or outdated (c#).
+        if accessories_state:
+            pairing.restore_accessories_state(accessories_state)
 
         if discovery := self._discoveries.get(accessory_id):
             pairing.process_description_update(discovery.description)
-
-        await pairing.fetch_accessories_and_characteristics()  # TODO: fetch from storage first
 
         # TODO: initial save NOTE: current commented code causes "dict changed size during iteration" error
 
@@ -175,9 +186,9 @@ class AbstractController[
 
     async def _on_pairing(self, pairing_data: PairingData):
         #  async_create_task(self.load_pairing(pairing_data))
-        await self.load_pairing(
-            pairing_data
-        )  # so we return to the caller of finish_pairing with completely loaded pairing
+        if pairing := await self.load_pairing(pairing_data):
+            # so we return to the caller of finish_pairing with completely loaded pairing
+            await pairing.fetch_accessories_and_characteristics(force_update=True)
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return self.Discovery(discovery_info, self._on_pairing)

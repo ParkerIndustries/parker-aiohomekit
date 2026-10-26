@@ -157,6 +157,8 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
 @pytest.fixture
 async def pairing(controller_and_paired_accessory):
     pairing = next(iter(controller_and_paired_accessory.pairings.values()))
+    # The controller connects on demand; the pairing tests start from a connected pairing
+    await pairing.get_characteristics([(1, 9)])
     yield pairing
     # try:
     await pairing.close()
