@@ -59,6 +59,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         self._resolve_later_queue: dict[str, asyncio.TimerHandle] = {}
         self._loop = asyncio.get_running_loop()
         self._running = True
+        self._own_browser: AsyncServiceBrowser | None = None
 
     @override
     async def start(self):
@@ -71,7 +72,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
                 self._zeroconf_did_discover_service
             )
         else:
-            self._browser = AsyncServiceBrowser(
+            self._browser = self._own_browser = AsyncServiceBrowser(
                 self._async_zeroconf_instance.zeroconf,
                 [
                     self._hap_type,
@@ -88,6 +89,10 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         self._browser.service_state_changed.unregister_handler(
             self._zeroconf_did_discover_service
         )
+        if self._own_browser:
+            # A browser found on the zeroconf belongs to someone else and keeps running
+            await self._own_browser.async_cancel()
+            self._own_browser = None
         while self._resolve_later_queue:
             _, cancel = self._resolve_later_queue.popitem()
             cancel.cancel()

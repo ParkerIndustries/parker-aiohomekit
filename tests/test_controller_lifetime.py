@@ -1,7 +1,9 @@
 import asyncio
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from zeroconf.asyncio import AsyncZeroconf
 
 from aiohomekit.controller.relay import Controller
@@ -14,7 +16,10 @@ from aiohomekit.model.transport_type import TransportType
 from aiohomekit.model.typed_dicts import PairingData
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
-from aiohomekit.testing.mock_zeroconf import get_mock_service_info
+from aiohomekit.testing.mock_zeroconf import (
+    AsyncServiceBrowserStub,
+    get_mock_service_info,
+)
 from aiohomekit.testing.utils import next_available_port
 
 ACCESSORY_ID = "00:00:01:00:00:02"  # the id get_mock_service_info advertises
@@ -58,6 +63,18 @@ async def make_controller(
         if accessories_state:
             await char_cache_storage.save(accessory_id, accessories_state)
     return IpController(char_cache_storage, pairing_data_storage, zeroconf)
+
+
+@pytest.fixture
+def shared_browser(
+    mock_asynczeroconf: AsyncZeroconf,
+) -> Iterator[AsyncServiceBrowserStub]:
+    """The mock's _hap._tcp browser, found by the controller as someone else's browser."""
+    with patch(
+        "aiohomekit.controller.zeroconf.controller.AsyncServiceBrowser",
+        AsyncServiceBrowserStub,
+    ):
+        yield mock_asynczeroconf.zeroconf.listeners[0]
 
 
 async def test_start_loads_stored_pairings_without_connecting(
@@ -148,3 +165,31 @@ async def test_stop_shuts_every_pairing_down_when_one_fails(
 
         failing.shutdown.assert_awaited_once()
     assert other._shutdown
+
+
+async def test_stop_cancels_the_browser_it_created(mock_asynczeroconf: AsyncZeroconf):
+    mock_asynczeroconf.zeroconf.listeners = []  # nobody browses _hap._tcp yet
+    controller = await make_controller(mock_asynczeroconf)
+
+    with patch(
+        "aiohomekit.controller.zeroconf.controller.AsyncServiceBrowser"
+    ) as browser_class:
+        browser = browser_class.return_value
+        browser.async_cancel = AsyncMock()
+        await controller.start()
+        await controller.stop()
+
+    browser.async_cancel.assert_awaited_once()
+
+
+async def test_stop_keeps_a_browser_it_shares(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    controller = await make_controller(mock_asynczeroconf)
+
+    await controller.start()
+    assert shared_browser._handlers  # listens on it instead of creating its own
+    await controller.stop()
+
+    assert mock_asynczeroconf.zeroconf.listeners == [shared_browser]
+    assert shared_browser._handlers == []
