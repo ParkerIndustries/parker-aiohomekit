@@ -225,7 +225,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
             self._loop.time() + 0.5, self._do_resolve_later, name, info
         )
 
-    async def _do_resolve_later(self, name: str, info: AsyncServiceInfo) -> None:
+    def _do_resolve_later(self, name: str, info: AsyncServiceInfo):
         """Resolve a host later."""
         # As soon as we get a callback, we can remove the _resolve_later
         # so the next time we get a callback, we can resolve the service

@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from zeroconf import Zeroconf
+from zeroconf import ServiceStateChange, Zeroconf
 from zeroconf.asyncio import AsyncZeroconf
 
 from aiohomekit.controller.relay import Controller, controller as relay_controller
@@ -19,6 +19,7 @@ from aiohomekit.model.typed_dicts import PairingData
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
 from aiohomekit.testing.mock_zeroconf import (
+    HAP_TYPE_TCP,
     AsyncServiceBrowserStub,
     get_mock_service_info,
     install_mock_service_info,
@@ -67,6 +68,19 @@ async def make_controller(
         if accessories_state:
             await char_cache_storage.save(accessory_id, accessories_state)
     return IpController(char_cache_storage, pairing_data_storage, zeroconf)
+
+
+def announce(
+    zeroconf: AsyncZeroconf, browser: AsyncServiceBrowserStub, name: str
+):
+    """A live zeroconf answer: the browser tells its handlers the service was added."""
+    for handler in list(browser._handlers):
+        handler(
+            zeroconf=zeroconf.zeroconf,
+            service_type=HAP_TYPE_TCP,
+            name=name,
+            state_change=ServiceStateChange.Added,
+        )
 
 
 @pytest.fixture
@@ -125,6 +139,24 @@ async def test_discovery_repopulates_a_pairing_without_cache():
 
     repopulate.assert_awaited_once_with(description.config_num)
     await pairing.close()
+
+
+async def test_live_discovery_reaches_the_pairing(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    controller = await make_controller(
+        mock_asynczeroconf, (offline_pairing_data(), cached_state())
+    )
+    await controller.start()  # nothing cached yet, as right after the zeroconf starts
+
+    info = get_mock_service_info()
+    with install_mock_service_info(mock_asynczeroconf, info):
+        announce(mock_asynczeroconf, shared_browser, info.name)
+        await asyncio.sleep(0.6)  # resolved 0.5 s later
+
+    assert ACCESSORY_ID in controller.discoveries
+    assert controller.pairings[ACCESSORY_ID].description  # it connects on discovery
+    await controller.stop()
 
 
 async def test_stop_closes_sessions_before_a_restart(
