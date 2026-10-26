@@ -1,6 +1,6 @@
 [project]
 name = "parker-aiohomekit"
-version = "4.0.1"
+version = "4.1.0a0"
 description = "An asyncio HomeKit client"
 authors = [
     { name = "Mark Parker", email = "mark@parker-programs.com" }
