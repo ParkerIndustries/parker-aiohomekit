@@ -159,6 +159,23 @@ async def test_live_discovery_reaches_the_pairing(
     await controller.stop()
 
 
+async def test_restarted_controller_sees_live_discoveries(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    controller = await make_controller(mock_asynczeroconf)
+    await controller.start()
+    await controller.stop()
+    await controller.start()
+
+    info = get_mock_service_info()
+    with install_mock_service_info(mock_asynczeroconf, info):
+        announce(mock_asynczeroconf, shared_browser, info.name)
+        await asyncio.sleep(0.6)
+
+    assert ACCESSORY_ID in controller.discoveries
+    await controller.stop()
+
+
 async def test_stop_closes_sessions_before_a_restart(
     controller_and_paired_accessory: Controller,
 ):

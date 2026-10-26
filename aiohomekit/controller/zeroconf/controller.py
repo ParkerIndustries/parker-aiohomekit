@@ -72,6 +72,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
             raise
 
     async def _start(self):
+        self._running = True
         await super().start()
         zc = self._async_zeroconf_instance.zeroconf
 
