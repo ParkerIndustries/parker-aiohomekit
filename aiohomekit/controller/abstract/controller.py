@@ -175,7 +175,7 @@ class AbstractController[
         if accessories_state:
             pairing.restore_accessories_state(accessories_state)
 
-        if discovery := self._discoveries.get(accessory_id):
+        if discovery := self._discoveries.get(accessory_id.lower()):
             pairing.process_description_update(discovery.description)
 
         # TODO: initial save NOTE: current commented code causes "dict changed size during iteration" error

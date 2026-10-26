@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -162,6 +163,24 @@ async def test_reloading_a_pairing_shuts_the_replaced_one_down(
     assert controller.pairings[ACCESSORY_ID] is new is not old
     assert old._shutdown
     assert not reconnect_loops()
+    await controller.stop()
+
+
+async def test_load_pairing_applies_a_known_discovery(
+    mock_asynczeroconf: AsyncZeroconf,
+):
+    controller = await make_controller(mock_asynczeroconf)
+    await controller.start()
+    # Discoveries are keyed lower-case; HAP pairing ids are usually upper-case
+    description = replace(
+        ZeroconfDiscoveryInfo.from_service_info(get_mock_service_info()),
+        id="aa:bb:cc:00:00:02",
+    )
+    controller.discoveries[description.id] = controller._make_discovery(description)
+
+    pairing = await controller.load_pairing(offline_pairing_data("AA:BB:CC:00:00:02"))
+
+    assert pairing and pairing.description == description
     await controller.stop()
 
 
