@@ -206,7 +206,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     @override
     async def remove_pairing(self, pairing_id: HKDeviceID) -> AbstractPairing:
         for transport in self._transports.values():
-            if pairing_id in transport.pairings:
+            if pairing_id.lower() in transport.pairings:
                 return await transport.remove_pairing(pairing_id)
         raise AccessoryNotFoundError(
             f'Pairing "{pairing_id}" is not found in any transport.'

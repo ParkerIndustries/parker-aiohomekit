@@ -87,7 +87,7 @@ class AbstractController[
     # Implementations
 
     async def identify(self, id: HKDeviceID):
-        pairing = self.pairings.get(id)
+        pairing = self.pairings.get(id.lower())
         if pairing is None:
             raise AccessoryNotFoundError(f"Pairing with ID {id} not found.")
 
@@ -104,12 +104,12 @@ class AbstractController[
         :raises UnknownError: on unknown errors
         """
 
-        if pairing_id not in self.pairings:
+        if pairing_id.lower() not in self.pairings:
             raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found.')
 
-        pairing = self.pairings.pop(pairing_id)
+        pairing = self.pairings.pop(pairing_id.lower())
 
-        self._cleanup_pairing(pairing_id)
+        self._cleanup_pairing(pairing_id.lower())
 
         await pairing.remove_pairing()
         await self.char_cache_storage.delete(pairing_id)
