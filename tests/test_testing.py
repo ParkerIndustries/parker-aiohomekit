@@ -4,7 +4,7 @@ from aiohomekit.model.accessories import Accessories, AccessoriesState, Accessor
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 from aiohomekit.protocol.statuscodes import HapStatusCode
-from aiohomekit.testing.fakes import FakeController
+from aiohomekit.testing.fakes import FakeController, FakePairing
 
 
 async def test_pairing():
@@ -204,3 +204,14 @@ async def test_camera():
 
     result = await pairing.image(1, 640, 480)
     assert len(result) > 0
+
+
+async def test_remove_pairing_by_an_upper_case_id():
+    controller = FakeController()
+    controller.pairings["aa:bb:cc:dd:ee:ff"] = FakePairing(
+        {"AccessoryPairingID": "AA:BB:CC:DD:EE:FF"}
+    )
+
+    await controller.remove_pairing("AA:BB:CC:DD:EE:FF")
+
+    assert controller.pairings == {}

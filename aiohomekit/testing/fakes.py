@@ -417,7 +417,7 @@ class FakeController(AbstractController):
         return True
 
     async def remove_pairing(self, pairing_id: HKDeviceID):
-        del self.pairings[pairing_id]
+        del self.pairings[pairing_id.lower()]
         await self.char_cache_storage.delete(pairing_id)
 
     async def load_pairing(self, pairing_data):
