@@ -273,6 +273,27 @@ async def test_stop_ignores_a_discovery_still_resolving(
     discovered.assert_not_called()
 
 
+async def test_finish_pairing_leaves_a_loaded_pairing(
+    mock_asynczeroconf: AsyncZeroconf,
+    controller_and_unpaired_accessory: tuple[Controller, int],
+):
+    _, port = controller_and_unpaired_accessory
+    controller = await make_controller(mock_asynczeroconf)
+    await controller.start()
+    description = replace(
+        ZeroconfDiscoveryInfo.from_service_info(get_mock_service_info()),
+        id="12:34:56:00:01:0a",
+        port=port,
+    )
+
+    finish_pairing = await controller._make_discovery(description).start_pairing()
+    await finish_pairing("031-45-154")
+
+    pairing = controller.pairings[description.id]
+    assert pairing.accessories.aid(1)  # fetched before finish_pairing returned
+    await controller.stop()
+
+
 async def test_stop_closes_sessions_before_a_restart(
     controller_and_paired_accessory: Controller,
 ):
