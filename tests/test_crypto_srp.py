@@ -15,7 +15,7 @@
 #
 import pytest
 
-from aiohomekit.crypto.srp import SrpClient, SrpServer
+from aiohomekit.crypto.srp import SrpClient, SrpServer, to_byte_array
 
 # To find short keys
 # for _ in range(500000):
@@ -48,6 +48,11 @@ class LeadingZeroPrivateKeySrpServer(SrpServer):
 class LeadingZeroPrivateAndPublicKeySrpServer(SrpServer):
     def generate_private_key(self):
         return 70997313118674976963008287637113704817
+
+
+class LeadingZeroPublicKeySrpServer(ZeroSaltSrpServer):
+    def generate_private_key(self) -> int:
+        return 273525260451910362259914351550567332421
 
 
 @pytest.mark.parametrize(
@@ -92,3 +97,15 @@ def test_1(server_cls, client_cls):
     assert (
         client.verify_servers_proof_bytes(servers_proof) is True
     ), f"proof mismatch: server_key:{server.b} client_key:{client.a} server_salt:{server.salt}"
+
+
+def test_client_pads_a_short_server_public_key():
+    setup_code = "123-45-678"
+    server = LeadingZeroPublicKeySrpServer("Pair-Setup", setup_code)
+    client = SrpClient("Pair-Setup", setup_code)
+    client.set_salt(server.get_salt())
+    # As an accessory sends B when it drops the leading zero byte
+    client.set_server_public_key(to_byte_array(server.get_public_key()))
+
+    server.set_client_public_key(client.get_public_key_bytes())
+    assert server.verify_clients_proof_bytes(client.get_proof_bytes())

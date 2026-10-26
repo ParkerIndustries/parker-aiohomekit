@@ -57,7 +57,7 @@ E0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF""",
 )
 
 
-def pad_left(data: bytes, length: int) -> bytes:
+def pad_left(data: bytes | bytearray, length: int) -> bytes:
     """Pads the data with 0x00 until it is of length length.
 
     Some devices use a salt of all 0s (LIFX BEAM)
@@ -185,7 +185,8 @@ class SrpClient(Srp):
 
     def set_server_public_key(self, B_b: bytearray | bytes):
         assert isinstance(B_b, (bytes, bytearray)), "The public key must be a bytes"
-        self.B_b = B_b
+        # Hashed at the modulus length (RFC 5054), also when an accessory drops its leading zero bytes
+        self.B_b = pad_left(B_b, HK_KEY_LENGTH)
         self.B = int.from_bytes(B_b, "big")
 
     def get_shared_secret(self) -> int:
