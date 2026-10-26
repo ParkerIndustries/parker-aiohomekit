@@ -337,6 +337,29 @@ async def test_stop_closes_the_socket_of_a_rejected_pairing(
     assert connection.transport is None
 
 
+async def test_relay_stop_shuts_each_pairing_down_once(
+    mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
+):
+    pairing_data_storage = PairingDataStorageMemory()
+    await pairing_data_storage.save(ACCESSORY_ID, offline_pairing_data())
+    controller = Controller(
+        CharacteristicsStorageMemory(),
+        pairing_data_storage,
+        zeroconf_instance=mock_asynczeroconf,
+    )
+    with (
+        patch.object(relay_controller, "COAP_TRANSPORT_SUPPORTED", False),
+        patch.object(relay_controller, "BLE_TRANSPORT_SUPPORTED", False),
+    ):
+        await controller.start()
+    pairing = controller.pairings[ACCESSORY_ID]
+
+    with patch.object(pairing, "shutdown", AsyncMock()) as shutdown:
+        await controller.stop()
+
+    shutdown.assert_awaited_once()
+
+
 async def test_stop_cancels_the_browser_it_created(mock_asynczeroconf: AsyncZeroconf):
     mock_asynczeroconf.zeroconf.listeners = []  # nobody browses _hap._tcp yet
     controller = await make_controller(mock_asynczeroconf)

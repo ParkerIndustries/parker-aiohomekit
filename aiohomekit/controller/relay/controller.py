@@ -168,8 +168,9 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @override
     async def stop(self):
-        await super().stop()
+        # Each transport stops its discoveries, then shuts its own pairings down
         await self._tasks.aclose()
+        await super().stop()
 
     @override
     async def is_reachable(
