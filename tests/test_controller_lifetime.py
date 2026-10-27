@@ -72,9 +72,7 @@ async def make_controller(
     return IpController(char_cache_storage, pairing_data_storage, zeroconf)
 
 
-def announce(
-    zeroconf: AsyncZeroconf, browser: AsyncServiceBrowserStub, name: str
-):
+def announce(zeroconf: AsyncZeroconf, browser: AsyncServiceBrowserStub, name: str):
     """A live zeroconf answer: the browser tells its handlers the service was added."""
     for handler in list(browser._handlers):
         handler(
@@ -184,7 +182,8 @@ async def test_load_pairing_applies_a_known_discovery(
     await controller.stop()
 
 
-@pytest.mark.parametrize("config_num", [0, 1])  # 0 also when an accessory advertises no c#
+# 0 also when an accessory advertises no c#
+@pytest.mark.parametrize("config_num", [0, 1])
 async def test_discovery_repopulates_a_pairing_without_cache(config_num: int):
     pairing = IpPairing(offline_pairing_data())
     description = replace(
