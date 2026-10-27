@@ -131,6 +131,7 @@ async def test_pair_with_a_wrong_code(
 
     assert exc_info.value.stage == "step 4"
 
+
 async def test_identify(controller_and_unpaired_accessory: tuple[Controller, int]):
     controller, port = controller_and_unpaired_accessory
 
