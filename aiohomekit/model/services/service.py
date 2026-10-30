@@ -203,15 +203,12 @@ class Services:
         matches = iter(self._services)
 
         if service_type:
-            matches = filter(
-                lambda service: service.type == normalize_uuid(service_type), matches
-            )
+            matches = filter(lambda service: service.type == normalize_uuid(service_type), matches)
 
         if characteristics:
             for characteristic, value in characteristics.items():
                 matches = filter(
-                    lambda service: service.value(normalize_uuid(characteristic))
-                    == value,
+                    lambda service: service.value(normalize_uuid(characteristic)) == value,
                     matches,
                 )
 
@@ -227,9 +224,7 @@ class Services:
             matches = iter(
                 sorted(
                     matches,
-                    key=lambda service: tuple(
-                        service.value(UUID(char_type)) for char_type in order_by
-                    ),
+                    key=lambda service: tuple(service.value(UUID(char_type)) for char_type in order_by),
                 )
             )
 
@@ -244,12 +239,7 @@ class Services:
         child_service: Service | None = None,
     ) -> Service | None:
         """Get the first service."""
-        if (
-            service_type is not None
-            and characteristics is None
-            and parent_service is None
-            and child_service is None
-        ):
+        if service_type is not None and characteristics is None and parent_service is None and child_service is None:
             return self._type_to_service.get(normalize_uuid(service_type))
 
         try:
@@ -273,11 +263,7 @@ class Services:
     def pprint(self, hidden: bool = False, width: int = 30):
         view = list(
             (
-                (
-                    ServicesTypes(s.type_str)
-                    if s.type_str in ServicesTypes
-                    else s.type_str
-                ),
+                (ServicesTypes(s.type_str) if s.type_str in ServicesTypes else s.type_str),
                 s.pprint(hidden=True, width=width),
             )
             for s in self

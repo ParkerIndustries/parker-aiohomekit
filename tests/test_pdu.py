@@ -30,15 +30,11 @@ def test_encode():
 
 
 def test_encode_with_body():
-    assert list(encode_pdu(OpCode.CHAR_SIG_READ, 44, 1, b"SOMEDATA")) == [
-        b"\x00\x01,\x01\x00\x08\x00SOMEDATA"
-    ]
+    assert list(encode_pdu(OpCode.CHAR_SIG_READ, 44, 1, b"SOMEDATA")) == [b"\x00\x01,\x01\x00\x08\x00SOMEDATA"]
 
 
 def test_encode_with_fragments():
-    result = list(
-        encode_pdu(OpCode.CHAR_SIG_READ, 44, 1, b"ABCD" * 64, fragment_size=256)
-    )
+    result = list(encode_pdu(OpCode.CHAR_SIG_READ, 44, 1, b"ABCD" * 64, fragment_size=256))
 
     assert result == [
         b"\x00\x01,\x01\x00\x00\x01ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDA"

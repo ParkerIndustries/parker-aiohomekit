@@ -124,11 +124,9 @@ class IpPairing(ZeroconfPairing):
         try:
             async with asyncio_timeout(10):
                 await connection.ensure_connection()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             last_connector_error = connection.last_connector_error
-            if not last_connector_error or isinstance(
-                last_connector_error, asyncio.TimeoutError
-            ):
+            if not last_connector_error or isinstance(last_connector_error, asyncio.TimeoutError):
                 raise AccessoryDisconnectedError(
                     f"Timeout while waiting for connection to device {connection.hosts}:{connection.port}"
                 )
@@ -144,9 +142,7 @@ class IpPairing(ZeroconfPairing):
                 f"Ensure connection returned but still not connected: {connection.hosts}:{connection.port}"
             )
 
-        self._callback_availability_changed(
-            True
-        )  # TODO: check if should call connection_made instead
+        self._callback_availability_changed(True)  # TODO: check if should call connection_made instead
 
     @override
     async def close(self):
@@ -213,10 +209,7 @@ class IpPairing(ZeroconfPairing):
         if not (data[0][0] == TLV.kTLVType_State and data[0][1] == TLV.M2):
             raise UnknownError("unexpected data received: " + str(data))
 
-        if (
-            data[1][0] == TLV.kTLVType_Error
-            and data[1][1] == TLV.kTLVError_Authentication
-        ):
+        if data[1][0] == TLV.kTLVType_Error and data[1][1] == TLV.kTLVError_Authentication:
             raise UnpairedError("Must be paired")
 
         tmp = []
@@ -269,18 +262,14 @@ class IpPairing(ZeroconfPairing):
         else:
             characteristics_set = set(characteristics)
 
-        url = "/characteristics?id=" + ",".join(
-            f"{aid}.{iid}" for aid, iid in characteristics_set
-        )
+        url = "/characteristics?id=" + ",".join(f"{aid}.{iid}" for aid, iid in characteristics_set)
 
         response = await self.connection.get_json(url)
 
         return _format_characteristics_response(response, characteristics_set)
 
     @override
-    async def put_characteristics(
-        self, characteristics: Iterable[CharacteristicKeyValue]
-    ) -> Response:
+    async def put_characteristics(self, characteristics: Iterable[CharacteristicKeyValue]) -> Response:
         """
         Update the values of writable characteristics. The characteristics have to be identified by accessory id (aid),
         instance id (iid). If do_conversion is False (the default), the value must be of proper format for the
@@ -300,18 +289,14 @@ class IpPairing(ZeroconfPairing):
         for characteristic in characteristics:
             aid, iid, value = characteristic
             char_payload.append({"aid": aid, "iid": iid, "value": value})
-            accessory_chars = self.accessories_state.accessories.aid(
-                aid
-            ).characteristics
+            accessory_chars = self.accessories_state.accessories.aid(aid).characteristics
             char = accessory_chars.iid(iid)
             if not char:
                 continue
             if CharacteristicPermissions.paired_read in char.perms:
                 listener_update[CharacteristicKey(aid, iid)] = {"value": value}
 
-        response = await self.connection.put_json(
-            "/characteristics", {"characteristics": char_payload}
-        )
+        response = await self.connection.put_json("/characteristics", {"characteristics": char_payload})
         response_status: Response = {}
         if response:
             # If there is a response it means something failed so
@@ -346,9 +331,7 @@ class IpPairing(ZeroconfPairing):
         """Provision a device with Thread network credentials."""
 
     @override
-    async def subscribe_characteristics(
-        self, characteristics: Iterable[CharacteristicKey]
-    ) -> Response:
+    async def subscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
         await super().subscribe_characteristics(set(characteristics))
 
         if not self.supports_subscribe:
@@ -360,9 +343,7 @@ class IpPairing(ZeroconfPairing):
         try:
             await self._ensure_connected()
         except AccessoryDisconnectedError:
-            logger.debug(
-                "Attempted to subscribe to characteristics but could not connect to accessory"
-            )
+            logger.debug("Attempted to subscribe to characteristics but could not connect to accessory")
             return {}
 
         try:
@@ -372,9 +353,7 @@ class IpPairing(ZeroconfPairing):
             return {}
 
     @override
-    async def unsubscribe_characteristics(
-        self, characteristics: Iterable[CharacteristicKey]
-    ) -> Response:
+    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
         if not self.connection.is_connected:
             # If not connected no need to unsubscribe
             await super().unsubscribe_characteristics(characteristics)
@@ -448,21 +427,15 @@ class IpPairing(ZeroconfPairing):
                     iid = characteristic.iid
                     if characteristic.type == identify_type:
                         # found the identify characteristic, so let's put a value there
-                        response = await self.put_characteristics(
-                            [CharacteristicKeyValue(aid, iid, True)]
-                        )
+                        response = await self.put_characteristics([CharacteristicKeyValue(aid, iid, True)])
                         if not response:  # no errors
                             return True
-                        logger.info(
-                            "Failed to set identify characteristic %s", response
-                        )
+                        logger.info("Failed to set identify characteristic %s", response)
         else:
             raise RuntimeError("No identify characteristic found")
         return False
 
-    async def add_pairing(
-        self, additional_controller_pairing_identifier, ios_device_ltpk, permissions
-    ):
+    async def add_pairing(self, additional_controller_pairing_identifier, ios_device_ltpk, permissions):
         await self._ensure_connected()
 
         if permissions == "User":
@@ -511,9 +484,7 @@ class IpPairing(ZeroconfPairing):
             (TLV.kTLVType_Identifier, str(controller_id).encode("utf-8")),
         ]
 
-        data = dict(
-            await self.connection.post_tlv("/pairings", request_tlv)
-        )  # TODO: all endpoints to enum
+        data = dict(await self.connection.post_tlv("/pairings", request_tlv))  # TODO: all endpoints to enum
 
         if data.get(TLV.kTLVType_State, TLV.M2) != TLV.M2:
             raise InvalidError("Unexpected state after removing pairing request")
@@ -574,9 +545,7 @@ def _status_description(status: int) -> str:
     return status_code.description
 
 
-def _format_characteristics_response(
-    data: dict[str, Any], requested: set[CharacteristicKey] | None = None
-) -> Response:
+def _format_characteristics_response(data: dict[str, Any], requested: set[CharacteristicKey] | None = None) -> Response:
     tmp: Response = {}
 
     # A top-level error status fails the whole request, so every requested

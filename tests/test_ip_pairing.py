@@ -101,9 +101,7 @@ async def test_reconnect_soon_after_disconnected(pairing: IpPairing):
     # pairing.process_description_update(None)
     # pairing.process_description_update(None)
 
-    await asyncio.sleep(
-        0
-    )  # ensure the callback has a chance to run and create _connector
+    await asyncio.sleep(0)  # ensure the callback has a chance to run and create _connector
     await asyncio.wait_for(pairing.connection._connector, timeout=0.5)
     assert pairing.connection.is_connected
 
@@ -134,9 +132,7 @@ async def test_reconnect_soon_after_device_is_offline_for_a_bit(pairing: IpPairi
             # ensure the callback has a chance to run and create _connector
             await asyncio.sleep(0)
             with pytest.raises(asyncio.TimeoutError):
-                await asyncio.wait_for(
-                    asyncio.shield(pairing.connection._connector), timeout=0.2
-                )
+                await asyncio.wait_for(asyncio.shield(pairing.connection._connector), timeout=0.2)
             assert not pairing.connection.is_connected
 
     # pairing.process_description_update(None)
@@ -203,9 +199,7 @@ async def test_get_connect_hosts_normalizes_addresses() -> None:
 
     # The peer address of the failed connection may format the same
     # IPv6 address differently than the advertised address
-    connection._pair_verify_failed_hosts.add(
-        _normalize_host("2001:0db8:0000:0000:0000:0000:0000:0001%eth0")
-    )
+    connection._pair_verify_failed_hosts.add(_normalize_host("2001:0db8:0000:0000:0000:0000:0000:0001%eth0"))
     assert connection._get_connect_hosts() == ["192.168.2.10"]
 
 
@@ -214,12 +208,14 @@ async def test_pair_verify_wrong_accessory_marks_host_failed(
 ) -> None:
     connection = pairing.connection
 
-    with mock.patch(
-        "aiohomekit.controller.zeroconf.ip.connection.get_session_keys",
-        side_effect=wrong_accessory_get_session_keys,
+    with (
+        mock.patch(
+            "aiohomekit.controller.zeroconf.ip.connection.get_session_keys",
+            side_effect=wrong_accessory_get_session_keys,
+        ),
+        pytest.raises(IncorrectPairingIdError),
     ):
-        with pytest.raises(IncorrectPairingIdError):
-            await connection._connect_once()
+        await connection._connect_once()
 
     assert connection._pair_verify_failed_hosts == {"127.0.0.1"}
     assert connection.transport is None
@@ -365,9 +361,7 @@ async def test_put_characteristics_status_rows_callbacks(
 ):
     """Only writes the accessory reports as successful notify listeners."""
     events = []
-    pairing.add_observer_for_characteristics(
-        lambda _id, new_values: events.append(new_values)
-    )
+    pairing.add_observer_for_characteristics(lambda _id, new_values: events.append(new_values))
     response = {"characteristics": [{"aid": 1, "iid": 9, "status": status}]}
 
     with mock.patch.object(pairing.connection, "put_json", return_value=response):
@@ -662,9 +656,7 @@ async def test_put_characteristics_boolean_response(pairing: IpPairing):
         ]
     }
 
-    with mock.patch.object(
-        pairing.connection, "put_json", return_value=malformed_response
-    ):
+    with mock.patch.object(pairing.connection, "put_json", return_value=malformed_response):
         # This should not raise TypeError anymore
         result = await pairing.put_characteristics([(1, 9, True)])
 

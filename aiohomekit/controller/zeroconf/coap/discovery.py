@@ -37,9 +37,7 @@ class CoAPDiscovery(AbstractDiscovery):
         pairing_finished_callback: DiscoveryDidFinishPairingCallback,
     ):
         super().__init__(description, pairing_finished_callback)
-        self.connection = CoAPHomeKitConnection(
-            None, description.address, description.port
-        )
+        self.connection = CoAPHomeKitConnection(None, description.address, description.port)
 
     def setup(self): ...
 
@@ -62,9 +60,7 @@ class CoAPDiscovery(AbstractDiscovery):
         return await self.connection.do_identify()
 
     async def start_pairing(self) -> FinishPairing:
-        salt, srpB = await self.connection.do_pair_setup(
-            pair_with_auth(self.description.feature_flags)
-        )
+        salt, srpB = await self.connection.do_pair_setup(pair_with_auth(self.description.feature_flags))
 
         async def finish_pairing(pin: str) -> PairingData:
             check_pin_format(pin)

@@ -141,37 +141,22 @@ class Characteristic:
 
         self.parent_service = service
         self.type = normalize_uuid(characteristic_type)
-        self.iid = (
-            self._get_configuration(kwargs, "iid", service.accessory.get_next_id()) or 0
-        )
+        self.iid = self._get_configuration(kwargs, "iid", service.accessory.get_next_id()) or 0
 
-        self.perms = (
-            self._get_configuration(
-                kwargs, "perms", [CharacteristicPermissions.paired_read]
-            )
-            or []
-        )
+        self.perms = self._get_configuration(kwargs, "perms", [CharacteristicPermissions.paired_read]) or []
         self.format = self._get_configuration(kwargs, "format", None)
 
         self.ev = None
         self.handle = self._get_configuration(kwargs, "handle", None)
-        self.broadcast_events = self._get_configuration(
-            kwargs, "broadcast_events", None
-        )
-        self.disconnected_events = self._get_configuration(
-            kwargs, "disconnected_events", None
-        )
+        self.broadcast_events = self._get_configuration(kwargs, "broadcast_events", None)
+        self.disconnected_events = self._get_configuration(kwargs, "disconnected_events", None)
         self.description = self._get_configuration(kwargs, "description", None)
         self.unit = self._get_configuration(kwargs, "unit", None)
         self.minValue = self._get_configuration(kwargs, "min_value", None)
         self.maxValue = self._get_configuration(kwargs, "max_value", None)
         self.minStep = self._get_configuration(kwargs, "min_step", None)
-        self.maxLen = self._get_configuration(
-            kwargs, "max_len", DEFAULT_MAX_STRING_LENGTH
-        )
-        self.maxDataLen = self._get_configuration(
-            kwargs, "max_data_len", DEFAULT_MAX_DATA_LENGTH
-        )
+        self.maxLen = self._get_configuration(kwargs, "max_len", DEFAULT_MAX_STRING_LENGTH)
+        self.maxDataLen = self._get_configuration(kwargs, "max_data_len", DEFAULT_MAX_DATA_LENGTH)
         self.valid_values = self._get_configuration(kwargs, "valid_values", None)
         self.valid_values_range = None
 
@@ -193,7 +178,7 @@ class Characteristic:
 
         if (
             self.format
-            and (defaults := DEFAULT_CONFIGURATION_FOR_FORMAT.get(self.format, None))
+            and (defaults := DEFAULT_CONFIGURATION_FOR_FORMAT.get(self.format))
             and ("default_value" in defaults)
         ):
             self.value = defaults["default_value"]
@@ -407,9 +392,7 @@ class Characteristic:
         return view
 
 
-def check_convert_value(
-    val: str, char: Characteristic
-) -> Literal[0, 1] | int | float | TLV | bytes | str:
+def check_convert_value(val: str, char: Characteristic) -> Literal[0, 1] | int | float | TLV | bytes | str:
     """
     Checks if the given value is of the given type or is convertible into the type. If the value is not convertible, a
     HomeKitTypeException is thrown.
@@ -458,9 +441,7 @@ def check_convert_value(
 
                 # We use to_integral_value() here rather than round as it respsects
                 # ctx.rounding
-                num_val = offset + (
-                    ((num_val - offset) / min_step).to_integral_value() * min_step
-                )
+                num_val = offset + (((num_val - offset) / min_step).to_integral_value() * min_step)
 
         if char.format in INTEGER_TYPES:
             return int(num_val.to_integral_value())
@@ -502,9 +483,7 @@ class Characteristics:
         self._characteristics.append(char)
         self._iid_to_characteristic[char.iid] = char
 
-    def filter(
-        self, char_types: Iterable[UUID | str] | None = None
-    ) -> Iterator[Characteristic]:
+    def filter(self, char_types: Iterable[UUID | str] | None = None) -> Iterator[Characteristic]:
         matches = iter(self)
 
         if char_types:

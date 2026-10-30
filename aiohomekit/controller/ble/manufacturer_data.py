@@ -38,9 +38,7 @@ class HomeKitAdvertisement(AbstractDiscoveryInfo):
             raise ValueError("Not a HomeKit device")
 
         sf = data[2]
-        device_id = ":".join(
-            data[3:9].hex()[0 + i : 2 + i] for i in range(0, 12, 2)
-        ).lower()
+        device_id = ":".join(data[3:9].hex()[0 + i : 2 + i] for i in range(0, 12, 2)).lower()
         acid, gsn, cn, cv = UNPACK_HHBB(data[9:15])
         sh = data[15:19]
 
@@ -56,9 +54,7 @@ class HomeKitAdvertisement(AbstractDiscoveryInfo):
         )
 
     @classmethod
-    def from_cache(
-        cls, address: str, id: str, config_num: int, state_num: int
-    ) -> HomeKitAdvertisement:
+    def from_cache(cls, address: str, id: str, config_num: int, state_num: int) -> HomeKitAdvertisement:
         """Create a HomeKitAdvertisement from a cache entry."""
         return cls(
             name=address,
@@ -72,9 +68,7 @@ class HomeKitAdvertisement(AbstractDiscoveryInfo):
         )
 
     @classmethod
-    def from_advertisement(
-        cls, device: BLEDevice, advertisement_data: AdvertisementData
-    ) -> HomeKitAdvertisement:
+    def from_advertisement(cls, device: BLEDevice, advertisement_data: AdvertisementData) -> HomeKitAdvertisement:
         if not (mfr_data := advertisement_data.manufacturer_data):
             raise ValueError("No manufacturer data")
 
@@ -100,9 +94,7 @@ class HomeKitEncryptedNotification:
             raise ValueError("Not a HomeKit encrypted notification")
 
         advertising_identifier = data[2:8]
-        device_id = ":".join(
-            advertising_identifier.hex()[0 + i : 2 + i] for i in range(0, 12, 2)
-        ).lower()
+        device_id = ":".join(advertising_identifier.hex()[0 + i : 2 + i] for i in range(0, 12, 2)).lower()
         encrypted_payload = data[8:]
 
         return cls(
@@ -114,9 +106,7 @@ class HomeKitEncryptedNotification:
         )
 
     @classmethod
-    def from_advertisement(
-        cls, device: BLEDevice, advertisement_data: AdvertisementData
-    ) -> HomeKitAdvertisement:
+    def from_advertisement(cls, device: BLEDevice, advertisement_data: AdvertisementData) -> HomeKitAdvertisement:
         if not (mfr_data := advertisement_data.manufacturer_data):
             raise ValueError("No manufacturer data")
 

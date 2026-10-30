@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 class DictStorageProtocol[ID, StorageLayoutItem](Protocol):
-
     async def get_all(self) -> dict[ID, StorageLayoutItem]: ...
 
     async def get(self, id: ID) -> StorageLayoutItem | None: ...
@@ -55,9 +54,7 @@ class DictStorageMemory[ID, StorageLayoutItem](DictStorageProtocol):
             self._storage_data.pop(id)
 
 
-class DictStorageFile[ID, StorageLayoutItem](
-    DictStorageMemory
-):  # TODO: Codable protocol
+class DictStorageFile[ID, StorageLayoutItem](DictStorageMemory):  # TODO: Codable protocol
     """ID and StorageLayoutItem must be JSON serializable and supported by aiohomekit.hkjson"""
 
     def __init__(self, location: pathlib.Path):

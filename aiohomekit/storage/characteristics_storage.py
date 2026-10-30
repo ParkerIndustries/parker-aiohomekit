@@ -5,16 +5,10 @@ from aiohomekit.storage.storage import DictStorageProtocol
 from .storage import DictStorageFile, DictStorageMemory
 
 
-class CharacteristicsStorageProtocol(
-    DictStorageProtocol[HKDeviceID, AccessoriesState]
-): ...
+class CharacteristicsStorageProtocol(DictStorageProtocol[HKDeviceID, AccessoriesState]): ...
 
 
-class CharacteristicsStorageMemory(
-    DictStorageMemory[HKDeviceID, AccessoriesState], CharacteristicsStorageProtocol
-): ...
+class CharacteristicsStorageMemory(DictStorageMemory[HKDeviceID, AccessoriesState], CharacteristicsStorageProtocol): ...
 
 
-class CharacteristicsStorageFile(
-    DictStorageFile[HKDeviceID, AccessoriesState], CharacteristicsStorageProtocol
-): ...
+class CharacteristicsStorageFile(DictStorageFile[HKDeviceID, AccessoriesState], CharacteristicsStorageProtocol): ...

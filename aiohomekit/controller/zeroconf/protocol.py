@@ -54,9 +54,7 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
     @classmethod
     def from_service_info(cls, service: AsyncServiceInfo) -> Self:
         if not (addresses := service.ip_addresses_by_version(IPVersion.All)):
-            raise ValueError(
-                "Invalid HomeKit Zeroconf record: Missing address"
-            )  # <- here
+            raise ValueError("Invalid HomeKit Zeroconf record: Missing address")  # <- here
 
         address: str | None = None
         #
@@ -67,18 +65,12 @@ class ZeroconfDiscoveryInfo(AbstractDiscoveryInfo):
         # address of the given IP version.
         #
         valid_addresses = [
-            str(ip_addr)
-            for ip_addr in addresses
-            if not ip_addr.is_link_local and not ip_addr.is_unspecified
+            str(ip_addr) for ip_addr in addresses if not ip_addr.is_link_local and not ip_addr.is_unspecified
         ]
         if not valid_addresses:
-            raise ValueError(
-                "Invalid HomeKit Zeroconf record: Missing non-link-local or unspecified address"
-            )
+            raise ValueError("Invalid HomeKit Zeroconf record: Missing non-link-local or unspecified address")
         address = valid_addresses[0]
-        props = {
-            k.lower(): v for k, v in service.decoded_properties.items() if v is not None
-        }
+        props = {k.lower(): v for k, v in service.decoded_properties.items() if v is not None}
         if "id" not in props:
             raise ValueError("Invalid HomeKit Zeroconf record: Missing device ID")
 

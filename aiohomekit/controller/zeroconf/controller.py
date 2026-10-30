@@ -78,9 +78,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
 
         if browser := self._find_broswer_for_hap_type(self._hap_type):
             self._browser = browser
-            self._browser.service_state_changed.register_handler(
-                self._zeroconf_did_discover_service
-            )
+            self._browser.service_state_changed.register_handler(self._zeroconf_did_discover_service)
         else:
             self._browser = self._own_browser = AsyncServiceBrowser(
                 self._async_zeroconf_instance.zeroconf,
@@ -97,9 +95,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         self._running = False
         await super().stop()
         if self._browser:
-            self._browser.service_state_changed.unregister_handler(
-                self._zeroconf_did_discover_service
-            )
+            self._browser.service_state_changed.unregister_handler(self._zeroconf_did_discover_service)
             self._browser = None
         if self._own_browser:
             # A browser found on the zeroconf belongs to someone else and keeps running
@@ -110,9 +106,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
             cancel.cancel()
 
     @override
-    async def find(
-        self, device_id: HKDeviceID, timeout_sec: float = 10.0
-    ) -> Discovery | None:
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> Discovery | None:
         device_id = device_id.lower()
 
         if discovery := self._discoveries.get(device_id):
@@ -128,17 +122,13 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         try:
             if discovery := await waiter:
                 return discovery
-        except asyncio.TimeoutError:
-            raise AccessoryNotFoundError(
-                f"Accessory with device id {device_id} not found"
-            )
+        except TimeoutError:
+            raise AccessoryNotFoundError(f"Accessory with device id {device_id} not found")
         finally:
             cancel_timeout.cancel()
 
     @override
-    async def is_reachable(
-        self, device_id: HKDeviceID, timeout_sec: float = 10.0
-    ) -> bool:
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10.0) -> bool:
         """Check if a device is reachable.
 
         This method will return True if the device is reachable, False if it is not.
@@ -177,9 +167,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
                 )  # record.name was used before, restore in case of issues
                 # In ptr, `name` is the same as `type` (e.g. _hap._tcp.local.), and `alias` is the fully qualified name (e.g. foo._hap._tcp.local.)
             except BadTypeInNameException as ex:
-                logger.debug(
-                    "Ignoring record with bad type in name: %s: %s", record.name, ex
-                )
+                logger.debug("Ignoring record with bad type in name: %s: %s", record.name, ex)
                 continue
             if info.load_from_cache(zc, now):
                 self._handle_loaded_discovery_info(info)
@@ -262,9 +250,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
         if discovery := self._discoveries.get(description.id):
             discovery._update_from_discovery(description)
         else:
-            discovery = self._discoveries[description.id] = self._make_discovery(
-                description
-            )
+            discovery = self._discoveries[description.id] = self._make_discovery(description)
 
         # discovery = self._discoveries[description.id] = self._make_discovery(
         #     description
@@ -288,7 +274,7 @@ class ZeroconfController[Discovery: AbstractDiscovery, Pairing: AbstractPairing]
 
     def _on_timeout(self, future: asyncio.Future):
         if not future.done():
-            future.set_exception(asyncio.TimeoutError())
+            future.set_exception(TimeoutError())
 
     # Helpers
 

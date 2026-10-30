@@ -73,9 +73,7 @@ def test_coap_pdu09_encode_1():
             user_descriptor=None,
         )
     )
-    s_accessory_information = Pdu09ServiceContainer(
-        Pdu09Service(0x3E, 1, [c_identity], None, b"")
-    )
+    s_accessory_information = Pdu09ServiceContainer(Pdu09Service(0x3E, 1, [c_identity], None, b""))
     a_light = Pdu09AccessoryContainer(Pdu09Accessory(1, [s_accessory_information]))
     database = Pdu09Database([a_light])
 
@@ -139,10 +137,7 @@ def test_coap_pdu09_decode_1():
     assert lightbulb_accessory.find_service_by_type(0x43) is not None
     assert lightbulb_accessory.find_service_by_type(999) is None
     assert lightbulb_accessory.find_service_characteristic_by_type(999, 999) is None
-    assert (
-        lightbulb_accessory.find_service_characteristic_by_type(0x0701, 0x022B)
-        is not None
-    )
+    assert lightbulb_accessory.find_service_characteristic_by_type(0x0701, 0x022B) is not None
 
     # service tests
     services = lightbulb_accessory.services
@@ -1115,37 +1110,26 @@ def test_coap_pdu09_encode_decode():
 
     decoded_pdu_db = Pdu09Database.decode(pdu_db.encode())
     assert pdu_db.to_dict() == decoded_pdu_db.to_dict()
-    assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0]._value
-        == b"\x13\x00"
-    )
+    assert decoded_pdu_db.accessories[0].services[0].characteristics[0]._value == b"\x13\x00"
     assert decoded_pdu_db.accessories[0].services[0].characteristics[0].type == 0x14
     assert decoded_pdu_db.accessories[0].services[0].characteristics[0].instance_id == 2
-    assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0].properties
-        == 0x0200
-    )
+    assert decoded_pdu_db.accessories[0].services[0].characteristics[0].properties == 0x0200
     assert (
         decoded_pdu_db.accessories[0].services[0].characteristics[0].presentation_format
         == b"\x06\x00\x00\x27\x01\x00\x00"
     )  # pf_format = 0x06
     assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0].valid_range
-        == b"\x00\x00\x64\x00"
+        decoded_pdu_db.accessories[0].services[0].characteristics[0].valid_range == b"\x00\x00\x64\x00"
     )  # min=0, max=100 (u16, little-endian)
     assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0].step_value
-        == b"\x01\x00"
+        decoded_pdu_db.accessories[0].services[0].characteristics[0].step_value == b"\x01\x00"
     )  # step = 1 (u16, little-endian)
     assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0].valid_values
-        == b"\x01\x02\x03"
+        decoded_pdu_db.accessories[0].services[0].characteristics[0].valid_values == b"\x01\x02\x03"
     )  # valid values = 1, 2, 3 (uint8 list)
     assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0].valid_values_range
-        == b"\x00\x05\x06\x0a"
+        decoded_pdu_db.accessories[0].services[0].characteristics[0].valid_values_range == b"\x00\x05\x06\x0a"
     )  # two ranges: 0-5 and 6-10 (uint8 pairs)
     assert (
-        decoded_pdu_db.accessories[0].services[0].characteristics[0].user_descriptor
-        == b"Temperature Sensor"
+        decoded_pdu_db.accessories[0].services[0].characteristics[0].user_descriptor == b"Temperature Sensor"
     )  # UTF-8 encoded string

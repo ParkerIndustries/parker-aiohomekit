@@ -53,9 +53,7 @@ def reconnect_loops() -> list[asyncio.Task]:
     return [
         task
         for task in asyncio.all_tasks()
-        if getattr(task.get_coro(), "__qualname__", "").startswith(
-            "HomeKitConnection._reconnect"
-        )
+        if getattr(task.get_coro(), "__qualname__", "").startswith("HomeKitConnection._reconnect")
     ]
 
 
@@ -99,9 +97,7 @@ async def test_start_loads_stored_pairings_without_connecting(
     mock_asynczeroconf: AsyncZeroconf,
 ):
     state = cached_state()
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), state)
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), state))
 
     async with asyncio.timeout(2):
         await controller.start()
@@ -132,9 +128,7 @@ async def test_start_skips_a_pairing_that_fails_to_load(
 async def test_start_loads_a_pairing_whose_cache_fails_to_read(
     mock_asynczeroconf: AsyncZeroconf,
 ):
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), cached_state())
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), cached_state()))
     error = RuntimeError("database is locked")
 
     with patch.object(controller.char_cache_storage, "get", side_effect=error):
@@ -149,9 +143,7 @@ async def test_start_loads_a_pairing_whose_cache_fails_to_read(
 async def test_reloading_a_pairing_shuts_the_replaced_one_down(
     mock_asynczeroconf: AsyncZeroconf,
 ):
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), cached_state())
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), cached_state()))
     await controller.start()
     old = controller.pairings[ACCESSORY_ID]
     old.connection._start_connector()  # e.g. a re-paired accessory: the old keys keep trying
@@ -202,9 +194,7 @@ async def test_discovery_repopulates_a_pairing_without_cache(config_num: int):
 async def test_live_discovery_reaches_the_pairing(
     mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
 ):
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), cached_state())
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), cached_state()))
     await controller.start()  # nothing cached yet, as right after the zeroconf starts
 
     info = get_mock_service_info()
@@ -237,9 +227,7 @@ async def test_restarted_controller_sees_live_discoveries(
 async def test_stop_ignores_a_discovery_still_resolving(
     mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
 ):
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), cached_state())
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), cached_state()))
     discovered = MagicMock()
     controller.on_discovery(discovered)
     await controller.start()
@@ -247,9 +235,7 @@ async def test_stop_ignores_a_discovery_still_resolving(
     info = get_mock_service_info()
     answered = asyncio.Event()
 
-    async def answer_late(
-        self: MockedAsyncServiceInfo, zc: Zeroconf, timeout: float
-    ) -> bool:
+    async def answer_late(self: MockedAsyncServiceInfo, zc: Zeroconf, timeout: float) -> bool:
         await answered.wait()
         return self.load_from_cache(zc)
 
@@ -328,9 +314,7 @@ async def test_stop_shuts_every_pairing_down_when_one_fails(
     failing, other = controller.pairings.values()
 
     # e.g. closing the session fails
-    with patch.object(
-        failing, "shutdown", AsyncMock(side_effect=AuthenticationError("step 4"))
-    ):
+    with patch.object(failing, "shutdown", AsyncMock(side_effect=AuthenticationError("step 4"))):
         await controller.stop()
 
         failing.shutdown.assert_awaited_once()
@@ -340,9 +324,7 @@ async def test_stop_shuts_every_pairing_down_when_one_fails(
 async def test_stop_closes_the_socket_of_a_rejected_pairing(
     mock_asynczeroconf: AsyncZeroconf,
 ):
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), cached_state())
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), cached_state()))
     await controller.start()
     connection = controller.pairings[ACCESSORY_ID].connection
 
@@ -388,9 +370,7 @@ async def test_stop_cancels_the_browser_it_created(mock_asynczeroconf: AsyncZero
     mock_asynczeroconf.zeroconf.listeners = []  # nobody browses _hap._tcp yet
     controller = await make_controller(mock_asynczeroconf)
 
-    with patch(
-        "aiohomekit.controller.zeroconf.controller.AsyncServiceBrowser"
-    ) as browser_class:
+    with patch("aiohomekit.controller.zeroconf.controller.AsyncServiceBrowser") as browser_class:
         browser = browser_class.return_value
         browser.async_cancel = AsyncMock()
         await controller.start()
@@ -416,9 +396,7 @@ async def test_failed_start_leaves_nothing_running(
     mock_asynczeroconf: AsyncZeroconf, shared_browser: AsyncServiceBrowserStub
 ):
     # The stored accessory is advertised, so its discovery starts a reconnect loop before start fails
-    controller = await make_controller(
-        mock_asynczeroconf, (offline_pairing_data(), cached_state())
-    )
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(), cached_state()))
     load_from_cache = ZeroconfController._load_zeroconf_from_cache
 
     async def load_then_fail(self: ZeroconfController, zc: Zeroconf | None = None):

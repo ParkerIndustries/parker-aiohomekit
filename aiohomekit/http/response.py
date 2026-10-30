@@ -15,7 +15,6 @@
 #
 
 import logging
-from typing import Union
 
 from aiohomekit.exceptions import HttpException
 
@@ -41,7 +40,7 @@ class HttpResponse:
         self.headers = []
         self.body = bytearray()
 
-    def parse(self, part: Union[bytearray, bytes]) -> bytearray:
+    def parse(self, part: bytearray | bytes) -> bytearray:
         self._raw_response += part
         pos = self._raw_response.find(b"\r\n")
 
@@ -109,9 +108,7 @@ class HttpResponse:
         if self.is_read_completely():
             # Whatever is left in the buffer is part of the next request
             if len(self._raw_response) > 0:
-                logger.debug(
-                    "Bytes left in buffer after parsing packet: %r", self._raw_response
-                )
+                logger.debug("Bytes left in buffer after parsing packet: %r", self._raw_response)
             return self._raw_response
 
         return bytearray()

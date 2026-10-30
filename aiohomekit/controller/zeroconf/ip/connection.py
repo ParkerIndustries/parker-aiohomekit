@@ -114,9 +114,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
         self.connection = connection
         self.result_cbs: list[asyncio.Future[HttpResponse]] = []
         self.current_response = HttpResponse()
-        self._loop = (
-            asyncio.get_running_loop()
-        )  # This connection only works in this loop, see `loop_switch_error`
+        self._loop = asyncio.get_running_loop()  # This connection only works in this loop, see `loop_switch_error`
 
     def connection_made(self, transport: asyncio.Transport):
         super().connection_made(transport)
@@ -154,9 +152,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
 
         result: asyncio.Future[HttpResponse] = self._loop.create_future()
         self.result_cbs.append(result)
-        timeout_handle = self._loop.call_at(
-            self._loop.time() + 30, self._handle_timeout, result
-        )
+        timeout_handle = self._loop.call_at(self._loop.time() + 30, self._handle_timeout, result)
         timeout_expired = False
 
         try:
@@ -171,9 +167,7 @@ class InsecureHomeKitProtocol(asyncio.Protocol):
             self.transport.close()
             if isinstance(ex, asyncio.TimeoutError):
                 timeout_expired = True
-                raise AccessoryDisconnectedError(
-                    "Timeout while waiting for response"
-                ) from ex
+                raise AccessoryDisconnectedError("Timeout while waiting for response") from ex
             raise
         finally:
             if not timeout_expired:
@@ -237,9 +231,7 @@ class SecureHomeKitProtocol(InsecureHomeKitProtocol):
             payload = payload[1024:]
             len_bytes = PACK_UNSIGNED_SHORT_LITTLE(len(current))
             buffer.append(len_bytes)
-            buffer.append(
-                self.encryptor.encrypt(len_bytes, PACK_NONCE(self.c2a_counter), current)
-            )
+            buffer.append(self.encryptor.encrypt(len_bytes, PACK_NONCE(self.c2a_counter), current))
             self.c2a_counter += 1
 
         return await self._send_lines(buffer)
@@ -354,9 +346,7 @@ class HomeKitConnection:
         wait short.
         """
         if backoff and self._reconnect_backoff:
-            logger.debug(
-                f"{self.name}: Last reconnect failed; retrying in {self._reconnect_backoff:.2f} s"
-            )
+            logger.debug(f"{self.name}: Last reconnect failed; retrying in {self._reconnect_backoff:.2f} s")
             self._backoff_wait = self._loop.create_future()
             try:
                 async with interrupt(self._backoff_wait, ConnectionReady, None):
@@ -464,9 +454,7 @@ class HomeKitConnection:
         response = await self.get(target)
         return hkjson.loads(response.body)
 
-    async def put(
-        self, target: str, body: bytes, content_type=HttpContentTypes.JSON
-    ) -> HttpResponse:
+    async def put(self, target: str, body: bytes, content_type=HttpContentTypes.JSON) -> HttpResponse:
         """
         Sends a HTTP PUT request to the current transport and returns an awaitable
         that can be used to wait for a response.
@@ -495,23 +483,17 @@ class HomeKitConnection:
             decoded = response.body.decode("utf-8")
         except UnicodeDecodeError:
             self.transport.close()
-            raise AccessoryDisconnectedError(
-                "Session closed after receiving non-utf8 response"
-            )
+            raise AccessoryDisconnectedError("Session closed after receiving non-utf8 response")
 
         try:
             parsed = hkjson.loads(decoded)
         except hkjson.JSON_DECODE_EXCEPTIONS:
             self.transport.close()
-            raise AccessoryDisconnectedError(
-                "Session closed after receiving malformed response from device"
-            )
+            raise AccessoryDisconnectedError("Session closed after receiving malformed response from device")
 
         return parsed
 
-    async def post(
-        self, target: str, body: bytes, content_type=HttpContentTypes.TLV
-    ) -> HttpResponse:
+    async def post(self, target: str, body: bytes, content_type=HttpContentTypes.TLV) -> HttpResponse:
         """
         Sends a HTTP POST request to the current transport and returns an awaitable
         that can be used to wait for a response.
@@ -547,9 +529,7 @@ class HomeKitConnection:
             parsed = hkjson.loads(decoded)
         except hkjson.JSON_DECODE_EXCEPTIONS:
             self.transport.close()
-            raise AccessoryDisconnectedError(
-                "Session closed after receiving malformed response from device"
-            )
+            raise AccessoryDisconnectedError("Session closed after receiving malformed response from device")
 
         return parsed
 
@@ -585,9 +565,7 @@ class HomeKitConnection:
         :param body: The body of the request (optional)
         """
         if not self.protocol:
-            raise AccessoryDisconnectedError(
-                "Connection lost before request could be sent"
-            )
+            raise AccessoryDisconnectedError("Connection lost before request could be sent")
 
         # WARNING: It is vital that a Host: header is present or some devices
         # will reject the request.
@@ -671,11 +649,7 @@ class HomeKitConnection:
         If every host has been marked as failed, start over with the full
         list so a stale exclusion can never make the accessory unreachable.
         """
-        hosts = [
-            host
-            for host in self.hosts
-            if _normalize_host(host) not in self._pair_verify_failed_hosts
-        ]
+        hosts = [host for host in self.hosts if _normalize_host(host) not in self._pair_verify_failed_hosts]
         if not hosts:
             self._pair_verify_failed_hosts.clear()
             return list(self.hosts)
@@ -765,8 +739,7 @@ class HomeKitConnection:
                 except IncorrectPairingIdError as ex:
                     self._last_connector_error = ex
                     if len(self._pair_verify_failed_hosts) > failed_host_count and any(
-                        _normalize_host(host) not in self._pair_verify_failed_hosts
-                        for host in self.hosts
+                        _normalize_host(host) not in self._pair_verify_failed_hosts for host in self.hosts
                     ):
                         # The accessory we reached is not the one we paired with
                         # and there are other advertised addresses left to try.
@@ -901,9 +874,7 @@ class SecureHomeKitConnection(HomeKitConnection):
                     self.connected_host,
                 )
                 if self.connected_host:
-                    self._pair_verify_failed_hosts.add(
-                        _normalize_host(self.connected_host)
-                    )
+                    self._pair_verify_failed_hosts.add(_normalize_host(self.connected_host))
                 self._drop_transport()
                 raise
 
@@ -918,17 +889,13 @@ class SecureHomeKitConnection(HomeKitConnection):
 
         self.is_secure = True
 
-        logger.debug(
-            "Secure connection to %s:%s established", self.connected_host, self.port
-        )
+        logger.debug("Secure connection to %s:%s established", self.connected_host, self.port)
 
         if self.delegate:
             await self.delegate.connection_made(True)
 
 
-def _convert_hosts_to_addr_infos(
-    hosts: list[str], port: int
-) -> list[aiohappyeyeballs.AddrInfoType]:
+def _convert_hosts_to_addr_infos(hosts: list[str], port: int) -> list[aiohappyeyeballs.AddrInfoType]:
     """Converts the list of hosts to a list of addr_infos.
     The list of hosts is the result of a DNS lookup. The list of
     addr_infos is the result of a call to `socket.getaddrinfo()`.

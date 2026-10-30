@@ -87,9 +87,7 @@ async def test_reconnect_soon_cuts_the_backoff_short(
 
 
 @pytest.mark.parametrize("loop_waiting", [True, False])
-async def test_call_during_the_backoff_fails_fast(
-    controller_and_paired_accessory: Controller, loop_waiting: bool
-):
+async def test_call_during_the_backoff_fails_fast(controller_and_paired_accessory: Controller, loop_waiting: bool):
     pairing = rejected_pairing(controller_and_paired_accessory)
     pairing.connection._reconnect_backoff = 30  # as after a dozen rejected loops
     if loop_waiting:

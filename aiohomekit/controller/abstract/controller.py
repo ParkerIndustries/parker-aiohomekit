@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import asyncio
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Callable
 import logging
-from typing import Callable, Self, final
+from typing import Self, final
 
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
@@ -25,7 +25,6 @@ class AbstractController[
     Discovery: AbstractDiscovery,
     Pairing: AbstractPairing,
 ](ABC):
-
     type DiscoveryCallback = GenericDiscoveryCallback[Self, Discovery]
 
     char_cache_storage: CharacteristicsStorageProtocol
@@ -37,9 +36,7 @@ class AbstractController[
 
     def __init__(
         self,
-        Discovery: type[
-            Discovery
-        ],  # anoying workaround for 'typing.TypeVar' object is not callable
+        Discovery: type[Discovery],  # anoying workaround for 'typing.TypeVar' object is not callable
         Pairing: type[Pairing],
         char_cache_storage: CharacteristicsStorageProtocol,
         pairing_data_storage: PairingDataStorageProtocol,
@@ -60,14 +57,10 @@ class AbstractController[
         raise NotImplementedError(self.transport_type)
 
     @abstractmethod
-    async def find(
-        self, device_id: HKDeviceID, timeout_sec: float = 10
-    ) -> Discovery | None: ...
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> Discovery | None: ...
 
     @abstractmethod
-    async def is_reachable(
-        self, device_id: HKDeviceID, timeout_sec: float = 10
-    ) -> bool: ...
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool: ...
 
     @abstractmethod
     def discover(self, timeout_sec: float = 10) -> AsyncIterable[Discovery]: ...
@@ -136,14 +129,10 @@ class AbstractController[
         # Close every session and its reconnect loop; the next start loads fresh pairings
         pairings = list(self._pairings.values())
         self._pairings.clear()
-        results = await asyncio.gather(
-            *(pairing.shutdown() for pairing in pairings), return_exceptions=True
-        )
+        results = await asyncio.gather(*(pairing.shutdown() for pairing in pairings), return_exceptions=True)
         for pairing, result in zip(pairings, results, strict=True):
             if isinstance(result, Exception):
-                logger.warning(
-                    f"{pairing.name}: Failed to shut down: {result!r}", exc_info=result
-                )
+                logger.warning(f"{pairing.name}: Failed to shut down: {result!r}", exc_info=result)
 
     async def load_pairings_from_storage(self):
         for pairing_data in (await self.pairing_data_storage.get_all()).values():
@@ -151,9 +140,7 @@ class AbstractController[
                 await self.load_pairing(pairing_data)
             except Exception:
                 # One broken pairing must not keep the controller and the other pairings down
-                logger.exception(
-                    f"Failed to load pairing {pairing_data.get('AccessoryPairingID')!r}"
-                )
+                logger.exception(f"Failed to load pairing {pairing_data.get('AccessoryPairingID')!r}")
 
     async def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
         if pairing_data["Connection"] != self.transport_type:
@@ -196,18 +183,14 @@ class AbstractController[
         unsubscribes = []
 
         def _schedule_save_config(id: HKDeviceID, config_num: int):
-            async_create_task(
-                self.char_cache_storage.save(accessory_id, pairing.accessories_state)
-            )
+            async_create_task(self.char_cache_storage.save(accessory_id, pairing.accessories_state))
 
         unsubscribes.append(pairing.add_observer_for_config(_schedule_save_config))
 
         def _schedule_pairing_save(id: HKDeviceID, pairing_data: PairingData):
             async_create_task(self.pairing_data_storage.save(id, pairing_data))
 
-        unsubscribes.append(
-            pairing.add_observer_for_pairing_data(_schedule_pairing_save)
-        )
+        unsubscribes.append(pairing.add_observer_for_pairing_data(_schedule_pairing_save))
 
         self._pairing_cleanups[accessory_id.lower()] = unsubscribes
 

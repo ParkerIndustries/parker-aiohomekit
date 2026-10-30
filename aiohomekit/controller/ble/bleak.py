@@ -115,17 +115,13 @@ class AIOHomeKitBleakClient(BleakClientWithServiceCache):
                     "maps to more than one handle, iid must be provided to disambiguate."
                 )
             for possible_matching_char in possible_matching_chars:
-                possible_matching_iid = await self.get_characteristic_iid(
-                    possible_matching_char
-                )
+                possible_matching_iid = await self.get_characteristic_iid(possible_matching_char)
                 if iid == possible_matching_iid:
                     self._char_cache[cache_key] = possible_matching_char
                     return possible_matching_char
 
         if not service_matched:
-            available_services = [
-                service.uuid for service in self.services.services.values()
-            ]
+            available_services = [service.uuid for service in self.services.services.values()]
             raise BleakServiceMissing(
                 f"{self.__name}: Service {service_uuid} not found, available services: {available_services}"
             )
@@ -134,9 +130,7 @@ class AIOHomeKitBleakClient(BleakClientWithServiceCache):
             f"{self.__name}: Characteristic {characteristic_uuid} not found, available characteristics: {available_chars}"
         )
 
-    async def get_characteristic_iid(
-        self: AIOHomeKitBleakClient, char: BleakGATTCharacteristic
-    ) -> int | None:
+    async def get_characteristic_iid(self: AIOHomeKitBleakClient, char: BleakGATTCharacteristic) -> int | None:
         """Get the iid of a characteristic."""
         if iid := self._iid_cache.get(char):
             return iid

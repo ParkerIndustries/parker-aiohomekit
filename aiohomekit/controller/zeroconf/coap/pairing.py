@@ -53,9 +53,7 @@ class CoAPPairing(ZeroconfPairing):
 
     def _async_endpoint_changed(self):
         """The IP/Port has changed, so close connection if active then reconnect."""
-        self.connection.address = (
-            f"[{self.description.address}]:{self.description.port}"
-        )
+        self.connection.address = f"[{self.description.address}]:{self.description.port}"
         async_create_task(self.connection.reconnect_soon())
 
     @property
@@ -103,9 +101,7 @@ class CoAPPairing(ZeroconfPairing):
                 await self.connection_lock.wait()
                 # if the primary coroutine failed to connect, we also raise
                 if not self.connection.is_connected:
-                    raise AccessoryDisconnectedError(
-                        "primary coroutine failed to connect"
-                    )
+                    raise AccessoryDisconnectedError("primary coroutine failed to connect")
                 return
 
         try:
@@ -162,9 +158,7 @@ class CoAPPairing(ZeroconfPairing):
                 for characteristic in service["characteristics"]:
                     characteristic["type"] = normalize_uuid(characteristic["type"])
 
-        self._accessories_state = AccessoriesState(
-            Accessories.from_list(accessories), self.config_num or 0
-        )
+        self._accessories_state = AccessoriesState(Accessories.from_list(accessories), self.config_num or 0)
         return self._accessories_state
 
     async def get_characteristics(
@@ -178,9 +172,7 @@ class CoAPPairing(ZeroconfPairing):
         await self._ensure_connected()
         return await self.connection.read_characteristics(characteristics)
 
-    async def put_characteristics(
-        self, characteristics: Iterable[CharacteristicKeyValue]
-    ) -> Response:
+    async def put_characteristics(self, characteristics: Iterable[CharacteristicKeyValue]) -> Response:
         await self._ensure_connected()
         response_status = await self.connection.write_characteristics(characteristics)
 
@@ -190,8 +182,7 @@ class CoAPPairing(ZeroconfPairing):
             accessory_chars = self.accessories.aid(aid).characteristics
             char = accessory_chars.iid(iid)
             if (
-                response_status.get((aid, iid), HapStatusCode.SUCCESS)
-                == HapStatusCode.SUCCESS
+                response_status.get((aid, iid), HapStatusCode.SUCCESS) == HapStatusCode.SUCCESS
                 and char is not None
                 and CharacteristicPermissions.paired_read in char.perms
             ):
