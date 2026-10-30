@@ -56,14 +56,19 @@ class BleController(AbstractController):
         logger.debug("Starting BLE controller with instance: %s", self._scanner)
         if not self._scanner:
             try:
-                self._scanner = BleakScanner()
+                # bleak 1+ only takes the callback here (register_detection_callback is gone)
+                self._scanner = BleakScanner(detection_callback=self._device_detected)
             except (FileNotFoundError, BleakDBusError, BleakError) as e:
                 logger.debug("Failed to init scanner, HAP-BLE not available: %s", str(e))
                 self._scanner = None
                 return
+        elif hasattr(self._scanner, "register_detection_callback"):
+            self._scanner.register_detection_callback(self._device_detected)
+        else:
+            # a scanner handed in under bleak 1+ can't take a callback any more: no HAP-BLE discovery
+            logger.warning("The given BLE scanner can't report detections, HAP-BLE discovery is off")
 
         try:
-            self._scanner.register_detection_callback(self._device_detected)
             await self._scanner.start()
         except (FileNotFoundError, BleakDBusError, BleakError) as e:
             logger.debug("Failed to start scanner, HAP-BLE not available: %s", str(e))
@@ -73,7 +78,8 @@ class BleController(AbstractController):
     async def stop(self, *args):
         if self._scanner:
             await self._scanner.stop()
-            self._scanner.register_detection_callback(None)
+            if hasattr(self._scanner, "register_detection_callback"):
+                self._scanner.register_detection_callback(None)
             self._scanner = None
 
     @override
