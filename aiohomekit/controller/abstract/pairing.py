@@ -211,6 +211,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         This method is irreversible. It should be called when the pairing is removed or the controller is shutdown.
         """
         self._shutdown = True
+        logger.debug("%s: Shutting down", self.name)
         await self.close()
 
     def process_description_update(self, description: DiscoveryInfo):
@@ -370,6 +371,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
     async def _shutdown_if_primary_pairing_removed(self, controller_id: str):
         if controller_id == self.pairing_data["iOSDeviceId"]:
+            logger.debug("%s: Primary pairing removed; shutting down", self.name)
             await self.shutdown()
 
     def update_pairing_data(self, pairing_data: PairingData):

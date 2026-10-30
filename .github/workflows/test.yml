@@ -8,6 +8,10 @@ on:
   pull_request: ~
   workflow_call:
 
+# Poetry installs into the runner Python; local runs use a venv
+env:
+  POETRY_VIRTUALENVS_CREATE: "false"
+
 jobs:
   lint:
     name: Code QA
@@ -15,9 +19,9 @@ jobs:
 
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -64,9 +68,9 @@ jobs:
 
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

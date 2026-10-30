@@ -351,13 +351,13 @@ class CharacteristicsTypes(str, Enum):  # TODO: make both UUID and str comparabl
     # r/w, float - home cool temperature between 18.3 and 33.3
     VENDOR_ECOBEE_HOME_TARGET_COOL = "7D381BAA-20F9-40E5-9BE9-AEB92D4BECEF"
     # r/w, float - sleep heat temperature between 7.2 and 26.1
-    VENDOR_ECOBEE_SLEEP_TARGET_HEAT = "73AAB542-892A-4439-879A-D2A883724B69"
+    VENDOR_ECOBEE_SLEEP_TARGET_HEAT = "05B97374-6DC0-439B-A0FA-CA33F612D425"
     # r/w, float - sleep cool temperature between 18.3 and 33.3
-    VENDOR_ECOBEE_SLEEP_TARGET_COOL = "5DA985F0-898A-4850-B987-B76C6C78D670"
+    VENDOR_ECOBEE_SLEEP_TARGET_COOL = "A251F6E7-AC46-4190-9C5D-3D06277BDF9F"
     # r/w, float - away heat temp between 7.2 and 26.1
-    VENDOR_ECOBEE_AWAY_TARGET_HEAT = "05B97374-6DC0-439B-A0FA-CA33F612D425"
+    VENDOR_ECOBEE_AWAY_TARGET_HEAT = "73AAB542-892A-4439-879A-D2A883724B69"
     # r/w, float - away cool temp between 18.3 and 33.3
-    VENDOR_ECOBEE_AWAY_TARGET_COOL = "A251F6E7-AC46-4190-9C5D-3D06277BDF9F"
+    VENDOR_ECOBEE_AWAY_TARGET_COOL = "5DA985F0-898A-4850-B987-B76C6C78D670"
     # w/o, uint8 - set hold schedule mode - home(0)/sleep(1)/away(2)
     VENDOR_ECOBEE_SET_HOLD_SCHEDULE = "1B300BC2-CFFC-47FF-89F9-BD6CCF5F2853"
     # r/w, string - Next scheduled event time, this time seems to be a local timestamp formatted similar to "2024-10-19T20:35:05-04:00Q"

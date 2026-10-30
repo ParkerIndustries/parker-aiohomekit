@@ -19,10 +19,11 @@ import json
 from typing import Any
 
 import commentjson
+from lark.exceptions import LarkError
 import orjson
 
 JSON_ENCODE_EXCEPTIONS = (TypeError, ValueError)
-JSON_DECODE_EXCEPTIONS = (json.JSONDecodeError, orjson.JSONDecodeError)
+JSON_DECODE_EXCEPTIONS = (json.JSONDecodeError, orjson.JSONDecodeError, ValueError)
 
 
 def loads(s: str | bytes | bytearray | memoryview) -> Any:
@@ -41,7 +42,10 @@ def loads(s: str | bytes | bytearray | memoryview) -> Any:
     try:
         return orjson.loads(s)
     except orjson.JSONDecodeError:
-        return commentjson.loads(s)
+        try:
+            return commentjson.loads(s)
+        except LarkError as ex:
+            raise ValueError(f"Failed to parse JSON: {ex}") from ex
 
 
 def dumps(data: Any) -> str:

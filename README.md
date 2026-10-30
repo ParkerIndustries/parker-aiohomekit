@@ -1,3 +1,17 @@
+<!-- majordom → majordom.io -->
+<a href="https://majordom.io" target="_blank">
+  <picture>
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="https://markparker.me/banners/majordom-dark.webp"
+    />
+    <img
+      alt="Part of MajorDom — the next-gen smart home"
+      src="https://markparker.me/banners/majordom-light.webp"
+    />
+  </picture>
+</a>
+
 # aiohomekit by Parker Industries
 
 **This library is still in development. No guarantees are made. Features may be incomplete or buggy, and might change over time.**

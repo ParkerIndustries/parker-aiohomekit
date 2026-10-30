@@ -5,7 +5,7 @@ import pytest
 from aiohomekit.controller.ble.controller import BleController
 from aiohomekit.controller.relay import Controller, controller as controller_module
 from aiohomekit.controller.zeroconf.ip.controller import IpController
-from aiohomekit.exceptions import AccessoryDisconnectedError
+from aiohomekit.exceptions import AccessoryDisconnectedError, UnknownError
 from aiohomekit.model.transport_type import TransportType
 from aiohomekit.storage.characteristics_storage import CharacteristicsStorageMemory
 from aiohomekit.storage.pairing_data_storage import PairingDataStorageMemory
@@ -24,6 +24,40 @@ async def test_remove_pairing(controller_and_paired_accessory):
     # Verify now gives an appropriate error
     with pytest.raises(AccessoryDisconnectedError):
         await pairing.get_characteristics([(1, 9)])
+
+
+async def test_remove_pairing_failure_still_shuts_down(
+    controller_and_paired_accessory,
+):
+    controller = controller_and_paired_accessory
+    pairing_id = next(iter(controller.pairings.keys()))
+    pairing = controller.pairings[pairing_id]
+    ip_controller = controller._transports[TransportType.IP]
+
+    await pairing.get_characteristics([(1, 9)])
+    assert pairing.connection.is_connected
+
+    with (
+        patch.object(pairing, "remove_pairing", side_effect=UnknownError("boom")),
+        pytest.raises(UnknownError),
+    ):
+        await controller.remove_pairing(pairing_id)
+
+    assert pairing._shutdown
+    assert not pairing.connection.is_connected
+    assert await ip_controller.pairing_data_storage.get(pairing_id) is None
+
+
+async def test_endpoint_change_after_shutdown_does_not_reconnect(
+    controller_and_paired_accessory,
+):
+    pairing = next(iter(controller_and_paired_accessory.pairings.values()))
+    await pairing.shutdown()
+
+    with patch.object(pairing.connection, "reconnect_soon") as reconnect_soon:
+        pairing._endpoint_changed()
+
+    reconnect_soon.assert_not_called()
 
 
 async def test_passing_in_bleak_to_controller():

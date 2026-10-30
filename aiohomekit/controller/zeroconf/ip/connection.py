@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable
+from ipaddress import ip_address
 import logging
 import socket
 from struct import Struct
@@ -38,6 +39,7 @@ from aiohomekit.exceptions import (
     ConnectionError,
     HomeKitException,
     HttpErrorResponse,
+    IncorrectPairingIdError,
     TimeoutError,
 )
 import aiohomekit.hkjson as hkjson
@@ -54,6 +56,19 @@ BLOCK_SIZE_LEN = UNSIGNED_SHORT_LITTLE.size
 TAG_LENGTH = 16
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_host(host: str) -> str:
+    """Return the canonical form of an IP address for host comparisons.
+
+    The advertised addresses and the connected peer address may format
+    the same IPv6 address differently; strip any scope id and normalize
+    the zero compression so they compare equal.
+    """
+    try:
+        return str(ip_address(host.partition("%")[0]))
+    except ValueError:
+        return host
 
 
 class ConnectionReady(Exception):
@@ -302,6 +317,7 @@ class HomeKitConnection:
         self._last_connector_error: Exception | None = None
         self.connected_host: str | None = None
         self.host_header: str | None = None
+        self._pair_verify_failed_hosts: set[str] = set()
 
     @property
     def name(self) -> str:
@@ -383,6 +399,7 @@ class HomeKitConnection:
         if self.is_connected:
             return False
         self.closing = False
+        logger.debug("%s: Starting connector", self.name)
         self._start_connector()
         return True
 
@@ -418,6 +435,7 @@ class HomeKitConnection:
         """
         if not self._connector:
             return
+        logger.debug("%s: Stopping connector", self.name)
         self._connector.cancel("Stop connector")
         # Wait for the connector but do not propagate the CancelledError
         # since the connector will be canceled when the connection is closed.
@@ -612,6 +630,17 @@ class HomeKitConnection:
 
         return resp
 
+    def _drop_transport(self):
+        """Close the transport if open and forget the transport and protocol.
+
+        The references are cleared right away as otherwise _start_connector
+        and is_connected would see them and think we are still connected.
+        """
+        if self.transport:
+            self.transport.close()
+        self.transport = None
+        self.protocol = None
+
     async def close(self):
         """
         Close the connection transport.
@@ -620,11 +649,7 @@ class HomeKitConnection:
 
         await self._stop_connector()
 
-        if self.transport:
-            self.transport.close()
-
-        self.protocol = None
-        self.transport = None
+        self._drop_transport()
         self.is_secure = None
 
     def _connection_lost(self, exception: Exception):
@@ -632,21 +657,37 @@ class HomeKitConnection:
         Called by a Protocol instance when eof_received happens.
         """
         logger.debug("Connection lost to %r: %s", self, exception)
-        # Clear the transport and protocol right away
-        # as otherwise _start_connector will see them and
-        # think we are still connected.
-        self.transport = None
-        self.protocol = None
+        self._drop_transport()
         if self.closing:
             self.closed = True
         else:
             self._start_connector(backoff=True)
 
+    def _get_connect_hosts(self) -> list[str]:
+        """Return the hosts to try for the next connection attempt.
+
+        Hosts that previously connected but failed pair-verify with the
+        wrong pairing id belong to a different accessory and are skipped.
+        If every host has been marked as failed, start over with the full
+        list so a stale exclusion can never make the accessory unreachable.
+        """
+        hosts = [
+            host
+            for host in self.hosts
+            if _normalize_host(host) not in self._pair_verify_failed_hosts
+        ]
+        if not hosts:
+            self._pair_verify_failed_hosts.clear()
+            return list(self.hosts)
+        return hosts
+
     async def _connect_once(self):
         """_connect_once must only ever be called from _reconnect to ensure its done with a lock."""
-        logger.debug("Attempting connection to %s:%s", self.hosts, self.port)
+        hosts = self._get_connect_hosts()
 
-        addr_infos = _convert_hosts_to_addr_infos(self.hosts, self.port)
+        logger.debug("Attempting connection to %s:%s", hosts, self.port)
+
+        addr_infos = _convert_hosts_to_addr_infos(hosts, self.port)
 
         last_exception: Exception | None = None
         sock: socket.socket | None = None
@@ -690,8 +731,8 @@ class HomeKitConnection:
             self.host_header = f"Host: [{connected_host}]"
         else:
             self.host_header = f"Host: {connected_host}"
-            if self.delegate:
-                await self.delegate.connection_made(False)
+        if self.delegate:
+            await self.delegate.connection_made(False)
 
     async def _reconnect(self):
         # When the device is seen by zeroconf, call reconnect_soon
@@ -712,6 +753,7 @@ class HomeKitConnection:
 
             while not self.closing:
                 self._last_connector_error = None
+                failed_host_count = len(self._pair_verify_failed_hosts)
                 try:
                     return await self._connect_once()
 
@@ -720,14 +762,25 @@ class HomeKitConnection:
                     # Authentication errors should bubble up because auto-reconnect is unlikely to help
                     raise
 
+                except IncorrectPairingIdError as ex:
+                    self._last_connector_error = ex
+                    if len(self._pair_verify_failed_hosts) > failed_host_count and any(
+                        _normalize_host(host) not in self._pair_verify_failed_hosts
+                        for host in self.hosts
+                    ):
+                        # The accessory we reached is not the one we paired with
+                        # and there are other advertised addresses left to try.
+                        # Only skip the backoff when a new address was marked as
+                        # failed so a repeated failure cannot retry in a tight loop.
+                        logger.debug(
+                            "%s: Connecting to accessory failed: %s; Retrying with next address",
+                            self.name,
+                            ex,
+                        )
+                        continue
+
                 except HomeKitException as ex:
                     self._last_connector_error = ex
-                    logger.debug(
-                        "%s: Connecting to accessory failed: %s; Retrying in %i seconds",
-                        self.name,
-                        ex,
-                        interval,
-                    )
 
                 except Exception as ex:
                     self._last_connector_error = ex
@@ -736,6 +789,12 @@ class HomeKitConnection:
                         self.name,
                     )
 
+                logger.debug(
+                    "%s: Connecting to accessory failed: %s; Retrying in %i seconds",
+                    self.name,
+                    self._last_connector_error,
+                    interval,
+                )
                 interval = min(60, 1.2 * interval)
                 self._reconnect_future = self._loop.create_future()
                 try:
@@ -796,6 +855,10 @@ class SecureHomeKitConnection(HomeKitConnection):
                         self.delegate.description.addresses,
                     )
                     self.hosts = self.delegate.description.addresses
+                    # The addresses may have been reassigned so any hosts
+                    # previously marked as belonging to another accessory
+                    # need to be tried again.
+                    self._pair_verify_failed_hosts.clear()
 
                 if self.port != self.delegate.description.port:
                     logger.debug(
@@ -827,6 +890,22 @@ class SecureHomeKitConnection(HomeKitConnection):
                 c2a_key = derive(b"Control-Salt", b"Control-Write-Encryption-Key")
                 a2c_key = derive(b"Control-Salt", b"Control-Read-Encryption-Key")
                 break
+            except IncorrectPairingIdError:
+                # Some buggy accessories advertise addresses that belong to other
+                # devices on the network. The device we reached is not the one we
+                # paired with so remember the address and skip it next attempt.
+                logger.debug(
+                    "%s: Accessory at %s returned an unexpected pairing id; "
+                    "marking address as failed and trying remaining addresses",
+                    self.name,
+                    self.connected_host,
+                )
+                if self.connected_host:
+                    self._pair_verify_failed_hosts.add(
+                        _normalize_host(self.connected_host)
+                    )
+                self._drop_transport()
+                raise
 
         # Secure session has been negotiated - switch protocol so all future messages are encrypted
         self.protocol = SecureHomeKitProtocol(

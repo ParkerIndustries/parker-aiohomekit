@@ -5,6 +5,10 @@ on:
     branches:
       - develop
 
+# Poetry installs into the runner Python; local runs use a venv
+env:
+  POETRY_VIRTUALENVS_CREATE: "false"
+
 jobs:
   qa:
     name: QA & Tests
@@ -22,7 +26,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: develop
@@ -37,7 +41,7 @@ jobs:
           git fetch origin main
           git merge origin/main --no-edit --strategy-option=ours
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -115,7 +119,7 @@ jobs:
       tag: ${{ needs.bump-and-build.outputs.tag }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: main
@@ -155,14 +159,14 @@ jobs:
           path: dist/
 
       - name: Sign distributions with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3.2.0
+        uses: sigstore/gh-action-sigstore-python@v3.5.0
         with:
           inputs: >-
             ./dist/*.tar.gz
             ./dist/*.whl
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-and-build.outputs.tag }}
           name: Release ${{ needs.bump-and-build.outputs.tag }}

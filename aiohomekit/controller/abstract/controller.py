@@ -111,9 +111,15 @@ class AbstractController[
 
         self._cleanup_pairing(pairing_id.lower())
 
-        await pairing.remove_pairing()
-        await self.char_cache_storage.delete(pairing_id)
-        await self.pairing_data_storage.delete(pairing_id)
+        try:
+            try:
+                await pairing.remove_pairing()
+            finally:
+                # A failed removal must not leave the connection reconnecting
+                await pairing.shutdown()
+        finally:
+            await self.char_cache_storage.delete(pairing_id)
+            await self.pairing_data_storage.delete(pairing_id)
 
         return pairing
 

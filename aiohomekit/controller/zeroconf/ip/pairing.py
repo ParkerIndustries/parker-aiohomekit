@@ -275,7 +275,7 @@ class IpPairing(ZeroconfPairing):
 
         response = await self.connection.get_json(url)
 
-        return _format_characteristics_response(response)
+        return _format_characteristics_response(response, characteristics_set)
 
     @override
     async def put_characteristics(
@@ -318,13 +318,21 @@ class IpPairing(ZeroconfPairing):
             # we need to remove the listener update for the failed
             # characteristics.
             for characteristic in response["characteristics"]:
+                if not _is_characteristic_row(characteristic):
+                    logger.debug(
+                        "Skipping malformed characteristic in response: %s",
+                        characteristic,
+                    )
+                    continue
                 aid, iid = characteristic["aid"], characteristic["iid"]
                 key = CharacteristicKey(aid, iid)
                 status = characteristic["status"]
-                status_code = to_status_code(status).description
-                if status_code != HapStatusCode.SUCCESS:
+                if to_status_code(status) != HapStatusCode.SUCCESS:
                     listener_update.pop(key, None)
-                response_status[key] = {"status": status, "description": status_code}
+                response_status[key] = {
+                    "status": status,
+                    "description": _status_description(status),
+                }
 
         if listener_update:
             self._callback_characteristic_changed(listener_update)
@@ -402,6 +410,8 @@ class IpPairing(ZeroconfPairing):
             if response:
                 # An empty body is a success response
                 for row in response.get("characteristics", []):
+                    if not _is_characteristic_row(row):
+                        continue
                     status[(row["aid"], row["iid"])] = {
                         "status": row["status"],
                         "description": to_status_code(row["status"]).description,
@@ -548,19 +558,54 @@ class IpPairing(ZeroconfPairing):
     def _endpoint_changed(self):
         super()._endpoint_changed()
         # hasten the process if we are not connected, or are in the process of reconnecting
-        self.connection.reconnect_soon()
+        if not self._shutdown:
+            self.connection.reconnect_soon()
 
 
-def _format_characteristics_response(data) -> Response:
-    tmp = {}
-    for c in data["characteristics"]:
-        key = (c["aid"], c["iid"])
+def _is_characteristic_row(row: Any) -> bool:
+    # Some devices (e.g. TaHoma covers) mix booleans into the characteristics list
+    return isinstance(row, dict) and "aid" in row and "iid" in row
+
+
+def _status_description(status: int) -> str:
+    status_code = to_status_code(status)
+    if status_code == HapStatusCode.UNKNOWN:
+        return f"Unknown error code: {status}"
+    return status_code.description
+
+
+def _format_characteristics_response(
+    data: dict[str, Any], requested: set[CharacteristicKey] | None = None
+) -> Response:
+    tmp: Response = {}
+
+    # A top-level error status fails the whole request, so every requested
+    # characteristic gets it unless the response also lists that characteristic.
+    if data.get("status", 0) != 0:
+        description = _status_description(data["status"])
+        logger.debug(
+            "Device returned error status %s (%s) for characteristics request",
+            data["status"],
+            description,
+        )
+        for aid, iid in requested or ():
+            tmp[CharacteristicKey(aid, iid)] = {
+                "status": data["status"],
+                "description": description,
+            }
+
+    for c in data.get("characteristics", []):
+        if not _is_characteristic_row(c):
+            logger.debug("Skipping malformed characteristic: %s", c)
+            continue
+
+        key = CharacteristicKey(c["aid"], c["iid"])
         del c["aid"]
         del c["iid"]
 
         if "status" in c and c["status"] == 0:
             del c["status"]
         if "status" in c and c["status"] != 0:
-            c["description"] = to_status_code(c["status"]).description
+            c["description"] = _status_description(c["status"])
         tmp[key] = c
     return tmp
