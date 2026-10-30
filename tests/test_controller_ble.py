@@ -90,3 +90,41 @@ def test_discovery_with_none_name(mock_bleak_scanner: MagicMock, ble_controller:
     assert ble_controller._discoveries["80:e7:14:6a:37:34"].name == "Name in Full (00:00:00:00:00:00)"
     ble_controller._device_detected(ble_device_with_short_name, adv)
     assert ble_controller._discoveries["80:e7:14:6a:37:34"].name == "Name in Full (00:00:00:00:00:00)"
+
+
+class Bleak1Scanner:
+    """A BleakScanner as bleak 1+ has it: the detection callback is a constructor argument only."""
+
+    def __init__(self, detection_callback=None):
+        self.detection_callback = detection_callback
+        self.is_running = False
+
+    async def start(self):
+        self.is_running = True
+
+    async def stop(self):
+        self.is_running = False
+
+
+async def test_its_own_scanner_gets_the_callback_at_construction(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("aiohomekit.controller.ble.controller.BleakScanner", Bleak1Scanner)
+    controller = BleController(CharacteristicsStorageMemory(), MagicMock())
+
+    await controller.start()
+    scanner = controller._scanner
+    assert isinstance(scanner, Bleak1Scanner)
+    assert scanner.is_running and scanner.detection_callback == controller._device_detected
+
+    await controller.stop()
+    assert not scanner.is_running
+
+
+async def test_a_given_bleak1_scanner_starts_without_a_callback():
+    scanner = Bleak1Scanner()
+    controller = BleController(CharacteristicsStorageMemory(), MagicMock(), scanner)
+
+    await controller.start()
+    assert scanner.is_running
+
+    await controller.stop()
+    assert not scanner.is_running
