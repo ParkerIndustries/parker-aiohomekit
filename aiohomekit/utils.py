@@ -47,25 +47,15 @@ def _handle_task_result(task: asyncio.Task):
         _LOGGER.exception("Failure running background task: %s", task.get_name())
 
 
-def clamp_enum_to_char(
-    all_valid_values: type[enum.IntEnum], char: Characteristic
-) -> set[Any]:
+def clamp_enum_to_char(all_valid_values: type[enum.IntEnum], char: Characteristic) -> set[Any]:
     """Clamp possible values of an enum to restrictions imposed by a manufacturer."""
     valid_values = set(all_valid_values)
 
     if char.minValue is not None:
-        valid_values = {
-            target_state
-            for target_state in valid_values
-            if target_state >= char.minValue
-        }
+        valid_values = {target_state for target_state in valid_values if target_state >= char.minValue}
 
     if char.maxValue is not None:
-        valid_values = {
-            target_state
-            for target_state in valid_values
-            if target_state <= char.maxValue
-        }
+        valid_values = {target_state for target_state in valid_values if target_state <= char.maxValue}
 
     if char.valid_values:
         valid_values = valid_values.intersection(set(char.valid_values))
@@ -80,9 +70,7 @@ def check_pin_format(pin: str):
     :raises MalformedPinError: if the validation fails
     """
     if not re.match(r"^\d\d\d-\d\d-\d\d\d$", pin):
-        raise MalformedPinError(
-            "The pin must be of the following XXX-XX-XXX where X is a digit between 0 and 9."
-        )
+        raise MalformedPinError("The pin must be of the following XXX-XX-XXX where X is a digit between 0 and 9.")
 
 
 def pair_with_auth(ff: FeatureFlags) -> bool:

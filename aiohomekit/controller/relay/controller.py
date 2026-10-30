@@ -61,9 +61,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
         :param bleak_scanner_instance: optional BleakScanner instance to use
         :param pairing_data_storage: optional storage for pairing data
         """
-        super().__init__(
-            AbstractDiscovery, AbstractPairing, char_cache, pairing_data_storage
-        )
+        super().__init__(AbstractDiscovery, AbstractPairing, char_cache, pairing_data_storage)
 
         self._zeroconf_instance = zeroconf_instance
         self._bleak_scanner_instance = bleak_scanner_instance
@@ -79,11 +77,17 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @override
     async def start(self):
+        try:
+            await self._start_transports()
+        except BaseException:
+            # A start that fails part-way must leave nothing running, including the transports that started
+            await self.stop()
+            raise
+
+    async def _start_transports(self):
         if IP_TRANSPORT_SUPPORTED or self._zeroconf_instance:
             self._zeroconf_instance = self._zeroconf_instance or AsyncZeroconf()
-            from ..zeroconf.ip.controller import (
-                IpController,  # pylint: disable=import-outside-toplevel
-            )
+            from ..zeroconf.ip.controller import IpController  # pylint: disable=import-outside-toplevel
 
             await self._register_backend(
                 IpController(
@@ -95,9 +99,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
         if COAP_TRANSPORT_SUPPORTED:
             self._zeroconf_instance = self._zeroconf_instance or AsyncZeroconf()
-            from ..zeroconf.coap.controller import (
-                CoAPController,  # pylint: disable=import-outside-toplevel
-            )
+            from ..zeroconf.coap.controller import CoAPController  # pylint: disable=import-outside-toplevel
 
             await self._register_backend(
                 CoAPController(
@@ -108,9 +110,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             )
 
         if BLE_TRANSPORT_SUPPORTED or self._bleak_scanner_instance:
-            from ..ble.controller import (
-                BleController,  # pylint: disable=import-outside-toplevel
-            )
+            from ..ble.controller import BleController  # pylint: disable=import-outside-toplevel
 
             await self._register_backend(
                 BleController(
@@ -122,9 +122,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     async def _register_backend(self, controller: AbstractController):
         controller.on_discovery(self._call_discovery_callback)
-        self._transports[controller.transport_type] = (
-            await self._tasks.enter_async_context(controller)
-        )
+        self._transports[controller.transport_type] = await self._tasks.enter_async_context(controller)
 
     # Properties override to avoid duplicate storage
 
@@ -160,13 +158,12 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     @override
     async def stop(self):
-        await super().stop()
+        # Each transport stops its discoveries, then shuts its own pairings down
         await self._tasks.aclose()
+        await super().stop()
 
     @override
-    async def is_reachable(
-        self, device_id: HKDeviceID, timeout_sec: float = 10
-    ) -> bool:
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool:
         try:
             for transport in self._transports.values():
                 if await transport.is_reachable(device_id, timeout_sec):  # parallel?
@@ -176,9 +173,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
             return False
 
     @override
-    async def discover(
-        self, timeout_sec: float = 10
-    ) -> AsyncIterable[AbstractDiscovery]:
+    async def discover(self, timeout_sec: float = 10) -> AsyncIterable[AbstractDiscovery]:
         # TODO: check if timeout is needed, looks like it's neved used; fix pyright override
         """Returns already discovered and cached devices"""
         for transport in self._transports.values():  # TODO: parallel?
@@ -188,25 +183,19 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
     @override
     async def load_pairing(self, pairing_data: PairingData) -> AbstractPairing | None:
         if pairing_data["Connection"] in self._transports and (
-            pairing := await self._transports[pairing_data["Connection"]].load_pairing(
-                pairing_data
-            )
+            pairing := await self._transports[pairing_data["Connection"]].load_pairing(pairing_data)
         ):
             return pairing
 
     @override
     async def remove_pairing(self, pairing_id: HKDeviceID) -> AbstractPairing:
         for transport in self._transports.values():
-            if pairing_id in transport.pairings:
+            if pairing_id.lower() in transport.pairings:
                 return await transport.remove_pairing(pairing_id)
-        raise AccessoryNotFoundError(
-            f'Pairing "{pairing_id}" is not found in any transport.'
-        )
+        raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found in any transport.')
 
     @override
-    async def find(
-        self, device_id: HKDeviceID, timeout_sec: float = 30.0
-    ) -> AbstractDiscovery:
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 30.0) -> AbstractDiscovery:
         pending = []
 
         for transport in self._transports.values():
@@ -214,9 +203,7 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
         try:
             while pending:
-                done, pending = await asyncio.wait(
-                    pending, return_when=asyncio.FIRST_COMPLETED
-                )
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                 for result in done:
                     try:
                         return result.result()
@@ -234,8 +221,6 @@ class Controller(AbstractController[Any, AbstractDiscovery, AbstractPairing]):
 
     # Private
 
-    def _call_discovery_callback(
-        self, controller: AbstractController, discovery: AbstractDiscovery
-    ):
+    def _call_discovery_callback(self, controller: AbstractController, discovery: AbstractDiscovery):
         if self._on_discovery_callback:
             self._on_discovery_callback(controller, discovery)

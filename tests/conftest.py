@@ -49,9 +49,7 @@ async def controller_and_unpaired_accessory(mock_asynczeroconf, id_factory):
     # can take it between choosing and binding
     httpd = AccessoryServer(config_file.name, None)
     available_port = httpd.server_port
-    accessory = Accessory.create_with_info(
-        id_factory(), "Testlicht", "lusiardi.de", "Demoserver", "0001", "0.1"
-    )
+    accessory = Accessory.create_with_info(id_factory(), "Testlicht", "lusiardi.de", "Demoserver", "0001", "0.1")
     lightBulbService = accessory.add_service(ServicesTypes.LIGHTBULB)
     lightBulbService.add_char(CharacteristicsTypes.ON, value=False)
     httpd.add_accessory(accessory)
@@ -103,9 +101,7 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
     # can take it between choosing and binding
     httpd = AccessoryServer(config_file.name, None)
     available_port = httpd.server_port
-    accessory = Accessory.create_with_info(
-        id_factory(), "Testlicht", "lusiardi.de", "Demoserver", "0001", "0.1"
-    )
+    accessory = Accessory.create_with_info(id_factory(), "Testlicht", "lusiardi.de", "Demoserver", "0001", "0.1")
     lightBulbService = accessory.add_service(ServicesTypes.LIGHTBULB)
     lightBulbService.add_char(CharacteristicsTypes.ON, value=False)
     httpd.add_accessory(accessory)
@@ -154,6 +150,8 @@ async def controller_and_paired_accessory(mock_asynczeroconf, id_factory):
 @pytest.fixture
 async def pairing(controller_and_paired_accessory):
     pairing = next(iter(controller_and_paired_accessory.pairings.values()))
+    # The controller connects on demand; the pairing tests start from a connected pairing
+    await pairing.get_characteristics([(1, 9)])
     yield pairing
     # try:
     await pairing.close()

@@ -92,9 +92,7 @@ def encode_pdu(
         yield STRUCT_BB_PACK(0x80, tid) + data[i : i + next_size]
 
 
-def decode_pdu(
-    expected_tid: int, data: bytes | bytearray
-) -> tuple[PDUStatus, bool, bytes]:
+def decode_pdu(expected_tid: int, data: bytes | bytearray) -> tuple[PDUStatus, bool, bytes]:
     control, tid, status = STRUCT_BBB_UNPACK(data[:3])
     status = PDUStatus(status)
 
@@ -109,16 +107,12 @@ def decode_pdu(
     )
 
     if tid != expected_tid:
-        raise ValueError(
-            f"Expected transaction {expected_tid} but got transaction {tid}"
-        )
+        raise ValueError(f"Expected transaction {expected_tid} but got transaction {tid}")
 
     if status != PDUStatus.SUCCESS:
         # We can't currently raise here or it will break the encryption
         # stream
-        logger.warning(
-            f"Transaction {tid} failed with error {status} ({status.description})"
-        )
+        logger.warning(f"Transaction {tid} failed with error {status} ({status.description})")
 
     if len(data) < 5:
         return status, 0, b""
@@ -144,8 +138,6 @@ def decode_pdu_continuation(expected_tid, data):
         raise ValueError("Expected continuation flag but isn't set")
 
     if tid != expected_tid:
-        raise ValueError(
-            f"Expected transaction {expected_tid} but got transaction {tid}"
-        )
+        raise ValueError(f"Expected transaction {expected_tid} but got transaction {tid}")
 
     return data[2:]

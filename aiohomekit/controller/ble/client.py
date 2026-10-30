@@ -15,11 +15,11 @@
 #
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from functools import wraps
 import logging
 import random
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -71,9 +71,7 @@ def disconnect_on_missing_services(func: WrapFuncType) -> WrapFuncType:
     """
 
     @wraps(func)
-    async def _async_disconnect_on_missing_services_wrap(
-        self, *args: Any, **kwargs: Any
-    ):
+    async def _async_disconnect_on_missing_services_wrap(self, *args: Any, **kwargs: Any):
         try:
             return await func(self, *args, **kwargs)
         except (BleakServiceMissing, BleakCharacteristicMissing) as ex:
@@ -115,9 +113,7 @@ async def _write_pdu(
     tid: int,
 ):
     """Write a PDU to the accessory."""
-    fragment_size = client.determine_fragment_size(
-        KEY_OVERHEAD_SIZE if encryption_key else 0, handle
-    )
+    fragment_size = client.determine_fragment_size(KEY_OVERHEAD_SIZE if encryption_key else 0, handle)
     # Wrap data in one or more PDU's split at fragment_size
     # And write each one to the target characteristic handle
     writes = []
@@ -187,9 +183,7 @@ def raise_for_pdu_status(client: BleakClient, pdu_status: PDUStatus):
         )
 
 
-def _decode_pdu_tlv_value(
-    client: AIOHomeKitBleakClient, pdu_status: PDUStatus, data: bytes
-) -> bytes:
+def _decode_pdu_tlv_value(client: AIOHomeKitBleakClient, pdu_status: PDUStatus, data: bytes) -> bytes:
     """Decode the TLV value from the PDU."""
     raise_for_pdu_status(client, pdu_status)
     decoded = dict(TLV.decode_bytes(data))
@@ -206,9 +200,7 @@ async def char_write(
 ) -> bytes:
     """Execute a CHAR_WRITE request."""
     body = BleRequest(expect_response=1, value=body).encode()
-    pdu_status, data = await ble_request(
-        client, encryption_key, decryption_key, OpCode.CHAR_WRITE, handle, iid, body
-    )
+    pdu_status, data = await ble_request(client, encryption_key, decryption_key, OpCode.CHAR_WRITE, handle, iid, body)
     return _decode_pdu_tlv_value(client, pdu_status, data)
 
 
@@ -252,9 +244,7 @@ async def char_read(
     iid: int,
 ) -> bytes:
     """Execute a CHAR_READ request."""
-    pdu_status, data = await ble_request(
-        client, encryption_key, decryption_key, OpCode.CHAR_READ, handle, iid
-    )
+    pdu_status, data = await ble_request(client, encryption_key, decryption_key, OpCode.CHAR_READ, handle, iid)
     return _decode_pdu_tlv_value(client, pdu_status, data)
 
 

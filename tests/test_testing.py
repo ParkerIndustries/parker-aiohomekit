@@ -4,7 +4,7 @@ from aiohomekit.model.accessories import Accessories, AccessoriesState, Accessor
 from aiohomekit.model.characteristics import CharacteristicsTypes
 from aiohomekit.model.services import ServicesTypes
 from aiohomekit.protocol.statuscodes import HapStatusCode
-from aiohomekit.testing.fakes import FakeController
+from aiohomekit.testing.fakes import FakeController, FakePairing
 
 
 async def test_pairing():
@@ -32,9 +32,7 @@ async def test_get_and_set():
     pairing_data = await finish_pairing("111-22-333")
     pairing = controller.pairings[pairing_data["AccessoryPairingID"]]
 
-    pairing.add_observer_for_characteristics(
-        lambda id, changes: accessories.process_changes(changes)
-    )
+    pairing.add_observer_for_characteristics(lambda id, changes: accessories.process_changes(changes))
 
     chars = await pairing.get_characteristics([(1, 10)])
     assert chars == {(1, 10): {"value": 0}}
@@ -91,9 +89,7 @@ async def test_update_named_service_events():
     await pairing.fetch_accessories_and_characteristics()
 
     await pairing.subscribe_characteristics([(1, 8)])
-    pairing.add_observer_for_characteristics(
-        lambda id, changes: accessories.process_changes(changes)
-    )
+    pairing.add_observer_for_characteristics(lambda id, changes: accessories.process_changes(changes))
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -126,9 +122,7 @@ async def test_update_named_service_events_manual_accessory(id_factory):
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
 
-    assert callback.call_args_list == [
-        mock.call(pairing.id, {(accessory.aid, on_char.iid): {"value": 1}})
-    ]
+    assert callback.call_args_list == [mock.call(pairing.id, {(accessory.aid, on_char.iid): {"value": 1}})]
 
 
 async def test_update_named_service_events_manual_accessory_auto_requires(id_factory):
@@ -141,9 +135,7 @@ async def test_update_named_service_events_manual_accessory_auto_requires(id_fac
         serial_number="1234",
         firmware_revision="1.1",
     )
-    service = accessory.add_service(
-        ServicesTypes.LIGHTBULB, name="Light Strip", add_required=True
-    )
+    service = accessory.add_service(ServicesTypes.LIGHTBULB, name="Light Strip", add_required=True)
     on_char = service[CharacteristicsTypes.ON]
     accessories.add_accessory(accessory)
 
@@ -158,9 +150,7 @@ async def test_update_named_service_events_manual_accessory_auto_requires(id_fac
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
 
-    assert callback.call_args_list == [
-        mock.call(pairing.id, {(accessory.aid, on_char.iid): {"value": 1}})
-    ]
+    assert callback.call_args_list == [mock.call(pairing.id, {(accessory.aid, on_char.iid): {"value": 1}})]
 
 
 async def test_update_aid_iid_events():
@@ -186,9 +176,7 @@ async def test_events_are_filtered():
     pairing = controller.pairings[pairing_data["AccessoryPairingID"]]
 
     await pairing.subscribe_characteristics([(1, 10)])
-    pairing.add_observer_for_characteristics(
-        lambda id, changes: accessories.process_changes(changes)
-    )
+    pairing.add_observer_for_characteristics(lambda id, changes: accessories.process_changes(changes))
 
     # Simulate that the state was changed on the device itself.
     pairing.testing.update_named_service("Light Strip", {CharacteristicsTypes.ON: True})
@@ -204,3 +192,12 @@ async def test_camera():
 
     result = await pairing.image(1, 640, 480)
     assert len(result) > 0
+
+
+async def test_remove_pairing_by_an_upper_case_id():
+    controller = FakeController()
+    controller.pairings["aa:bb:cc:dd:ee:ff"] = FakePairing({"AccessoryPairingID": "AA:BB:CC:DD:EE:FF"})
+
+    await controller.remove_pairing("AA:BB:CC:DD:EE:FF")
+
+    assert controller.pairings == {}

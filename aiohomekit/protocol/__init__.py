@@ -16,9 +16,9 @@
 from __future__ import annotations
 
 from binascii import hexlify
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 import logging
-from typing import Any, Callable
+from typing import Any
 
 from cryptography import exceptions as cryptography_exceptions
 from cryptography.hazmat.primitives import serialization
@@ -85,17 +85,15 @@ def handle_state_step(tlv_dict, expected_state):
         return
 
     if actual_state != expected_state:
-        raise InvalidError(f"Exepected state {expected_state} but got {actual_state}")
+        raise InvalidError(f"Expected state {expected_state[0]} but got {int.from_bytes(actual_state)}")
 
     if TLV.kTLVType_Error in tlv_dict:
-        error_handler(tlv_dict[TLV.kTLVType_Error], f"step {expected_state}")
+        error_handler(tlv_dict[TLV.kTLVType_Error], f"step {expected_state[0]}")
 
 
 def perform_pair_setup_part1(
     with_auth: bool = True,
-) -> Generator[
-    tuple[list[tuple[int, bytearray]], list[int]], None, tuple[bytearray, bytearray]
-]:
+) -> Generator[tuple[list[tuple[int, bytearray]], list[int]], None, tuple[bytearray, bytearray]]:
     """
     Performs a pair setup operation as described in chapter 4.7 page 39 ff.
 
@@ -151,38 +149,28 @@ def validate_mfi(session_key, response_tlv):
             bytes(response_tlv[TLV.kTLVType_EncryptedData]),
         )
     except DecryptionError:
-        logger.debug(
-            "Device returned kTLVType_EncryptedData during M4 but could not decrypt"
-        )
+        logger.debug("Device returned kTLVType_EncryptedData during M4 but could not decrypt")
         return
 
     sub_tlv = TLV.decode_bytes(decrypted)
 
     if TLV.kTLVType_Signature not in sub_tlv:
-        logger.debug(
-            "QUIRK: M4: Device returned kTLVType_EncryptedData, but did not contain kTLVType_Signature"
-        )
+        logger.debug("QUIRK: M4: Device returned kTLVType_EncryptedData, but did not contain kTLVType_Signature")
         return
 
     if TLV.kTLVType_Certificate not in sub_tlv:
-        logger.debug(
-            "QUIRK: M4: Device returned kTLVType_Signature but not kTLVType_Certificate"
-        )
+        logger.debug("QUIRK: M4: Device returned kTLVType_Signature but not kTLVType_Certificate")
         return
 
     # Certificate appears to be X509 in DER format but with some sort of PKCS7 pre-amble.
     # cryptography doesn't seem to support that yet.
 
-    logger.debug(
-        "Found seemingly valid MFI kTLVType_Signature; we don't validate this yet"
-    )
+    logger.debug("Found seemingly valid MFI kTLVType_Signature; we don't validate this yet")
 
 
 def perform_pair_setup_part2(
     pin: str, ios_pairing_id: str, salt: bytearray, server_public_key: bytearray
-) -> Generator[
-    tuple[list[tuple[int, bytearray]], list[int]], None, typed_dicts.PairingCredentials
-]:
+) -> Generator[tuple[list[tuple[int, bytearray]], list[int]], None, typed_dicts.PairingCredentials]:
     """
     Performs a pair setup operation as described in chapter 4.7 page 39 ff.
 
@@ -358,9 +346,7 @@ def perform_pair_setup_part2(
     }
 
 
-def resume_m1(
-    session_id: bytes, pub_key: bytes, derive: Callable[[bytes, bytes], bytes]
-) -> list[tuple[int, bytes]]:
+def resume_m1(session_id: bytes, pub_key: bytes, derive: Callable[[bytes, bytes], bytes]) -> list[tuple[int, bytes]]:
     request_key = derive(
         pub_key + session_id,
         b"Pair-Resume-Request-Info",
@@ -419,15 +405,11 @@ def resume_m3(
             bytes(auth_tag),
         )
     except DecryptionError:
-        logger.debug(
-            "M3: Failure to resume existing session: Could not decrypt kTLVType_EncryptedData"
-        )
+        logger.debug("M3: Failure to resume existing session: Could not decrypt kTLVType_EncryptedData")
         return None
 
     if plaintext != b"":
-        logger.debug(
-            "M3: Failure to resume existing session: Could not decrypt kTLVType_EncryptedData"
-        )
+        logger.debug("M3: Failure to resume existing session: Could not decrypt kTLVType_EncryptedData")
         return None
 
     shared_secret = derive(
@@ -448,10 +430,7 @@ def get_session_keys(
     session_id=None,
     derive=None,
 ) -> Generator[
-    (
-        tuple[list[tuple[int, bytearray] | tuple[int, bytes]], list[int]]
-        | tuple[list[tuple[int, bytearray]], list[int]]
-    ),
+    (tuple[list[tuple[int, bytearray] | tuple[int, bytes]], list[int]] | tuple[list[tuple[int, bytearray]], list[int]]),
     None,
     Callable[[str, str], bytes],
 ]:
@@ -504,22 +483,16 @@ def get_session_keys(
 
     # 1) generate shared secret
     accessorys_session_pub_key_bytes = bytes(response_tlv[TLV.kTLVType_PublicKey])
-    accessorys_session_pub_key = x25519.X25519PublicKey.from_public_bytes(
-        accessorys_session_pub_key_bytes
-    )
+    accessorys_session_pub_key = x25519.X25519PublicKey.from_public_bytes(accessorys_session_pub_key_bytes)
     shared_secret = ios_key.exchange(accessorys_session_pub_key)
 
     # 2) derive session key
-    session_key = hkdf_derive(
-        shared_secret, b"Pair-Verify-Encrypt-Salt", b"Pair-Verify-Encrypt-Info"
-    )
+    session_key = hkdf_derive(shared_secret, b"Pair-Verify-Encrypt-Salt", b"Pair-Verify-Encrypt-Info")
 
     # 3) verify auth tag on encrypted data and 4) decrypt
     encrypted = response_tlv[TLV.kTLVType_EncryptedData]
     try:
-        decrypted = ChaCha20Poly1305Decryptor(session_key).decrypt(
-            b"", NONCE_PADDING + b"PV-Msg02", bytes(encrypted)
-        )
+        decrypted = ChaCha20Poly1305Decryptor(session_key).decrypt(b"", NONCE_PADDING + b"PV-Msg02", bytes(encrypted))
     except DecryptionError:
         raise InvalidAuthTagError("step 3")
     d1 = dict(TLV.decode_bytes(decrypted))
@@ -536,35 +509,25 @@ def get_session_keys(
     if pairing_data["AccessoryPairingID"] != accessory_name:
         raise IncorrectPairingIdError("step 3")
 
-    accessory_ltpk = ed25519.Ed25519PublicKey.from_public_bytes(
-        bytes.fromhex(pairing_data["AccessoryLTPK"])
-    )
+    accessory_ltpk = ed25519.Ed25519PublicKey.from_public_bytes(bytes.fromhex(pairing_data["AccessoryLTPK"]))
 
     # 6) verify accessory's signature
     accessory_sig = d1[TLV.kTLVType_Signature]
     accessory_session_pub_key_bytes = response_tlv[TLV.kTLVType_PublicKey]
-    accessory_info = (
-        accessory_session_pub_key_bytes + accessory_name.encode() + ios_key_pub
-    )
+    accessory_info = accessory_session_pub_key_bytes + accessory_name.encode() + ios_key_pub
     try:
         accessory_ltpk.verify(bytes(accessory_sig), bytes(accessory_info))
     except cryptography_exceptions.InvalidSignature:
         raise InvalidSignatureError("step 3")
 
     # 7) create iOSDeviceInfo
-    ios_device_info = (
-        ios_key_pub
-        + pairing_data["iOSDeviceId"].encode()
-        + accessorys_session_pub_key_bytes
-    )
+    ios_device_info = ios_key_pub + pairing_data["iOSDeviceId"].encode() + accessorys_session_pub_key_bytes
 
     # 8) sign iOSDeviceInfo with long term secret key
     ios_device_ltsk_h = pairing_data["iOSDeviceLTSK"]
     # ios_device_ltpk_h = pairing_data["iOSDeviceLTPK"]
 
-    ios_device_ltsk = ed25519.Ed25519PrivateKey.from_private_bytes(
-        bytes.fromhex(ios_device_ltsk_h)
-    )
+    ios_device_ltsk = ed25519.Ed25519PrivateKey.from_private_bytes(bytes.fromhex(ios_device_ltsk_h))
     # ios_device_ltsk = ed25519.SigningKey(
     #    bytes.fromhex(ios_device_ltsk_h) + bytes.fromhex(ios_device_ltpk_h)
     # )

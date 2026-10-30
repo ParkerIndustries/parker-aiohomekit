@@ -211,9 +211,7 @@ class BleDiscovery(AbstractDiscovery):
 
     async def identify(self):
         if self.paired:
-            raise RuntimeError(
-                f"{self.name}: Cannot anonymously identify a paired accessory"
-            )
+            raise RuntimeError(f"{self.name}: Cannot anonymously identify a paired accessory")
 
         await self._ensure_connected()
         assert self._client is not None, "Client must be initialized before identifying"

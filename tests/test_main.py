@@ -9,9 +9,8 @@ from aiohomekit.__main__ import main
 
 
 async def test_help():
-    with mock.patch("sys.stdout") as stdout:
-        with pytest.raises(SystemExit):
-            await main(["-h"])
+    with mock.patch("sys.stdout") as stdout, pytest.raises(SystemExit):
+        await main(["-h"])
 
     printed = stdout.write.call_args[0][0]
     print("PRINTED:", printed)
@@ -29,9 +28,7 @@ async def test_get_accessories(pairing):
     assert printed.startswith("1.1: >0000003E-0000-1000-8000-0026BB765291")
 
     with mock.patch("sys.stdout") as stdout:
-        await main(
-            ["-f", "tests-pairing.json", "accessories", "-a", "alias", "-o", "json"]
-        )
+        await main(["-f", "tests-pairing.json", "accessories", "-a", "alias", "-o", "json"])
 
     printed = stdout.write.call_args_list[0][0][0]
     print("PRINTED:", printed)
@@ -40,9 +37,7 @@ async def test_get_accessories(pairing):
     assert accessories
     assert accessories["accessories"][0]["aid"] == 1
     assert accessories["accessories"][0]["services"][0]["iid"] == 1
-    assert (
-        accessories["accessories"][0]["services"][0]["characteristics"][0]["iid"] == 2
-    )
+    assert accessories["accessories"][0]["services"][0]["characteristics"][0]["iid"] == 2
 
 
 async def test_get_characteristic(pairing):
@@ -57,13 +52,14 @@ async def test_get_characteristic(pairing):
 
 async def test_put_characteristic(pairing):
     with mock.patch("sys.stdout"):
-        await main(
-            ["-f", "tests-pairing.json", "put", "-a", "alias", "-c", "1.9", "true"]
-        )
+        await main(["-f", "tests-pairing.json", "put", "-a", "alias", "-c", "1.9", "true"])
 
-    characteristics = await pairing.get_characteristics([(1, 9)])
+    # the command stops the controller, which shuts its pairings down, so read it back the same way
+    with mock.patch("sys.stdout") as stdout:
+        await main(["-f", "tests-pairing.json", "get", "-a", "alias", "-c", "1.9"])
 
-    assert characteristics[(1, 9)] == {"value": True}
+    printed = stdout.write.call_args_list[0][0][0]
+    assert json.loads(printed) == {"1.9": {"value": True}}
 
 
 async def test_list_pairings(pairing):

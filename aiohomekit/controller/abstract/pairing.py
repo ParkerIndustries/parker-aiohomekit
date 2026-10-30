@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import timedelta
 import logging
-from typing import Callable
 
 from aiohomekit.model.accessories import Accessories, AccessoriesState
 from aiohomekit.model.characteristics.characteristic_key import (
@@ -28,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
-
     type PairingDataChangeCallback = Callable[[PairingData], None]
 
     # The current discovery information for this pairing.
@@ -43,13 +41,9 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         # for callbacks, lists are used instead of sets to preserve the order of calls,
         # for example, to call internal observers before external ones
         self._availability_observers: list[Callable[[HKDeviceID, bool], None]] = list()
-        self._pairing_data_observers: list[
-            Callable[[HKDeviceID, PairingData], None]
-        ] = list()
+        self._pairing_data_observers: list[Callable[[HKDeviceID, PairingData], None]] = list()
         self._config_observers: list[Callable[[HKDeviceID, int], None]] = list()
-        self._characteristic_observers: list[
-            Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]
-        ] = list()
+        self._characteristic_observers: list[Callable[[HKDeviceID, dict[CharacteristicKey, Value]], None]] = list()
         self._observed_characteristics: set[CharacteristicKey] = set()
 
         self._accessories_state: AccessoriesState | None = None  # has public read
@@ -110,21 +104,15 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         """Get characteristics."""
 
     @abstractmethod
-    async def put_characteristics(
-        self, characteristics: Iterable[CharacteristicKeyValue]
-    ) -> Response:
+    async def put_characteristics(self, characteristics: Iterable[CharacteristicKeyValue]) -> Response:
         """Put characteristics."""
 
     @abstractmethod
-    async def subscribe_characteristics(
-        self, characteristics: Iterable[CharacteristicKey]
-    ) -> Response:
+    async def subscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
         self._observed_characteristics.update(characteristics)
 
     @abstractmethod
-    async def unsubscribe_characteristics(
-        self, characteristics: Iterable[CharacteristicKey]
-    ) -> Response:
+    async def unsubscribe_characteristics(self, characteristics: Iterable[CharacteristicKey]) -> Response:
         self._observed_characteristics.difference_update(characteristics)
 
     @abstractmethod
@@ -191,6 +179,10 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
             return await self._do_fetch_accessories_and_characteristics()
         return self._accessories_state
 
+    def restore_accessories_state(self, accessories_state: AccessoriesState):
+        """Populate the state from the cache, without connecting to the accessory."""
+        self._accessories_state = accessories_state
+
     async def get_primary_name(self) -> str:
         """Return the primary name of the device from the accessory information service."""
         await self.fetch_accessories_and_characteristics()
@@ -227,20 +219,20 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         repopulate_accessories = False
 
-        if description.config_num > (
-            self._accessories_state.config_num if self._accessories_state else 0
-        ):
+        # -1, not 0, when nothing is cached yet: the first discovery populates the pairing
+        # even when the accessory advertises c#=0 or none (from_service_info reads it as 0)
+        cached_config_num = self._accessories_state.config_num if self._accessories_state else -1
+
+        if description.config_num > cached_config_num:
             logger.debug(
                 "%s: Config number has changed from %s to %s; char cache invalid",
                 self.name,
-                self.config_num,
+                cached_config_num,
                 description.config_num,
             )
             repopulate_accessories = True
 
-        elif (
-            not self.description or description.state_num != self.description.state_num
-        ):
+        elif not self.description or description.state_num != self.description.state_num:
             # Only process disconnected events if the config number has
             # not also changed since we will do  a full repopulation
             # of the accessories anyway when the config number changes.
@@ -260,15 +252,11 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
         self.description = description
 
         if repopulate_accessories:
-            async_create_task(
-                self._process_config_changed(description.config_num)
-            )  # TODO: check if it should be await
+            async_create_task(self._process_config_changed(description.config_num))  # TODO: check if it should be await
 
     # Observers
 
-    def add_observer_for_availability(
-        self, callback: Callable[[HKDeviceID, bool], None]
-    ) -> Callable[[], None]:
+    def add_observer_for_availability(self, callback: Callable[[HKDeviceID, bool], None]) -> Callable[[], None]:
         """Notify observers when availability changes.
 
         Currently this only notifies when a device is seen as available and
@@ -281,9 +269,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         return stop_observing
 
-    def add_observer_for_pairing_data(
-        self, callback: Callable[[HKDeviceID, PairingData], None]
-    ) -> Callable[[], None]:
+    def add_observer_for_pairing_data(self, callback: Callable[[HKDeviceID, PairingData], None]) -> Callable[[], None]:
         """Register an event handler to be called when pairing data is updated.
 
         This function returns immediately. It returns a callable you can use to cancel the subscription.
@@ -295,9 +281,7 @@ class AbstractPairing[DiscoveryInfo: AbstractDiscoveryInfo](metaclass=ABCMeta):
 
         return stop_observing
 
-    def add_observer_for_config(
-        self, callback: Callable[[HKDeviceID, int], None]
-    ) -> Callable[[], None]:
+    def add_observer_for_config(self, callback: Callable[[HKDeviceID, int], None]) -> Callable[[], None]:
         """
         Register an event handler to be called when config (services and characteristics model) changes. Tipically, after a firmware update.
         """

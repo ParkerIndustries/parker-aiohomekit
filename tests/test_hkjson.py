@@ -20,9 +20,7 @@ import aiohomekit.hkjson as hkjson
 
 def test_loads_trailing_comma():
     """Test we can decode with a trailing comma."""
-    result = hkjson.loads(
-        '{"characteristics":[{"aid":10,"iid":12,"value":27.0},{"aid":10,"iid":13,"value":20.5},]}'
-    )
+    result = hkjson.loads('{"characteristics":[{"aid":10,"iid":12,"value":27.0},{"aid":10,"iid":13,"value":20.5},]}')
     assert result == {
         "characteristics": [
             {"aid": 10, "iid": 12, "value": 27.0},

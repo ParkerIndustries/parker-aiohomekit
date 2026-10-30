@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections import abc
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, fields
 import enum
-from functools import lru_cache
+from functools import cache, lru_cache
 import struct
-from typing import Any, Callable, ClassVar, Generic, Self, TypeVar, _GenericAlias
+from typing import Any, ClassVar, Generic, Self, TypeVar, _GenericAlias
 
 SerializerCallback = Callable[[type, Any], bytes]
 DeserializerCallback = Callable[[type, bytes], Any]
@@ -44,9 +44,7 @@ def get_origin(tp):
     get_origin(int) == None
     get_origin(Sequence[int]) == collections.abc.Sequence
     """
-    if isinstance(
-        tp, _GenericAlias
-    ):  # TODO: check what's this. Can't find _GenericAlias
+    if isinstance(tp, _GenericAlias):  # TODO: check what's this. Can't find _GenericAlias
         return tp.__origin__ if tp.__origin__ is not ClassVar else None
     if tp is Generic:
         return Generic
@@ -283,12 +281,10 @@ class TLVStruct:
         return bytes(result)
 
     @classmethod
-    @lru_cache(maxsize=None)
+    @cache
     def _tlv_types(cls) -> dict:
         """Return the TLV types for this class."""
-        return {
-            field.metadata["tlv_type"]: field for field in fields(cls) if field.init
-        }
+        return {field.metadata["tlv_type"]: field for field in fields(cls) if field.init}
 
     @classmethod
     def decode(cls, encoded_struct: bytes) -> Self:

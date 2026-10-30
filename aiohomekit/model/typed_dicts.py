@@ -4,7 +4,7 @@ Typing hints for the serialization format used by the JSON part of the HomeKit A
 
 from __future__ import annotations
 
-from typing import Any, Literal, NotRequired, TypedDict, Union
+from typing import Any, Literal, NotRequired, TypedDict
 
 from .characteristics import CharacteristicKey
 from .transport_type import TransportType
@@ -15,14 +15,14 @@ Characteristic = TypedDict(  # Using functional style because "valid-values" is 
         "type": str,  # UUID
         "iid": int,
         "description": str,
-        "value": Union[str, float, int, bool],
+        "value": str | float | int | bool,
         "perms": list[str],
         "unit": str,
         "format": str,
         "valid-values": list[int],
-        "minValue": Union[int, float],
-        "maxValue": Union[int, float],
-        "minStep": Union[int, float],
+        "minValue": int | float,
+        "maxValue": int | float,
+        "minStep": int | float,
         "minLen": int,
     },
     total=False,

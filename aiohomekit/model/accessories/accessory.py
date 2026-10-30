@@ -50,9 +50,7 @@ class Accessory:
         accessory_info.add_char(CharacteristicsTypes.NAME, value=name)
         accessory_info.add_char(CharacteristicsTypes.MANUFACTURER, value=manufacturer)
         accessory_info.add_char(CharacteristicsTypes.MODEL, value=model)
-        accessory_info.add_char(
-            CharacteristicsTypes.FIRMWARE_REVISION, value=firmware_revision
-        )
+        accessory_info.add_char(CharacteristicsTypes.FIRMWARE_REVISION, value=firmware_revision)
         accessory_info.add_char(CharacteristicsTypes.SERIAL_NUMBER, value=serial_number)
 
         return self
@@ -63,9 +61,7 @@ class Accessory:
         accessory = cls(data["aid"])
 
         for service_data in data["services"]:
-            service = accessory.add_service(
-                service_data["type"], iid=service_data["iid"], add_required=False
-            )
+            service = accessory.add_service(service_data["type"], iid=service_data["iid"], add_required=False)
             for char_data in service_data["characteristics"]:
                 kwargs = dict()
                 keys = {
@@ -85,25 +81,17 @@ class Accessory:
                 }
 
                 for key in keys:
-                    camel_key = key.split("_")[0] + "".join(
-                        word.title() for word in key.split("_")[1:]
-                    )
+                    camel_key = key.split("_")[0] + "".join(word.title() for word in key.split("_")[1:])
                     kebab_key = key.replace("_", "-")
                     if camel_key in char_data:
                         kwargs[key] = char_data[camel_key]
                     elif kebab_key in char_data:
                         kwargs[key] = char_data[kebab_key]
 
-                assert (
-                    "type" in char_data
-                ), f"Characteristic type is missing in {char_data}"
-                assert (
-                    "iid" in char_data
-                ), f"Characteristic iid is missing in {char_data}"
+                assert "type" in char_data, f"Characteristic type is missing in {char_data}"
+                assert "iid" in char_data, f"Characteristic iid is missing in {char_data}"
 
-                service.add_char(
-                    normalize_uuid(char_data["type"]), iid=char_data["iid"], **kwargs
-                )
+                service.add_char(normalize_uuid(char_data["type"]), iid=char_data["iid"], **kwargs)
 
         for service_data in data["services"]:
             if not (linked_iids := service_data.get("linked")):
@@ -116,9 +104,7 @@ class Accessory:
                 # https://github.com/home-assistant/core/issues/175416
                 # The Yeelight Pro Gateway references linked service iids that
                 # do not exist; skip them so the accessory still parses
-                if linked_service and (
-                    linked := accessory.services.iid_or_none(linked_service)
-                ):
+                if linked_service and (linked := accessory.services.iid_or_none(linked_service)):
                     service.add_linked_service(linked)
 
         return accessory
@@ -127,12 +113,8 @@ class Accessory:
     def accessory_information(self) -> Service:
         """Returns the ACCESSORY_INFORMATION service for this accessory."""
         if self._accessory_information is None:
-            self._accessory_information = self.services.first(
-                service_type=ServicesTypes.ACCESSORY_INFORMATION
-            )
-        assert (
-            self._accessory_information is not None
-        ), "No ACCESSORY_INFORMATION service found"
+            self._accessory_information = self.services.first(service_type=ServicesTypes.ACCESSORY_INFORMATION)
+        assert self._accessory_information is not None, "No ACCESSORY_INFORMATION service found"
         return self._accessory_information
 
     @property
@@ -158,16 +140,12 @@ class Accessory:
     @property
     def firmware_revision(self) -> str:
         """Return the firmware revision of the accessory."""
-        return self.accessory_information.value(
-            CharacteristicsTypes.FIRMWARE_REVISION, ""
-        )
+        return self.accessory_information.value(CharacteristicsTypes.FIRMWARE_REVISION, "")
 
     @property
     def hardware_revision(self) -> str:
         """Return the hardware revision of the accessory."""
-        return self.accessory_information.value(
-            CharacteristicsTypes.HARDWARE_REVISION, ""
-        )
+        return self.accessory_information.value(CharacteristicsTypes.HARDWARE_REVISION, "")
 
     @property
     def available(self) -> bool:
@@ -200,9 +178,7 @@ class Accessory:
         iid: int | None = None,
     ) -> Service:
         """Add a service to the accessory."""
-        service = Service(
-            self, service_type, name=name, add_required=add_required, iid=iid
-        )
+        service = Service(self, service_type, name=name, add_required=add_required, iid=iid)
         self.services.append(service)
         return service
 

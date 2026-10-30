@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterable
+import asyncio
+from collections.abc import AsyncIterable, Callable
 import logging
-from typing import Callable, Self, final
+from typing import Self, final
 
 from aiohomekit.exceptions import AccessoryNotFoundError
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
@@ -24,7 +25,6 @@ class AbstractController[
     Discovery: AbstractDiscovery,
     Pairing: AbstractPairing,
 ](ABC):
-
     type DiscoveryCallback = GenericDiscoveryCallback[Self, Discovery]
 
     char_cache_storage: CharacteristicsStorageProtocol
@@ -36,9 +36,7 @@ class AbstractController[
 
     def __init__(
         self,
-        Discovery: type[
-            Discovery
-        ],  # anoying workaround for 'typing.TypeVar' object is not callable
+        Discovery: type[Discovery],  # anoying workaround for 'typing.TypeVar' object is not callable
         Pairing: type[Pairing],
         char_cache_storage: CharacteristicsStorageProtocol,
         pairing_data_storage: PairingDataStorageProtocol,
@@ -59,14 +57,10 @@ class AbstractController[
         raise NotImplementedError(self.transport_type)
 
     @abstractmethod
-    async def find(
-        self, device_id: HKDeviceID, timeout_sec: float = 10
-    ) -> Discovery | None: ...
+    async def find(self, device_id: HKDeviceID, timeout_sec: float = 10) -> Discovery | None: ...
 
     @abstractmethod
-    async def is_reachable(
-        self, device_id: HKDeviceID, timeout_sec: float = 10
-    ) -> bool: ...
+    async def is_reachable(self, device_id: HKDeviceID, timeout_sec: float = 10) -> bool: ...
 
     @abstractmethod
     def discover(self, timeout_sec: float = 10) -> AsyncIterable[Discovery]: ...
@@ -86,7 +80,7 @@ class AbstractController[
     # Implementations
 
     async def identify(self, id: HKDeviceID):
-        pairing = self.pairings.get(id)
+        pairing = self.pairings.get(id.lower())
         if pairing is None:
             raise AccessoryNotFoundError(f"Pairing with ID {id} not found.")
 
@@ -103,12 +97,12 @@ class AbstractController[
         :raises UnknownError: on unknown errors
         """
 
-        if pairing_id not in self.pairings:
+        if pairing_id.lower() not in self.pairings:
             raise AccessoryNotFoundError(f'Pairing "{pairing_id}" is not found.')
 
-        pairing = self.pairings.pop(pairing_id)
+        pairing = self.pairings.pop(pairing_id.lower())
 
-        self._cleanup_pairing(pairing_id)
+        self._cleanup_pairing(pairing_id.lower())
 
         try:
             try:
@@ -132,9 +126,21 @@ class AbstractController[
     async def stop(self):
         self._stop_observing()
 
+        # Close every session and its reconnect loop; the next start loads fresh pairings
+        pairings = list(self._pairings.values())
+        self._pairings.clear()
+        results = await asyncio.gather(*(pairing.shutdown() for pairing in pairings), return_exceptions=True)
+        for pairing, result in zip(pairings, results, strict=True):
+            if isinstance(result, Exception):
+                logger.warning(f"{pairing.name}: Failed to shut down: {result!r}", exc_info=result)
+
     async def load_pairings_from_storage(self):
         for pairing_data in (await self.pairing_data_storage.get_all()).values():
-            await self.load_pairing(pairing_data)
+            try:
+                await self.load_pairing(pairing_data)
+            except Exception:
+                # One broken pairing must not keep the controller and the other pairings down
+                logger.exception(f"Failed to load pairing {pairing_data.get('AccessoryPairingID')!r}")
 
     async def load_pairing(self, pairing_data: PairingData) -> Pairing | None:
         if pairing_data["Connection"] != self.transport_type:
@@ -145,12 +151,27 @@ class AbstractController[
         if not accessory_id:
             raise ValueError("Invalid pairing data: Missing accessory ID")
 
+        try:
+            accessories_state = await self.char_cache_storage.get(accessory_id)
+        except Exception:
+            # The pairing loads without it and fetches the data model on demand
+            logger.exception(f"{accessory_id}: Failed to read the cached data model")
+            accessories_state = None
+
+        if replaced := self._pairings.pop(accessory_id.lower(), None):
+            # e.g. a re-paired accessory: the old session must not keep reconnecting
+            self._cleanup_pairing(accessory_id.lower())
+            await replaced.shutdown()
+
         pairing = self._pairings[accessory_id.lower()] = self.Pairing(pairing_data)
 
-        if discovery := self._discoveries.get(accessory_id):
-            pairing.process_description_update(discovery.description)
+        # No connection here: the accessory may be offline. The pairing connects on demand
+        # or on discovery, which also repopulates the cache when it is missing or outdated (c#).
+        if accessories_state:
+            pairing.restore_accessories_state(accessories_state)
 
-        await pairing.fetch_accessories_and_characteristics()  # TODO: fetch from storage first
+        if discovery := self._discoveries.get(accessory_id.lower()):
+            pairing.process_description_update(discovery.description)
 
         # TODO: initial save NOTE: current commented code causes "dict changed size during iteration" error
 
@@ -162,18 +183,14 @@ class AbstractController[
         unsubscribes = []
 
         def _schedule_save_config(id: HKDeviceID, config_num: int):
-            async_create_task(
-                self.char_cache_storage.save(accessory_id, pairing.accessories_state)
-            )
+            async_create_task(self.char_cache_storage.save(accessory_id, pairing.accessories_state))
 
         unsubscribes.append(pairing.add_observer_for_config(_schedule_save_config))
 
         def _schedule_pairing_save(id: HKDeviceID, pairing_data: PairingData):
             async_create_task(self.pairing_data_storage.save(id, pairing_data))
 
-        unsubscribes.append(
-            pairing.add_observer_for_pairing_data(_schedule_pairing_save)
-        )
+        unsubscribes.append(pairing.add_observer_for_pairing_data(_schedule_pairing_save))
 
         self._pairing_cleanups[accessory_id.lower()] = unsubscribes
 
@@ -181,9 +198,9 @@ class AbstractController[
 
     async def _on_pairing(self, pairing_data: PairingData):
         #  async_create_task(self.load_pairing(pairing_data))
-        await self.load_pairing(
-            pairing_data
-        )  # so we return to the caller of finish_pairing with completely loaded pairing
+        if pairing := await self.load_pairing(pairing_data):
+            # so we return to the caller of finish_pairing with completely loaded pairing
+            await pairing.fetch_accessories_and_characteristics(force_update=True)
 
     def _make_discovery(self, discovery_info: DiscoveryInfo) -> Discovery:
         return self.Discovery(discovery_info, self._on_pairing)

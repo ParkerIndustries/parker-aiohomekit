@@ -37,8 +37,7 @@ def test_example1():
             b"Transfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n"
         ),
         bytearray(
-            b'5f\r\n{"characteristics":[{"aid":1,"iid":10,"value":35},'
-            b'{"aid":1,"iid":13,"value":36.0999984741211}]}\r\n'
+            b'5f\r\n{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":36.0999984741211}]}\r\n'
         ),
         bytearray(b"0\r\n\r\n"),
     ]
@@ -46,20 +45,16 @@ def test_example1():
     assert res.code == 200
     assert res.get_http_name() == "HTTP"
     assert (
-        res.body
-        == b'{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":36.0999984741211}]}'
+        res.body == b'{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":36.0999984741211}]}'
     )
     json.loads(res.body.decode())
 
 
 def test_example2():
     parts = [
+        bytearray(b"EVENT/1.0 200 OK\r\nContent-Type: application/hap+json\r\nTransfer-Encoding: chunked\r\n\r\n"),
         bytearray(
-            b"EVENT/1.0 200 OK\r\nContent-Type: application/hap+json\r\nTransfer-Encoding: chunked\r\n\r\n"
-        ),
-        bytearray(
-            b'5f\r\n{"characteristics":[{"aid":1,"iid":10,"value":35},'
-            b'{"aid":1,"iid":13,"value":33.2000007629395}]}\r\n'
+            b'5f\r\n{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":33.2000007629395}]}\r\n'
         ),
         bytearray(b"0\r\n\r\n"),
     ]
@@ -67,8 +62,7 @@ def test_example2():
     assert res.code == 200
     assert res.get_http_name() == "EVENT"
     assert (
-        res.body
-        == b'{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":33.2000007629395}]}'
+        res.body == b'{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":33.2000007629395}]}'
     )
     j = json.loads(res.body.decode())
     assert j["characteristics"][1]["value"] == 33.2000007629395
@@ -213,8 +207,7 @@ def test_example_lines():
     assert res.code == 200
     assert res.get_http_name() == "HTTP"
     assert (
-        res.body
-        == b'{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":36.0999984741211}]}'
+        res.body == b'{"characteristics":[{"aid":1,"iid":10,"value":35},{"aid":1,"iid":13,"value":36.0999984741211}]}'
     )
     json.loads(res.body.decode())
 
@@ -274,9 +267,7 @@ def test_example_multi_status_2():
         ]
     )
     assert res.code == 207
-    assert (
-        res.body == b'{"characteristics":[{"aid":2,"iid":10,"value":true,"status":0}]}'
-    )
+    assert res.body == b'{"characteristics":[{"aid":2,"iid":10,"value":true,"status":0}]}'
 
 
 def test_example_multi_status_3():

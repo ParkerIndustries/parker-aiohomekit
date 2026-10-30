@@ -35,17 +35,13 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
 
     @override
     def setup(self):
-        self.connection = HomeKitConnection(
-            self, self.description.addresses, self.description.port
-        )
+        self.connection = HomeKitConnection(self, self.description.addresses, self.description.port)
 
     @override
     async def start_pairing(self) -> FinishPairing:
         await self._ensure_connected()
 
-        state_machine = perform_pair_setup_part1(
-            pair_with_auth(self.description.feature_flags)
-        )
+        state_machine = perform_pair_setup_part1(pair_with_auth(self.description.feature_flags))
         request, expected = state_machine.send(None)
         while True:
             try:
@@ -63,9 +59,7 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
         async def finish_pairing(pin: str) -> PairingData:
             check_pin_format(pin)
 
-            state_machine = perform_pair_setup_part2(
-                pin, str(uuid.uuid4()), salt, pub_key
-            )
+            state_machine = perform_pair_setup_part2(pin, str(uuid.uuid4()), salt, pub_key)
             request, expected = state_machine.send(None)
 
             while True:
@@ -88,7 +82,9 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
 
             await self._pairing_finished_callback(pairing_data)
 
-            await self.connection.close()  # discovery connection is no longer needed, the pairing connection will be used instead
+            await (
+                self.connection.close()
+            )  # discovery connection is no longer needed, the pairing connection will be used instead
 
             return pairing_data
 
@@ -105,9 +101,7 @@ class IpDiscovery(AbstractDiscovery[ZeroconfDiscoveryInfo]):
 
         code = to_status_code(response["code"])
 
-        raise AlreadyPairedError(
-            f"Identify failed because: {code.description} ({code.value})."
-        )
+        raise AlreadyPairedError(f"Identify failed because: {code.description} ({code.value}).")
 
     async def close(self):
         await self.connection.close()

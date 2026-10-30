@@ -57,7 +57,7 @@ E0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF""",
 )
 
 
-def pad_left(data: bytes, length: int) -> bytes:
+def pad_left(data: bytes | bytearray, length: int) -> bytes:
     """Pads the data with 0x00 until it is of length length.
 
     Some devices use a salt of all 0s (LIFX BEAM)
@@ -71,9 +71,7 @@ def to_byte_array(num: int) -> bytearray:
 
 HASH_MOD = hashlib.sha512(to_byte_array(MODULUS_VALUE)).digest()  # H(modulus)
 HASH_GEN = hashlib.sha512(to_byte_array(GENERATOR_VALUE)).digest()  # H(generator)
-H_GROUP = bytes(
-    HASH_MOD[i] ^ HASH_GEN[i] for i in range(0, len(HASH_MOD))
-)  # H(modulus) xor H(generator)
+H_GROUP = bytes(HASH_MOD[i] ^ HASH_GEN[i] for i in range(0, len(HASH_MOD)))  # H(modulus) xor H(generator)
 
 
 class Srp:
@@ -185,7 +183,8 @@ class SrpClient(Srp):
 
     def set_server_public_key(self, B_b: bytearray | bytes):
         assert isinstance(B_b, (bytes, bytearray)), "The public key must be a bytes"
-        self.B_b = B_b
+        # Hashed at the modulus length (RFC 5054), also when an accessory drops its leading zero bytes
+        self.B_b = pad_left(B_b, HK_KEY_LENGTH)
         self.B = int.from_bytes(B_b, "big")
 
     def get_shared_secret(self) -> int:
@@ -221,13 +220,16 @@ class SrpClient(Srp):
         return self.verify_servers_proof(int.from_bytes(M_b, "big"))
 
     def verify_servers_proof(self, M: int) -> bool:
-        return M == int.from_bytes(
-            self.digest(
-                self.A_b,
-                self.get_proof_bytes(),
-                self.get_session_key_bytes(),
-            ),
-            "big",
+        return (
+            int.from_bytes(
+                self.digest(
+                    self.A_b,
+                    self.get_proof_bytes(),
+                    self.get_session_key_bytes(),
+                ),
+                "big",
+            )
+            == M
         )
 
 

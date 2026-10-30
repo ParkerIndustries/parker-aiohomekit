@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable
-from typing import Callable, final
+from collections.abc import Awaitable, Callable
+from typing import final
 
 from aiohomekit.model.discovery_info import AbstractDiscoveryInfo
 from aiohomekit.model.status_flags import StatusFlags
@@ -13,7 +13,6 @@ type DiscoveryDidFinishPairingCallback = Callable[[PairingData], Awaitable[None]
 
 
 class AbstractDiscovery[DiscoveryDescription: AbstractDiscoveryInfo](ABC):
-
     description: DiscoveryDescription
     _pairing_finished_callback: DiscoveryDidFinishPairingCallback
 

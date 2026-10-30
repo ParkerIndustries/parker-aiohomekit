@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 import enum
 import struct
-from typing import Any, Optional, Union
+from typing import Any
 
 from aiohomekit.tlv8 import TLVStruct, tlv_entry, u8, u16, u128
 
@@ -29,7 +29,7 @@ class ProtocolParams:
     state_number: int
     config_number: int
     advertising_id: bytes
-    broadcast_key: Optional[bytes]
+    broadcast_key: bytes | None
 
 
 class ProtocolParamsTLV(enum.IntEnum):
@@ -109,13 +109,9 @@ class Characteristic(TLVStruct):
     type: u128 = tlv_entry(HAP_TLV.kTLVHAPParamCharacteristicType)
     instance_id: u16 = tlv_entry(HAP_TLV.kTLVHAPParamCharacteristicInstanceId)
     # permission bits
-    properties: u16 = tlv_entry(
-        HAP_TLV.kTLVHAPParamHAPCharacteristicPropertiesDescriptor
-    )
+    properties: u16 = tlv_entry(HAP_TLV.kTLVHAPParamHAPCharacteristicPropertiesDescriptor)
     # 7 bytes, contains type & unit
-    presentation_format: bytes = tlv_entry(
-        HAP_TLV.kTLVHAPParamGATTPresentationFormatDescriptor
-    )
+    presentation_format: bytes = tlv_entry(HAP_TLV.kTLVHAPParamGATTPresentationFormatDescriptor)
     # min/max, int or float, same type as value
     valid_range: bytes = tlv_entry(HAP_TLV.kTLVHAPParamGATTValidRange)
     # int or float, same type as value
@@ -123,14 +119,10 @@ class Characteristic(TLVStruct):
     # list of valid uint8 values
     valid_values: bytes = tlv_entry(HAP_TLV.kTLVHAPParamHAPValidValuesDescriptor)
     # list of valid (start, end) uint8 range values
-    valid_values_range: bytes = tlv_entry(
-        HAP_TLV.kTLVHAPParamHAPValidValuesRangeDescriptor
-    )
+    valid_values_range: bytes = tlv_entry(HAP_TLV.kTLVHAPParamHAPValidValuesRangeDescriptor)
     service_instance_id: bytes = tlv_entry(HAP_TLV.kTLVHAPParamServiceInstanceId)
     service_type: bytes = tlv_entry(HAP_TLV.kTLVHAPParamServiceType)
-    user_description: bytes = tlv_entry(
-        HAP_TLV.kTLVHAPParamGATTUserDescriptionDescriptor
-    )
+    user_description: bytes = tlv_entry(HAP_TLV.kTLVHAPParamGATTUserDescriptionDescriptor)
 
     @property
     def supports_read(self) -> bool:
@@ -277,7 +269,7 @@ class Characteristic(TLVStruct):
         return self._unpack_value(self.step_value)
 
     @property
-    def min_max_value(self) -> Optional[tuple[Union[int, float], Union[int, float]]]:
+    def min_max_value(self) -> tuple[int | float, int | float] | None:
         if not self.valid_range:
             return None
         if self.pf_format == 0x04:

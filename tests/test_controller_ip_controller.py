@@ -43,9 +43,7 @@ async def test_async_reachable(mock_asynczeroconf: AsyncZeroconf):
 
     with install_mock_service_info(mock_asynczeroconf, get_mock_service_info()):
         async with controller:
-            result = await controller.is_reachable(
-                "00:00:01:00:00:02", timeout_sec=0.001
-            )
+            result = await controller.is_reachable("00:00:01:00:00:02", timeout_sec=0.001)
 
     assert result is True
 

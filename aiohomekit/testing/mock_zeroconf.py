@@ -2,7 +2,6 @@ from collections.abc import Iterable
 import contextlib
 from contextlib import contextmanager
 import socket
-from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from zeroconf import DNSCache, DNSQuestionType, SignalRegistrationInterface, Zeroconf
@@ -30,14 +29,12 @@ class MockedAsyncServiceInfo(AsyncServiceInfo):
         self,
         zc: "Zeroconf",
         timeout: float,
-        question_type: Optional[DNSQuestionType] = None,
-        addr: Optional[str] = None,
-        port: Optional[int] = None,
+        question_type: DNSQuestionType | None = None,
+        addr: str | None = None,
+        port: int | None = None,
     ) -> bool:
         success = self.load_from_cache(zc)
-        assert (
-            success
-        ), f"Failed to load service info from cache {self.type=}, {self.name=}"
+        assert success, f"Failed to load service info from cache {self.type=}, {self.name=}"
         return success
 
 
@@ -62,18 +59,12 @@ def get_mock_service_info():
 
 
 @contextlib.contextmanager
-def install_mock_service_info(
-    mock_asynczeroconf: AsyncZeroconf, info: MockedAsyncServiceInfo
-) -> Iterable:
+def install_mock_service_info(mock_asynczeroconf: AsyncZeroconf, info: MockedAsyncServiceInfo) -> Iterable:
     zeroconf: Zeroconf = mock_asynczeroconf.zeroconf
 
-    zeroconf.cache.async_add_records(
-        [*info.dns_addresses(), info.dns_pointer(), info.dns_service(), info.dns_text()]
-    )
+    zeroconf.cache.async_add_records([*info.dns_addresses(), info.dns_pointer(), info.dns_service(), info.dns_text()])
 
-    assert (
-        zeroconf.cache.get_all_by_details(HAP_TYPE_TCP, TYPE_PTR, CLASS_IN) is not None
-    )
+    assert zeroconf.cache.get_all_by_details(HAP_TYPE_TCP, TYPE_PTR, CLASS_IN) is not None
 
     yield
 

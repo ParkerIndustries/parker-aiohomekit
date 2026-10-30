@@ -142,3 +142,26 @@ async def test_controller_on_discovery_callback_after_start():
     assert child_controller._on_discovery_callback
     child_controller._on_discovery_callback(child_controller, None)
     callback_mock.assert_called_once_with(child_controller, None)
+
+
+async def test_identify_by_an_upper_case_id(controller_and_paired_accessory):
+    controller = controller_and_paired_accessory
+    # Pairings are keyed lower-case; the fixture's AccessoryPairingID is upper-case
+    pairing = controller.pairings["12:34:56:00:01:0a"]
+
+    with patch.object(pairing, "identify") as identify:
+        await controller.identify("12:34:56:00:01:0A")
+
+    identify.assert_awaited_once()
+
+
+async def test_remove_pairing_by_an_upper_case_id(controller_and_paired_accessory):
+    controller = controller_and_paired_accessory
+    pairing = controller.pairings["12:34:56:00:01:0a"]
+    await pairing.get_characteristics([(1, 9)])
+
+    await controller.remove_pairing("12:34:56:00:01:0A")
+
+    assert controller.pairings == {}
+    with pytest.raises(AccessoryDisconnectedError):
+        await pairing.get_characteristics([(1, 9)])
