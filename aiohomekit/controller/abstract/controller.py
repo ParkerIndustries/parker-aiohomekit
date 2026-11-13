@@ -111,8 +111,10 @@ class AbstractController[
                 # A failed removal must not leave the connection reconnecting
                 await pairing.shutdown()
         finally:
-            await self.char_cache_storage.delete(pairing_id)
-            await self.pairing_data_storage.delete(pairing_id)
+            # Entries saved before ids were normalised may sit under the raw id
+            for storage_id in {pairing_id.lower(), pairing_id, pairing.id}:
+                await self.char_cache_storage.delete(storage_id)
+                await self.pairing_data_storage.delete(storage_id)
 
         return pairing
 
@@ -152,7 +154,9 @@ class AbstractController[
             raise ValueError("Invalid pairing data: Missing accessory ID")
 
         try:
-            accessories_state = await self.char_cache_storage.get(accessory_id)
+            accessories_state = await self.char_cache_storage.get(
+                accessory_id.lower()
+            ) or await self.char_cache_storage.get(accessory_id)
         except Exception:
             # The pairing loads without it and fetches the data model on demand
             logger.exception(f"{accessory_id}: Failed to read the cached data model")
@@ -182,13 +186,16 @@ class AbstractController[
 
         unsubscribes = []
 
+        # Storage and remove_pairing must agree on the key, whatever case the accessory reports
+        storage_id = accessory_id.lower()
+
         def _schedule_save_config(id: HKDeviceID, config_num: int):
-            async_create_task(self.char_cache_storage.save(accessory_id, pairing.accessories_state))
+            async_create_task(self.char_cache_storage.save(storage_id, pairing.accessories_state))
 
         unsubscribes.append(pairing.add_observer_for_config(_schedule_save_config))
 
         def _schedule_pairing_save(id: HKDeviceID, pairing_data: PairingData):
-            async_create_task(self.pairing_data_storage.save(id, pairing_data))
+            async_create_task(self.pairing_data_storage.save(storage_id, pairing_data))
 
         unsubscribes.append(pairing.add_observer_for_pairing_data(_schedule_pairing_save))
 

@@ -437,3 +437,50 @@ async def test_failed_relay_start_stops_the_transports_it_started(
         await controller.start()
 
     assert shared_browser._handlers == []
+
+
+MIXED_CASE_ID = "AA:BB:CC:00:11:22"
+
+
+async def test_observers_save_under_the_normalised_id(mock_asynczeroconf: AsyncZeroconf):
+    controller = await make_controller(mock_asynczeroconf)
+    await controller.pairing_data_storage.save(MIXED_CASE_ID.lower(), offline_pairing_data(MIXED_CASE_ID))
+    await controller.char_cache_storage.save(MIXED_CASE_ID.lower(), cached_state())
+    await controller.start()
+    pairing = controller.pairings[MIXED_CASE_ID.lower()]
+
+    pairing._callback_pairing_data_changed(offline_pairing_data(MIXED_CASE_ID))
+    pairing._callback_config_changed(2)
+    await asyncio.sleep(0)
+
+    assert set(controller.pairing_data_storage._storage_data) == {MIXED_CASE_ID.lower()}
+    assert set(controller.char_cache_storage._storage_data) == {MIXED_CASE_ID.lower()}
+    await controller.stop()
+
+
+@pytest.mark.parametrize("removed_id", [MIXED_CASE_ID, MIXED_CASE_ID.lower()])
+async def test_remove_pairing_clears_every_storage_entry(mock_asynczeroconf: AsyncZeroconf, removed_id: str):
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(MIXED_CASE_ID), cached_state()))
+    await controller.start()
+    pairing = controller.pairings[MIXED_CASE_ID.lower()]
+    pairing._callback_pairing_data_changed(offline_pairing_data(MIXED_CASE_ID))
+    pairing._callback_config_changed(2)
+    await asyncio.sleep(0)
+
+    with patch.object(IpPairing, "remove_pairing", new_callable=AsyncMock):
+        await controller.remove_pairing(removed_id)
+
+    assert controller.pairing_data_storage._storage_data == {}
+    assert controller.char_cache_storage._storage_data == {}
+    await controller.stop()
+
+
+async def test_start_reads_the_cache_saved_under_the_normalised_id(mock_asynczeroconf: AsyncZeroconf):
+    state = cached_state()
+    controller = await make_controller(mock_asynczeroconf, (offline_pairing_data(MIXED_CASE_ID), None))
+    await controller.char_cache_storage.save(MIXED_CASE_ID.lower(), state)
+
+    await controller.start()
+
+    assert controller.pairings[MIXED_CASE_ID.lower()].accessories_state is state
+    await controller.stop()
